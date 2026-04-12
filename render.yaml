@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: nextmile
+    runtime: node
+    region: singapore
+    plan: free
+    rootDir: .
+    buildCommand: cd server && npm ci && cd ../client && NODE_ENV=development npm ci && npm run build
+    startCommand: cd server && npx tsx src/index.ts
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+      - key: MONGODB_URI
+        sync: false

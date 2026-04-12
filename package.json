@@ -1,0 +1,17 @@
+{
+  "name": "nextmile",
+  "version": "1.0.0",
+  "private": true,
+  "description": "NEXTMILE Trucking Services - Fleet Management System",
+  "scripts": {
+    "dev": "concurrently -k \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "cd server && npm run dev",
+    "dev:client": "wait-on http://localhost:3001/api/health && cd client && npm run dev",
+    "install:all": "npm install && cd server && npm install && cd ../client && npm install",
+    "seed": "cd server && npm run seed"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "wait-on": "^8.0.3"
+  }
+}
