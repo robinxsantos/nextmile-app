@@ -1,28 +1,28 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
-import { useAuthStore } from '../store/useAuthStore';
-import { LogIn, Truck, Eye, EyeOff } from 'lucide-react';
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import { useAuthStore } from "../store/useAuthStore";
+import { LogIn, Truck, Eye, EyeOff } from "lucide-react";
 
 export default function LoginPage() {
   const { login, loading } = useAuthStore();
   const navigate = useNavigate();
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username.trim() || !password.trim()) {
-      toast.error('Please enter both username and password');
+      toast.error("Please enter both username and password");
       return;
     }
     try {
       await login(username.trim(), password);
-      toast.success('Welcome back!');
-      navigate('/', { replace: true });
+      toast.success("Welcome back!");
+      navigate("/", { replace: true });
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Login failed');
+      toast.error(err instanceof Error ? err.message : "Login failed");
     }
   };
 
@@ -34,18 +34,26 @@ export default function LoginPage() {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-600 to-blue-700 shadow-lg shadow-blue-600/20 mb-4">
             <Truck size={32} className="text-white" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">NEXTMILE</h1>
-          <p className="text-sm text-slate-500 mt-1">Trucking Management System</p>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+            NEXTMILE
+          </h1>
+          <p className="text-sm text-slate-500 mt-1">Fleet Management App</p>
         </div>
 
         {/* Login Card */}
         <div className="glass-card rounded-[28px] border border-slate-200/80 dark:border-slate-700/80 shadow-xl p-8">
-          <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-1">Sign In</h2>
-          <p className="text-sm text-slate-500 mb-6">Enter your credentials to continue</p>
+          <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-1">
+            Sign In
+          </h2>
+          <p className="text-sm text-slate-500 mb-6">
+            Enter your credentials to continue
+          </p>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div>
-              <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 block">Username</label>
+              <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 block">
+                Username
+              </label>
               <input
                 type="text"
                 value={username}
@@ -57,10 +65,12 @@ export default function LoginPage() {
               />
             </div>
             <div>
-              <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 block">Password</label>
+              <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 block">
+                Password
+              </label>
               <div className="relative">
                 <input
-                  type={showPassword ? 'text' : 'password'}
+                  type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter password"
@@ -93,7 +103,7 @@ export default function LoginPage() {
         </div>
 
         <p className="text-center text-xs text-slate-400 mt-6">
-          © {new Date().getFullYear()} NextMile Trucking Services
+          © {new Date().getFullYear()} Robin Santos
         </p>
       </div>
     </div>
