@@ -1,8 +1,8 @@
-import { create } from 'zustand';
-import { toast } from 'sonner';
-import axios from 'axios';
-import api from '../api/client';
-import { type RangePreset, getDateRangeForPreset } from '../lib/dateHelpers';
+import { create } from "zustand";
+import { toast } from "sonner";
+import axios from "axios";
+import api from "../api/client";
+import { type RangePreset, getDateRangeForPreset } from "../lib/dateHelpers";
 
 /** Extract a user-friendly error message from an unknown caught value. */
 function getErrorMessage(err: unknown, fallback: string): string {
@@ -13,9 +13,11 @@ function getErrorMessage(err: unknown, fallback: string): string {
   return fallback;
 }
 
-function getTruckId(truck: string | { _id: string; truckName: string } | null | undefined): string {
-  if (!truck) return '';
-  return typeof truck === 'string' ? truck : truck._id;
+function getTruckId(
+  truck: string | { _id: string; truckName: string } | null | undefined,
+): string {
+  if (!truck) return "";
+  return typeof truck === "string" ? truck : truck._id;
 }
 
 function applyReimbursedParkingAdjustments(
@@ -26,10 +28,13 @@ function applyReimbursedParkingAdjustments(
 
   for (const expense of expenses) {
     if (!expense.reimbursed) continue;
-    if ((expense.category || '').trim().toUpperCase() !== 'PARKING') continue;
+    if ((expense.category || "").trim().toUpperCase() !== "PARKING") continue;
 
     const key = `${getTruckId(expense.truck)}|${expense.dateIso}`;
-    reimbursedByKey.set(key, (reimbursedByKey.get(key) || 0) + Number(expense.amount || 0));
+    reimbursedByKey.set(
+      key,
+      (reimbursedByKey.get(key) || 0) + Number(expense.amount || 0),
+    );
   }
 
   if (reimbursedByKey.size === 0) return trips;
@@ -41,14 +46,18 @@ function applyReimbursedParkingAdjustments(
 
     return {
       ...trip,
-      grossIncome: trip.grossIncome + reimbursement,
-      netIncome: trip.netIncome + reimbursement,
-      reportNetIncome: trip.reportNetIncome !== undefined ? trip.reportNetIncome + reimbursement : trip.reportNetIncome,
+      // netIncome is left unchanged here to avoid double counting.
+      reportNetIncome:
+        trip.reportNetIncome !== undefined
+          ? trip.reportNetIncome + reimbursement
+          : trip.reportNetIncome,
     };
   });
 }
 
-function sumKpisFromTrips(rows: TripRow[]): Pick<KPIs, 'gross' | 'net' | 'trips'> {
+function sumKpisFromTrips(
+  rows: TripRow[],
+): Pick<KPIs, "gross" | "net" | "trips"> {
   return rows.reduce(
     (acc, row) => ({
       gross: acc.gross + Number(row.grossIncome || 0),
@@ -143,7 +152,7 @@ export interface ChartPoint {
 interface AppState {
   // UI
   sidebarCollapsed: boolean;
-  theme: 'light' | 'dark';
+  theme: "light" | "dark";
   loading: boolean;
   initialized: boolean;
   error: string | null;
@@ -159,7 +168,12 @@ interface AppState {
   previousKpis: KPIs;
   chartData: ChartPoint[];
   reportRows: TripRow[];
-  truckStats: { total: number; active: number; inactive: number; sheets: number };
+  truckStats: {
+    total: number;
+    active: number;
+    inactive: number;
+    sheets: number;
+  };
 
   // Bulk selection
   selectedTripIds: string[];
@@ -179,7 +193,7 @@ interface AppState {
   // Actions
   toggleSidebar: () => void;
   toggleTheme: () => void;
-  setTheme: (theme: 'light' | 'dark') => void;
+  setTheme: (theme: "light" | "dark") => void;
   setError: (error: string | null) => void;
   setSelectedTruck: (id: string) => void;
   setRangePreset: (preset: RangePreset) => void;
@@ -209,7 +223,11 @@ interface AppState {
   getLastTrip: (truckId: string) => Promise<TripRow | null>;
 
   // CRUD
-  quickEditTrip: (id: string, field: string, value: number | string) => Promise<void>;
+  quickEditTrip: (
+    id: string,
+    field: string,
+    value: number | string,
+  ) => Promise<void>;
   addTrip: (data: Record<string, unknown>) => Promise<void>;
   updateTrip: (id: string, data: Record<string, unknown>) => Promise<void>;
   deleteTrip: (id: string) => Promise<void>;
@@ -223,19 +241,19 @@ interface AppState {
   deleteTruck: (id: string) => Promise<void>;
 }
 
-const getStoredTheme = (): 'light' | 'dark' => {
+const getStoredTheme = (): "light" | "dark" => {
   try {
-    const saved = localStorage.getItem('nm_theme');
-    if (saved === 'dark' || saved === 'light') return saved;
-    return 'light';
+    const saved = localStorage.getItem("nm_theme");
+    if (saved === "dark" || saved === "light") return saved;
+    return "light";
   } catch {
-    return 'light';
+    return "light";
   }
 };
 
 export const useAppStore = create<AppState>((set, get) => ({
   // UI
-  sidebarCollapsed: localStorage.getItem('nm_sidebar') === '1',
+  sidebarCollapsed: localStorage.getItem("nm_sidebar") === "1",
   theme: getStoredTheme(),
   loading: false,
   initialized: false,
@@ -249,7 +267,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   truckRows: [],
   rawReportRows: [],
   kpis: { gross: 0, net: 0, trips: 0, payable: 0, cashOutflow: 0, expenses: 0 },
-  previousKpis: { gross: 0, net: 0, trips: 0, payable: 0, cashOutflow: 0, expenses: 0 },
+  previousKpis: {
+    gross: 0,
+    net: 0,
+    trips: 0,
+    payable: 0,
+    cashOutflow: 0,
+    expenses: 0,
+  },
   chartData: [],
   reportRows: [],
   truckStats: { total: 0, active: 0, inactive: 0, sheets: 0 },
@@ -261,23 +286,27 @@ export const useAppStore = create<AppState>((set, get) => ({
   expenseCategories: [],
 
   // Filters
-  selectedTruck: '',
-  rangePreset: 'CC',
-  startDate: '',
-  endDate: '',
-  expensesMonth: 'ALL',
-  reportsMonth: 'ALL',
-  searchQuery: '',
+  selectedTruck: "",
+  rangePreset: "CC",
+  startDate: "",
+  endDate: "",
+  expensesMonth: "ALL",
+  reportsMonth: "ALL",
+  searchQuery: "",
 
   // Actions
-  toggleSidebar: () => { const next = !get().sidebarCollapsed; localStorage.setItem('nm_sidebar', next ? '1' : '0'); set({ sidebarCollapsed: next }); },
+  toggleSidebar: () => {
+    const next = !get().sidebarCollapsed;
+    localStorage.setItem("nm_sidebar", next ? "1" : "0");
+    set({ sidebarCollapsed: next });
+  },
   toggleTheme: () => {
-    const next = get().theme === 'dark' ? 'light' : 'dark';
-    localStorage.setItem('nm_theme', next);
+    const next = get().theme === "dark" ? "light" : "dark";
+    localStorage.setItem("nm_theme", next);
     set({ theme: next });
   },
   setTheme: (theme) => {
-    localStorage.setItem('nm_theme', theme);
+    localStorage.setItem("nm_theme", theme);
     set({ theme });
   },
   setError: (error) => set({ error }),
@@ -297,21 +326,30 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     // Optimistic update
     set({
-      tripRows: state.tripRows.map(t =>
+      tripRows: state.tripRows.map((t) =>
         ids.includes(t._id)
-          ? { ...t, paid, payable: paid ? 0 : (t.crewSalary - t.cashAdvance + t.reimbursements) }
-          : t
+          ? {
+              ...t,
+              paid,
+              payable: paid
+                ? 0
+                : t.crewSalary - t.cashAdvance + t.reimbursements,
+            }
+          : t,
       ),
       selectedTripIds: [],
     });
 
     try {
-      await api.patch('/trips/bulk-paid', { ids, paid });
+      await api.patch("/trips/bulk-paid", { ids, paid });
       await get().fetchDashboard();
-      toast.success(`${ids.length} trip(s) marked as ${paid ? 'paid' : 'unpaid'}`, { duration: 4000 });
+      toast.success(
+        `${ids.length} trip(s) marked as ${paid ? "paid" : "unpaid"}`,
+        { duration: 4000 },
+      );
     } catch (err: unknown) {
       set({ tripRows: originalRows, selectedTripIds: ids });
-      toast.error(getErrorMessage(err, 'Failed to update paid status'));
+      toast.error(getErrorMessage(err, "Failed to update paid status"));
     }
   },
   bulkDeleteTrips: async (ids) => {
@@ -320,17 +358,17 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     // Optimistic removal
     set({
-      tripRows: state.tripRows.filter(t => !ids.includes(t._id)),
+      tripRows: state.tripRows.filter((t) => !ids.includes(t._id)),
       selectedTripIds: [],
     });
 
     try {
-      await api.delete('/trips/bulk-delete', { data: { ids } });
+      await api.delete("/trips/bulk-delete", { data: { ids } });
       await get().fetchDashboard();
       toast.success(`${ids.length} trip(s) deleted`, { duration: 4000 });
     } catch (err: unknown) {
       set({ tripRows: originalRows, selectedTripIds: ids });
-      toast.error(getErrorMessage(err, 'Failed to delete trips'));
+      toast.error(getErrorMessage(err, "Failed to delete trips"));
     }
   },
 
@@ -340,10 +378,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       const state = get();
       const params: Record<string, string> = {};
       if (state.selectedTruck) params.truck = state.selectedTruck;
-      const { data } = await api.get('/expenses/categories', { params });
+      const { data } = await api.get("/expenses/categories", { params });
       set({ expenseCategories: data.categories || [] });
     } catch (err) {
-      console.error('Failed to fetch expense categories:', err);
+      console.error("Failed to fetch expense categories:", err);
     }
   },
 
@@ -353,7 +391,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       const { data } = await api.get(`/trips/last?truck=${truckId}`);
       return data.trip || null;
     } catch (err) {
-      console.error('Failed to fetch last trip:', err);
+      console.error("Failed to fetch last trip:", err);
       return null;
     }
   },
@@ -364,9 +402,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ error: null });
     try {
       // Fetch trucks first to get options
-      const trucksRes = await api.get('/trucks');
+      const trucksRes = await api.get("/trucks");
       const truckRows = trucksRes.data.rows || [];
-      const activeTrucks = truckRows.filter((t: TruckRow) => t.status === 'Active');
+      const activeTrucks = truckRows.filter(
+        (t: TruckRow) => t.status === "Active",
+      );
 
       set({
         truckRows,
@@ -390,17 +430,28 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({ truckOptions });
 
       // Check if user is admin (from auth store in localStorage)
-      const storedUser = localStorage.getItem('nm_user');
-      const isAdmin = storedUser ? JSON.parse(storedUser).role === 'admin' : true;
+      const storedUser = localStorage.getItem("nm_user");
+      const isAdmin = storedUser
+        ? JSON.parse(storedUser).role === "admin"
+        : true;
 
       // For employees with assigned truck, force-select it and show all trips
       if (!isAdmin && storedUser) {
         const userObj = JSON.parse(storedUser);
-        const assignedTruck = typeof userObj.truck === 'object' && userObj.truck
-          ? userObj.truck._id
-          : userObj.truck;
-        if (assignedTruck && truckOptions.find(t => t._id === assignedTruck)) {
-          set({ selectedTruck: assignedTruck, rangePreset: 'CC' as RangePreset, startDate: '', endDate: '' });
+        const assignedTruck =
+          typeof userObj.truck === "object" && userObj.truck
+            ? userObj.truck._id
+            : userObj.truck;
+        if (
+          assignedTruck &&
+          truckOptions.find((t) => t._id === assignedTruck)
+        ) {
+          set({
+            selectedTruck: assignedTruck,
+            rangePreset: "CC" as RangePreset,
+            startDate: "",
+            endDate: "",
+          });
         }
       } else if (!get().selectedTruck && truckOptions.length > 0) {
         // Admin: auto-select first truck if none selected
@@ -413,8 +464,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       await get().fetchDashboard();
       await get().fetchExpenses();
     } catch (err: unknown) {
-      console.error('Failed to init app:', err);
-      const msg = getErrorMessage(err, 'Failed to initialize app');
+      console.error("Failed to init app:", err);
+      const msg = getErrorMessage(err, "Failed to initialize app");
       set({ initialized: true, error: msg });
       toast.error(msg);
     }
@@ -425,13 +476,15 @@ export const useAppStore = create<AppState>((set, get) => ({
     const state = get();
     set({ loading: true, error: null });
     try {
-      const truckConfig = state.truckOptions.find((t) => t._id === state.selectedTruck);
+      const truckConfig = state.truckOptions.find(
+        (t) => t._id === state.selectedTruck,
+      );
       const range = getDateRangeForPreset(
         state.rangePreset,
         truckConfig?.cutoffStart ?? 1,
         truckConfig?.cutoffEnd ?? 6,
         state.startDate,
-        state.endDate
+        state.endDate,
       );
 
       const params: Record<string, string> = {};
@@ -439,27 +492,39 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (range.start) params.start = range.start;
       if (range.end) params.end = range.end;
 
-      const { data } = await api.get('/dashboard', { params });
+      const { data } = await api.get("/dashboard", { params });
 
       // Update truck options from response if available
-      const newTruckOptions = data.truckOptions && data.truckOptions.length > 0
-        ? data.truckOptions
-        : state.truckOptions;
+      const newTruckOptions =
+        data.truckOptions && data.truckOptions.length > 0
+          ? data.truckOptions
+          : state.truckOptions;
 
       const rawTripRows = data.rows || [];
-      const adjustedTripRows = applyReimbursedParkingAdjustments(rawTripRows, state.expenseRows);
-      const tripTotals = sumKpisFromTrips(adjustedTripRows);
+      const adjustedTripRows = applyReimbursedParkingAdjustments(
+        rawTripRows,
+        state.expenseRows,
+      );
 
       set({
         rawTripRows,
         tripRows: adjustedTripRows,
-        kpis: {
-          ...(data.kpis || { gross: 0, net: 0, trips: 0, payable: 0, cashOutflow: 0, expenses: 0 }),
-          gross: tripTotals.gross,
-          net: tripTotals.net,
-          trips: tripTotals.trips,
+        kpis: data.kpis || {
+          gross: 0,
+          net: 0,
+          trips: 0,
+          payable: 0,
+          cashOutflow: 0,
+          expenses: 0,
         },
-        previousKpis: data.previousKpis || { gross: 0, net: 0, trips: 0, payable: 0, cashOutflow: 0, expenses: 0 },
+        previousKpis: data.previousKpis || {
+          gross: 0,
+          net: 0,
+          trips: 0,
+          payable: 0,
+          cashOutflow: 0,
+          expenses: 0,
+        },
         chartData: data.chartData || [],
         truckOptions: newTruckOptions,
         startDate: range.start,
@@ -467,8 +532,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         error: null,
       });
     } catch (err: unknown) {
-      console.error('Failed to fetch dashboard:', err);
-      const msg = getErrorMessage(err, 'Failed to load dashboard data');
+      console.error("Failed to fetch dashboard:", err);
+      const msg = getErrorMessage(err, "Failed to load dashboard data");
       set({ error: msg });
       toast.error(msg);
     } finally {
@@ -481,22 +546,24 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       const params: Record<string, string> = {};
       if (state.selectedTruck) params.truck = state.selectedTruck;
-      if (state.expensesMonth !== 'ALL') params.month = state.expensesMonth;
+      if (state.expensesMonth !== "ALL") params.month = state.expensesMonth;
 
-      const { data } = await api.get('/expenses', { params });
+      const { data } = await api.get("/expenses", { params });
       set({ expenseRows: data.rows || [] });
       get().recomputeParkingReimbursements();
     } catch (err: unknown) {
-      console.error('Failed to fetch expenses:', err);
-      toast.error(getErrorMessage(err, 'Failed to load expenses'));
+      console.error("Failed to fetch expenses:", err);
+      toast.error(getErrorMessage(err, "Failed to load expenses"));
     }
   },
 
   fetchTrucks: async () => {
     try {
-      const { data } = await api.get('/trucks');
+      const { data } = await api.get("/trucks");
       const truckRows = data.rows || [];
-      const activeTrucks = truckRows.filter((t: TruckRow) => t.status === 'Active');
+      const activeTrucks = truckRows.filter(
+        (t: TruckRow) => t.status === "Active",
+      );
 
       set({
         truckRows,
@@ -516,8 +583,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         })),
       });
     } catch (err: unknown) {
-      console.error('Failed to fetch trucks:', err);
-      toast.error(getErrorMessage(err, 'Failed to load trucks'));
+      console.error("Failed to fetch trucks:", err);
+      toast.error(getErrorMessage(err, "Failed to load trucks"));
     }
   },
 
@@ -526,21 +593,33 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       const params: Record<string, string> = {};
       if (state.selectedTruck) params.truck = state.selectedTruck;
-      if (state.reportsMonth !== 'ALL') params.month = state.reportsMonth;
+      if (state.reportsMonth !== "ALL") params.month = state.reportsMonth;
 
-      const { data } = await api.get('/dashboard/reports', { params });
+      const { data } = await api.get("/dashboard/reports", { params });
       const rawReportRows = data.rows || [];
-      set({ rawReportRows, reportRows: applyReimbursedParkingAdjustments(rawReportRows, state.expenseRows) });
+      set({
+        rawReportRows,
+        reportRows: applyReimbursedParkingAdjustments(
+          rawReportRows,
+          state.expenseRows,
+        ),
+      });
     } catch (err: unknown) {
-      console.error('Failed to fetch reports:', err);
-      toast.error(getErrorMessage(err, 'Failed to load reports'));
+      console.error("Failed to fetch reports:", err);
+      toast.error(getErrorMessage(err, "Failed to load reports"));
     }
   },
 
   recomputeParkingReimbursements: () => {
     const state = get();
-    const adjustedTripRows = applyReimbursedParkingAdjustments(state.rawTripRows.length ? state.rawTripRows : state.tripRows, state.expenseRows);
-    const adjustedReportRows = applyReimbursedParkingAdjustments(state.rawReportRows.length ? state.rawReportRows : state.reportRows, state.expenseRows);
+    const adjustedTripRows = applyReimbursedParkingAdjustments(
+      state.rawTripRows.length ? state.rawTripRows : state.tripRows,
+      state.expenseRows,
+    );
+    const adjustedReportRows = applyReimbursedParkingAdjustments(
+      state.rawReportRows.length ? state.rawReportRows : state.reportRows,
+      state.expenseRows,
+    );
     const tripTotals = sumKpisFromTrips(adjustedTripRows);
 
     set({
@@ -561,7 +640,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       await api.patch(`/trips/${id}/quick-edit`, { field, value });
       await get().fetchDashboard();
     } catch (err: unknown) {
-      toast.error(getErrorMessage(err, 'Failed to update field'));
+      toast.error(getErrorMessage(err, "Failed to update field"));
       throw err;
     }
   },
@@ -569,23 +648,23 @@ export const useAppStore = create<AppState>((set, get) => ({
   // CRUD - Trips
   addTrip: async (tripData) => {
     try {
-      await api.post('/trips', tripData);
-      toast.success('Trip created successfully', { duration: 4000 });
+      await api.post("/trips", tripData);
+      toast.success("Trip created successfully", { duration: 4000 });
       await get().fetchDashboard();
       await get().fetchExpenses();
     } catch (err: unknown) {
-      toast.error(getErrorMessage(err, 'Failed to create trip'));
+      toast.error(getErrorMessage(err, "Failed to create trip"));
       throw err;
     }
   },
   updateTrip: async (id, tripData) => {
     try {
       await api.put(`/trips/${id}`, tripData);
-      toast.success('Trip updated successfully', { duration: 4000 });
+      toast.success("Trip updated successfully", { duration: 4000 });
       await get().fetchDashboard();
       await get().fetchExpenses();
     } catch (err: unknown) {
-      toast.error(getErrorMessage(err, 'Failed to update trip'));
+      toast.error(getErrorMessage(err, "Failed to update trip"));
       throw err;
     }
   },
@@ -594,33 +673,34 @@ export const useAppStore = create<AppState>((set, get) => ({
     const originalRows = state.tripRows;
 
     // Optimistic removal
-    set({ tripRows: state.tripRows.filter(t => t._id !== id) });
+    set({ tripRows: state.tripRows.filter((t) => t._id !== id) });
 
     try {
       await api.delete(`/trips/${id}`);
       await get().fetchDashboard();
-      toast.success('Trip deleted', { duration: 4000 });
+      toast.success("Trip deleted", { duration: 4000 });
     } catch (err: unknown) {
       // Revert on error
       set({ tripRows: originalRows });
-      toast.error(getErrorMessage(err, 'Failed to delete trip'));
+      toast.error(getErrorMessage(err, "Failed to delete trip"));
     }
   },
   toggleTripPaid: async (id) => {
     const state = get();
-    const trip = state.tripRows.find(t => t._id === id);
+    const trip = state.tripRows.find((t) => t._id === id);
     if (!trip) return;
 
     const wasPaid = trip.paid;
     const originalPayable = trip.payable;
-    const totalPayable = trip.crewSalary - trip.cashAdvance + trip.reimbursements;
+    const totalPayable =
+      trip.crewSalary - trip.cashAdvance + trip.reimbursements;
 
     // Optimistic update
     set({
-      tripRows: state.tripRows.map(t =>
+      tripRows: state.tripRows.map((t) =>
         t._id === id
           ? { ...t, paid: !wasPaid, payable: wasPaid ? totalPayable : 0 }
-          : t
+          : t,
       ),
     });
 
@@ -628,50 +708,48 @@ export const useAppStore = create<AppState>((set, get) => ({
       await api.patch(`/trips/${id}/toggle-paid`);
       await get().fetchDashboard();
 
-      toast.success(wasPaid ? 'Marked as unpaid' : 'Marked as paid', {
+      toast.success(wasPaid ? "Marked as unpaid" : "Marked as paid", {
         duration: 5000,
         action: {
-          label: 'Undo',
+          label: "Undo",
           onClick: async () => {
             await api.patch(`/trips/${id}/toggle-paid`);
             await get().fetchDashboard();
-            toast.success('Undone', { duration: 2000 });
+            toast.success("Undone", { duration: 2000 });
           },
         },
       });
     } catch (err: unknown) {
       // Revert on error
       set({
-        tripRows: get().tripRows.map(t =>
-          t._id === id
-            ? { ...t, paid: wasPaid, payable: originalPayable }
-            : t
+        tripRows: get().tripRows.map((t) =>
+          t._id === id ? { ...t, paid: wasPaid, payable: originalPayable } : t,
         ),
       });
-      toast.error(getErrorMessage(err, 'Failed to update paid status'));
+      toast.error(getErrorMessage(err, "Failed to update paid status"));
     }
   },
 
   // CRUD - Expenses
   addExpense: async (expenseData) => {
     try {
-      await api.post('/expenses', expenseData);
-      toast.success('Expense saved successfully', { duration: 4000 });
+      await api.post("/expenses", expenseData);
+      toast.success("Expense saved successfully", { duration: 4000 });
       await get().fetchExpenses();
       await get().fetchDashboard();
     } catch (err: unknown) {
-      toast.error(getErrorMessage(err, 'Failed to save expense'));
+      toast.error(getErrorMessage(err, "Failed to save expense"));
       throw err;
     }
   },
   updateExpense: async (id, expenseData) => {
     try {
       await api.put(`/expenses/${id}`, expenseData);
-      toast.success('Expense updated successfully', { duration: 4000 });
+      toast.success("Expense updated successfully", { duration: 4000 });
       await get().fetchExpenses();
       await get().fetchDashboard();
     } catch (err: unknown) {
-      toast.error(getErrorMessage(err, 'Failed to update expense'));
+      toast.error(getErrorMessage(err, "Failed to update expense"));
       throw err;
     }
   },
@@ -680,17 +758,17 @@ export const useAppStore = create<AppState>((set, get) => ({
     const originalRows = state.expenseRows;
 
     // Optimistic removal
-    set({ expenseRows: state.expenseRows.filter(e => e._id !== id) });
+    set({ expenseRows: state.expenseRows.filter((e) => e._id !== id) });
 
     try {
       await api.delete(`/expenses/${id}`);
       await get().fetchExpenses();
       await get().fetchDashboard();
-      toast.success('Expense deleted', { duration: 4000 });
+      toast.success("Expense deleted", { duration: 4000 });
     } catch (err: unknown) {
       // Revert on error
       set({ expenseRows: originalRows });
-      toast.error(getErrorMessage(err, 'Failed to delete expense'));
+      toast.error(getErrorMessage(err, "Failed to delete expense"));
     }
   },
 
@@ -701,8 +779,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     // Optimistic toggle
     set({
-      expenseRows: state.expenseRows.map(e =>
-        e._id === id ? { ...e, reimbursed: !e.reimbursed } : e
+      expenseRows: state.expenseRows.map((e) =>
+        e._id === id ? { ...e, reimbursed: !e.reimbursed } : e,
       ),
     });
     get().recomputeParkingReimbursements();
@@ -712,35 +790,40 @@ export const useAppStore = create<AppState>((set, get) => ({
       await get().fetchExpenses();
       await get().fetchDashboard();
       get().recomputeParkingReimbursements();
-      const expense = originalRows.find(e => e._id === id);
-      toast.success(expense?.reimbursed ? 'Marked as not reimbursed' : 'Marked as reimbursed', { duration: 3000 });
+      const expense = originalRows.find((e) => e._id === id);
+      toast.success(
+        expense?.reimbursed
+          ? "Marked as not reimbursed"
+          : "Marked as reimbursed",
+        { duration: 3000 },
+      );
     } catch (err: unknown) {
       set({ expenseRows: originalRows });
       get().recomputeParkingReimbursements();
-      toast.error(getErrorMessage(err, 'Failed to toggle reimbursed'));
+      toast.error(getErrorMessage(err, "Failed to toggle reimbursed"));
     }
   },
 
   // CRUD - Trucks
   addTruck: async (truckData) => {
     try {
-      await api.post('/trucks', truckData);
-      toast.success('Truck saved successfully', { duration: 4000 });
+      await api.post("/trucks", truckData);
+      toast.success("Truck saved successfully", { duration: 4000 });
       await get().fetchTrucks();
       await get().fetchDashboard();
     } catch (err: unknown) {
-      toast.error(getErrorMessage(err, 'Failed to save truck'));
+      toast.error(getErrorMessage(err, "Failed to save truck"));
       throw err;
     }
   },
   updateTruck: async (id, truckData) => {
     try {
       await api.put(`/trucks/${id}`, truckData);
-      toast.success('Truck updated successfully', { duration: 4000 });
+      toast.success("Truck updated successfully", { duration: 4000 });
       await get().fetchTrucks();
       await get().fetchDashboard();
     } catch (err: unknown) {
-      toast.error(getErrorMessage(err, 'Failed to update truck'));
+      toast.error(getErrorMessage(err, "Failed to update truck"));
       throw err;
     }
   },
@@ -751,11 +834,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     const originalSelectedTruck = state.selectedTruck;
 
     // Optimistic removal
-    const newTruckRows = state.truckRows.filter(t => t._id !== id);
-    const newTruckOptions = state.truckOptions.filter(t => t._id !== id);
-    const newSelectedTruck = state.selectedTruck === id
-      ? (newTruckOptions.length > 0 ? newTruckOptions[0]._id : '')
-      : state.selectedTruck;
+    const newTruckRows = state.truckRows.filter((t) => t._id !== id);
+    const newTruckOptions = state.truckOptions.filter((t) => t._id !== id);
+    const newSelectedTruck =
+      state.selectedTruck === id
+        ? newTruckOptions.length > 0
+          ? newTruckOptions[0]._id
+          : ""
+        : state.selectedTruck;
 
     set({
       truckRows: newTruckRows,
@@ -767,7 +853,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       await api.delete(`/trucks/${id}`);
       await get().fetchTrucks();
       await get().fetchDashboard();
-      toast.success('Truck deleted', { duration: 4000 });
+      toast.success("Truck deleted", { duration: 4000 });
     } catch (err: unknown) {
       // Revert on error
       set({
@@ -775,7 +861,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         truckOptions: originalTruckOptions,
         selectedTruck: originalSelectedTruck,
       });
-      toast.error(getErrorMessage(err, 'Failed to delete truck'));
+      toast.error(getErrorMessage(err, "Failed to delete truck"));
     }
   },
 }));

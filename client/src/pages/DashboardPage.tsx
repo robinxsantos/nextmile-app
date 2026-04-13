@@ -6,7 +6,7 @@ import FilterBar from "../components/shared/FilterBar";
 import TripModal from "../components/shared/TripModal";
 import TripTable from "../components/shared/TripTable";
 import ErrorState from "../components/shared/ErrorState";
-import { peso, pesoCompact } from "../lib/utils";
+// import { peso, pesoCompact } from "../lib/utils";
 import { exportTripsCsv, exportPayslip } from "../lib/exportHelpers";
 import {
   DollarSign,
@@ -170,9 +170,7 @@ export default function DashboardPage() {
 
   const handleExportPayslip = () => {
     const truckLabel = selectedTruckName || "All Trucks";
-    const rangeText =
-      startDate && endDate ? `${startDate} to ${endDate}` : "All Dates";
-    exportPayslip(filteredRows, truckLabel, rangeText);
+    exportPayslip(filteredRows, truckLabel, startDate, endDate);
   };
 
   const handleDelete = async () => {
@@ -217,7 +215,7 @@ export default function DashboardPage() {
       {/* Filters */}
       <FilterBar
         showTruck={admin}
-        allowedRangePresets={admin ? undefined : (['CC', 'LC'] as const)}
+        allowedRangePresets={admin ? undefined : (["CC", "LC"] as const)}
         actions={
           <button
             onClick={handleAddTrip}
@@ -232,34 +230,38 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 min-[480px]:grid-cols-2 xl:grid-cols-5 gap-2.5 sm:gap-3 mb-3">
         <KpiCard
           label={`${kpiPrefix} Gross`}
-          value={pesoCompact(kpis.gross)}
+          value={kpis.gross}
           currentValue={kpis.gross}
           previousValue={previousKpis.gross}
           subtitle="Total gross income"
           icon={<DollarSign size={22} />}
           colorClass="bg-blue-600/10 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400"
         />
+
         <KpiCard
           label={`${kpiPrefix} Net`}
-          value={pesoCompact(kpis.net)}
+          value={kpis.net}
           currentValue={kpis.net}
           previousValue={previousKpis.net}
           subtitle="After salary and expenses"
           icon={<CheckCircle2 size={22} />}
           colorClass="bg-teal-500/10 text-teal-500 dark:bg-teal-500/15 dark:text-teal-400"
         />
+
         <KpiCard
           label={`${kpiPrefix} Trips`}
-          value={kpis.trips.toLocaleString()}
+          value={kpis.trips}
           currentValue={kpis.trips}
           previousValue={previousKpis.trips}
           subtitle="Trip count summary"
           icon={<TruckIcon size={22} />}
           colorClass="bg-amber-500/10 text-amber-500 dark:bg-amber-500/15 dark:text-amber-400"
+          format="number" // 👈 no decimals
         />
+
         <KpiCard
           label={`${kpiPrefix} Payable`}
-          value={pesoCompact(kpis.payable)}
+          value={kpis.payable}
           currentValue={kpis.payable}
           previousValue={previousKpis.payable}
           subtitle="Crew payable total"
@@ -267,9 +269,10 @@ export default function DashboardPage() {
           colorClass="bg-cyan-500/10 text-cyan-500 dark:bg-cyan-500/15 dark:text-cyan-400"
           invertTrend
         />
+
         <KpiCard
           label={`${kpiPrefix} Cash Outflow`}
-          value={pesoCompact(kpis.cashOutflow)}
+          value={kpis.cashOutflow}
           currentValue={kpis.cashOutflow}
           previousValue={previousKpis.cashOutflow}
           subtitle="Actual cash paid to crew"
@@ -348,9 +351,7 @@ export default function DashboardPage() {
                       fontSize: 13,
                     }}
                     formatter={(value: number) =>
-                      chart.dataKey === "trips"
-                        ? value.toLocaleString()
-                        : peso(value)
+                      chart.dataKey === "trips" ? value.toLocaleString() : value
                     }
                   />
                   <Area

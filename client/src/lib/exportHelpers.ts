@@ -1,47 +1,120 @@
-import type { TripRow } from '../store/useAppStore';
-import { peso } from './utils';
+import type { TripRow } from "../store/useAppStore";
+import { peso } from "./utils";
 
 function escapeCsv(v: string | number): string {
-  const s = String(v ?? '');
+  const s = String(v ?? "");
   return `"${s.replace(/"/g, '""')}"`;
 }
 
 function escHtml(s: string): string {
-  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 export function exportTripsCsv(rows: TripRow[], filename?: string) {
-  const headers = ['Week', 'Date', 'Status', 'Shipment #', 'Rate', 'Trips', 'Crew Salary', 'Cash Advance', 'Reimbursements', 'Expenses', 'Note', 'Gross', 'Net', 'Payable'];
+  const headers = [
+    "Week",
+    "Date",
+    "Status",
+    "Shipment #",
+    "Rate",
+    "Trips",
+    "Crew Salary",
+    "Cash Advance",
+    "Reimbursements",
+    "Expenses",
+    "Note",
+    "Gross",
+    "Net",
+    "Payable",
+  ];
   const lines = [
-    headers.map(escapeCsv).join(','),
+    headers.map(escapeCsv).join(","),
     ...rows.map((r) =>
-      [r.week, r.dateText, r.status, r.shipmentNumber, r.rate, r.trips, r.crewSalary, r.cashAdvance, r.reimbursements, r.expenses, r.note, r.grossIncome, r.netIncome, r.payable].map(escapeCsv).join(',')
+      [
+        r.week,
+        r.dateText,
+        r.status,
+        r.shipmentNumber,
+        r.rate,
+        r.trips,
+        r.crewSalary,
+        r.cashAdvance,
+        r.reimbursements,
+        r.expenses,
+        r.note,
+        r.grossIncome,
+        r.netIncome,
+        r.payable,
+      ]
+        .map(escapeCsv)
+        .join(","),
     ),
   ];
-  const blob = new Blob([lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  const blob = new Blob([lines.join("\r\n")], {
+    type: "text/csv;charset=utf-8;",
+  });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
+  const a = document.createElement("a");
   a.href = url;
   const d = new Date();
-  a.download = filename || `NEXTMILE_${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}.csv`;
+  a.download =
+    filename ||
+    `NEXTMILE_${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}.csv`;
   document.body.appendChild(a);
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
 }
 
-export function exportPayslip(rows: TripRow[], truckLabel: string, rangeText: string) {
+export function exportPayslip(
+  rows: TripRow[],
+  truckLabel: string,
+  startDate?: string,
+  endDate?: string,
+) {
   const totalTrips = rows.reduce((s, r) => s + (r.trips || 0), 0);
-  const totalPayable = rows.reduce((s, r) => s + (r.paid ? 0 : r.payable || 0), 0);
+  const totalPayable = rows.reduce(
+    (s, r) => s + (r.paid ? 0 : r.payable || 0),
+    0,
+  );
 
   const formatDateTime = (d: Date) =>
-    d.toLocaleString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
+    d.toLocaleString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+
+  const formatDateLong = (value?: string) => {
+    if (!value) return "";
+    const d = new Date(value);
+    return d.toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  };
+
+  const rangeLabel =
+    startDate && endDate
+      ? `${formatDateLong(startDate)} to ${formatDateLong(endDate)}`
+      : "All Dates";
 
   const rowHtml = rows
-    .filter((r) => r.status === 'Working Day' && !r.paid)
-    .map((r) =>
-      `<tr><td>${escHtml(r.dateText)}</td><td>${escHtml(r.shipmentNumber)}</td><td>${r.trips}</td><td>${peso(r.crewSalary)}</td><td>${peso(r.cashAdvance)}</td><td>${peso(r.reimbursements)}</td><td>${peso(r.paid ? 0 : r.payable)}</td></tr>`
-    ).join('');
+    .filter((r) => r.status === "Working Day" && !r.paid)
+    .map(
+      (r) =>
+        `<tr><td>${escHtml(r.dateText)}</td><td>${escHtml(r.shipmentNumber)}</td><td>${r.trips}</td><td>${peso(r.crewSalary)}</td><td>${peso(r.cashAdvance)}</td><td>${peso(r.reimbursements)}</td><td>${peso(r.paid ? 0 : r.payable)}</td></tr>`,
+    )
+    .join("");
 
   const html = `<!doctype html><html><head><meta charset="utf-8"><title>Payslip</title>
 <style>
@@ -60,9 +133,9 @@ tbody tr:nth-child(even) td { background-color: #f9fafb; }
 .label { letter-spacing: 0.05em; color: #333; }
 </style></head><body>
 <div class="header">
-  <div class="title">CREW SALARY PAYSLIP</div>
+  <div class="title">CREW SALARY</div>
   <div class="meta">
-    <strong>Range:</strong> ${escHtml(rangeText)}<br>
+    <strong>Range:</strong> ${escHtml(rangeLabel)}<br>
     <strong>Truck:</strong> ${escHtml(truckLabel)}<br>
     <strong>Generated:</strong> ${formatDateTime(new Date())}
   </div>
@@ -78,21 +151,38 @@ tbody tr:nth-child(even) td { background-color: #f9fafb; }
 <script>window.onload=function(){window.print();}</script>
 </body></html>`;
 
-  const win = window.open('', '_blank', 'width=900,height=700');
-  if (win) { win.document.open(); win.document.write(html); win.document.close(); }
+  const win = window.open("", "_blank", "width=900,height=700");
+  if (win) {
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+  }
 }
 
-export function exportMonthlyReport(rows: TripRow[], truckLabel: string, periodText: string) {
+export function exportMonthlyReport(
+  rows: TripRow[],
+  truckLabel: string,
+  periodText: string,
+) {
   const totalTrips = rows.reduce((s, r) => s + (r.trips || 0), 0);
   const totalGross = rows.reduce((s, r) => s + (r.grossIncome || 0), 0);
-  const totalPayable = rows.reduce((s, r) => s + (r.reportPayable || r.payable || 0), 0);
+  const totalPayable = rows.reduce(
+    (s, r) => s + (r.reportPayable || r.payable || 0),
+    0,
+  );
   const totalExpenses = rows.reduce((s, r) => s + (r.expenses || 0), 0);
-  const totalNet = rows.reduce((s, r) => s + (r.reportNetIncome || r.netIncome || 0), 0);
+  const totalNet = rows.reduce(
+    (s, r) => s + (r.reportNetIncome || r.netIncome || 0),
+    0,
+  );
   const totalCrewSalary = rows.reduce((s, r) => s + (r.crewSalary || 0), 0);
 
-  const rowHtml = rows.map((r) =>
-    `<tr><td>${escHtml(r.dateText)}</td><td>${escHtml(r.shipmentNumber)}</td><td>${peso(r.rate)}</td><td>${r.trips}</td><td>${peso(r.crewSalary)}</td><td>${peso(r.cashAdvance)}</td><td>${peso(r.reimbursements)}</td><td>${peso(r.expenses)}</td><td>${escHtml(r.note || '')}</td><td>${peso(r.grossIncome)}</td><td>${peso(r.reportNetIncome ?? r.netIncome)}</td><td>${peso(r.reportPayable ?? r.payable)}</td></tr>`
-  ).join('');
+  const rowHtml = rows
+    .map(
+      (r) =>
+        `<tr><td>${escHtml(r.dateText)}</td><td>${escHtml(r.shipmentNumber)}</td><td>${peso(r.rate)}</td><td>${r.trips}</td><td>${peso(r.crewSalary)}</td><td>${peso(r.cashAdvance)}</td><td>${peso(r.reimbursements)}</td><td>${peso(r.expenses)}</td><td>${escHtml(r.note || "")}</td><td>${peso(r.grossIncome)}</td><td>${peso(r.reportNetIncome ?? r.netIncome)}</td><td>${peso(r.reportPayable ?? r.payable)}</td></tr>`,
+    )
+    .join("");
 
   const html = `<!doctype html><html><head><meta charset="utf-8"><title>Monthly Report</title>
 <style>
@@ -129,6 +219,10 @@ tbody tr:nth-child(even) td{background-color:#f9fafb}
 <script>window.onload=function(){window.print();}</script>
 </body></html>`;
 
-  const win = window.open('', '_blank', 'width=900,height=700');
-  if (win) { win.document.open(); win.document.write(html); win.document.close(); }
+  const win = window.open("", "_blank", "width=900,height=700");
+  if (win) {
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+  }
 }

@@ -113,14 +113,7 @@ export default function TripsPage() {
       });
     }
     return rows;
-  }, [
-    tripRows,
-    searchQuery,
-    sortField,
-    sortDirection,
-    admin,
-    driverStatus,
-  ]);
+  }, [tripRows, searchQuery, sortField, sortDirection, admin, driverStatus]);
 
   const {
     paginatedItems: paginatedRows,
@@ -187,8 +180,7 @@ export default function TripsPage() {
     const truckLabel =
       truckOptions.find((t) => t._id === selectedTruck)?.truckName ||
       "All Trucks";
-    const rangeLabel = getRangeLabel();
-    exportPayslip(filteredRows, truckLabel, rangeLabel);
+    exportPayslip(filteredRows, truckLabel, startDate, endDate);
   };
 
   const handleBulkDelete = async () => {
@@ -221,7 +213,7 @@ export default function TripsPage() {
         showTruck={admin}
         showRange
         showMonth={false}
-        allowedRangePresets={admin ? undefined : (['CC', 'LC'] as const)}
+        allowedRangePresets={admin ? undefined : (["CC", "LC"] as const)}
         actions={
           <button
             onClick={handleAddTrip}

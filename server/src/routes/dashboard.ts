@@ -1,9 +1,9 @@
-import { Router, Request, Response } from 'express';
-import { Trip } from '../models/Trip.js';
-import { Expense } from '../models/Expense.js';
-import { Truck } from '../models/Truck.js';
-import { formatTripResponse } from '../services/tripService.js';
-import { toISODateString } from '../utils/calculations.js';
+import { Router, Request, Response } from "express";
+import { Trip } from "../models/Trip.js";
+import { Expense } from "../models/Expense.js";
+import { Truck } from "../models/Truck.js";
+import { formatTripResponse } from "../services/tripService.js";
+import { toISODateString } from "../utils/calculations.js";
 
 const router = Router();
 
@@ -20,7 +20,8 @@ function calculateKpis(rows: any[], expenses: any[]) {
     totalTrips += r.trips || 0;
     totalCrewSalary += r.crewSalary || 0;
 
-    const originalPayable = (r.crewSalary || 0) - (r.cashAdvance || 0) + (r.reimbursements || 0);
+    const originalPayable =
+      (r.crewSalary || 0) - (r.cashAdvance || 0) + (r.reimbursements || 0);
 
     if (r.paid) {
       totalCashOutflow += originalPayable;
@@ -29,7 +30,11 @@ function calculateKpis(rows: any[], expenses: any[]) {
     }
   });
 
-  const totalExpenses = expenses.reduce((sum: number, e: any) => sum + e.amount, 0);
+  const totalExpenses = expenses.reduce((sum: number, e: any) => {
+    // ❗ exclude reimbursed expenses
+    if (e.reimbursed) return sum;
+    return sum + e.amount;
+  }, 0);
   const totalNet = totalGross - totalCrewSalary - totalExpenses;
 
   return {
@@ -43,7 +48,10 @@ function calculateKpis(rows: any[], expenses: any[]) {
 }
 
 // Helper: calculate previous period date range
-function getPreviousPeriodRange(start: string | undefined, end: string | undefined): { prevStart: Date; prevEnd: Date } | null {
+function getPreviousPeriodRange(
+  start: string | undefined,
+  end: string | undefined,
+): { prevStart: Date; prevEnd: Date } | null {
   if (!start || !end) return null;
 
   const startDate = new Date(start);
@@ -59,12 +67,14 @@ function getPreviousPeriodRange(start: string | undefined, end: string | undefin
 }
 
 // GET /api/dashboard?truck=&start=&end=
-router.get('/', async (req: Request, res: Response) => {
+router.get("/", async (req: Request, res: Response) => {
   try {
     const { truck, start, end } = req.query;
 
     // Get active trucks for dropdown
-    const allTrucks = await Truck.find({ status: 'Active' }).sort({ truckName: 1 });
+    const allTrucks = await Truck.find({ status: "Active" }).sort({
+      truckName: 1,
+    });
     const truckOptions = allTrucks.map((t) => ({
       _id: t._id,
       truckName: t.truckName,
@@ -91,7 +101,7 @@ router.get('/', async (req: Request, res: Response) => {
 
     // Get trips
     const trips = await Trip.find(tripFilter)
-      .populate('truck', 'truckName')
+      .populate("truck", "truckName")
       .sort({ date: 1, createdAt: 1 });
 
     // Build expense note map by date
@@ -99,15 +109,15 @@ router.get('/', async (req: Request, res: Response) => {
     const expenseNoteMap: Record<string, string> = {};
     allExpenses.forEach((e) => {
       const dateKey = e.date.toISOString().slice(0, 10);
-      const label = [e.category, e.description].filter(Boolean).join(': ');
+      const label = [e.category, e.description].filter(Boolean).join(": ");
       if (!expenseNoteMap[dateKey]) expenseNoteMap[dateKey] = label;
-      else expenseNoteMap[dateKey] += ' | ' + label;
+      else expenseNoteMap[dateKey] += " | " + label;
     });
 
     const rows = trips.map((t) => {
       const resp = formatTripResponse(t as any);
       // Auto-fill note from expenses if trip has no manual note
-      const expNote = expenseNoteMap[resp.dateIso] || '';
+      const expNote = expenseNoteMap[resp.dateIso] || "";
       if (!resp.note && expNote) {
         resp.note = expNote;
       }
@@ -136,39 +146,67 @@ router.get('/', async (req: Request, res: Response) => {
     const kpis = calculateKpis(rows, expenses);
 
     // Calculate previous period KPIs
-    let previousKpis = { gross: 0, net: 0, trips: 0, payable: 0, cashOutflow: 0, expenses: 0 };
-    const prevRange = getPreviousPeriodRange(start as string | undefined, end as string | undefined);
+    let previousKpis = {
+      gross: 0,
+      net: 0,
+      trips: 0,
+      payable: 0,
+      cashOutflow: 0,
+      expenses: 0,
+    };
+    const prevRange = getPreviousPeriodRange(
+      start as string | undefined,
+      end as string | undefined,
+    );
     if (prevRange) {
       const prevTripFilter: any = {};
       if (truck) prevTripFilter.truck = truck;
-      prevTripFilter.date = { $gte: prevRange.prevStart, $lte: prevRange.prevEnd };
+      prevTripFilter.date = {
+        $gte: prevRange.prevStart,
+        $lte: prevRange.prevEnd,
+      };
 
       const prevTrips = await Trip.find(prevTripFilter)
-        .populate('truck', 'truckName')
+        .populate("truck", "truckName")
         .sort({ date: 1, createdAt: 1 });
 
       const prevRows = prevTrips.map((t) => formatTripResponse(t as any));
 
       const prevExpenseFilter: any = {};
       if (truck) prevExpenseFilter.truck = truck;
-      prevExpenseFilter.date = { $gte: prevRange.prevStart, $lte: prevRange.prevEnd };
+      prevExpenseFilter.date = {
+        $gte: prevRange.prevStart,
+        $lte: prevRange.prevEnd,
+      };
 
       const prevExpenses = await Expense.find(prevExpenseFilter);
       previousKpis = calculateKpis(prevRows, prevExpenses);
     }
 
     // Build chart data (monthly aggregation)
-    const monthMap: Record<string, { label: string; gross: number; salary: number; expenses: number; trips: number }> = {};
+    const monthMap: Record<
+      string,
+      {
+        label: string;
+        gross: number;
+        salary: number;
+        expenses: number;
+        trips: number;
+      }
+    > = {};
     const seenDatesPerMonth: Record<string, Set<string>> = {};
 
     rows.forEach((r) => {
       const d = new Date(r.date);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
       const dateKey = r.dateIso;
 
       if (!monthMap[key]) {
         monthMap[key] = {
-          label: d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+          label: d.toLocaleDateString("en-US", {
+            month: "short",
+            year: "numeric",
+          }),
           gross: 0,
           salary: 0,
           expenses: 0,
@@ -208,7 +246,7 @@ router.get('/', async (req: Request, res: Response) => {
 });
 
 // GET /api/dashboard/reports?truck=&month=
-router.get('/reports', async (req: Request, res: Response) => {
+router.get("/reports", async (req: Request, res: Response) => {
   try {
     const { truck, month } = req.query;
     const filter: any = {};
@@ -217,7 +255,7 @@ router.get('/reports', async (req: Request, res: Response) => {
       filter.truck = truck;
     }
 
-    if (month && month !== 'ALL') {
+    if (month && month !== "ALL") {
       const year = new Date().getFullYear();
       const m = Number(month) - 1;
       filter.date = {
@@ -227,7 +265,7 @@ router.get('/reports', async (req: Request, res: Response) => {
     }
 
     const trips = await Trip.find(filter)
-      .populate('truck', 'truckName')
+      .populate("truck", "truckName")
       .sort({ date: 1, createdAt: 1 });
 
     // Apply single-expense-per-date logic
@@ -238,20 +276,26 @@ router.get('/reports', async (req: Request, res: Response) => {
 
       if (seenDates.has(dateKey)) {
         // Duplicate date: zero out expenses, recalculate net
-        const net = response.grossIncome - response.crewSalary - response.reimbursements;
+        const net =
+          response.grossIncome - response.crewSalary - response.expenses;
         return {
           ...response,
           expenses: 0,
           netIncome: net,
           // Report shows original payable (ignoring paid state)
-          reportPayable: response.crewSalary - response.cashAdvance + response.reimbursements,
+          reportPayable:
+            response.crewSalary -
+            response.cashAdvance +
+            response.reimbursements,
           reportNetIncome: net,
         };
       }
 
       seenDates.add(dateKey);
-      const reportPayable = response.crewSalary - response.cashAdvance + response.reimbursements;
-      const reportNetIncome = response.grossIncome - response.crewSalary - response.expenses;
+      const reportPayable =
+        response.crewSalary - response.cashAdvance + response.reimbursements;
+      const reportNetIncome =
+        response.grossIncome - response.crewSalary - response.expenses;
 
       return {
         ...response,
