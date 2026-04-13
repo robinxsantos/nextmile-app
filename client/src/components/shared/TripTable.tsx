@@ -1,9 +1,25 @@
-import { useState, useRef, useEffect, useCallback, type ReactNode } from 'react';
-import { type TripRow } from '../../store/useAppStore';
-import { peso, cn } from '../../lib/utils';
-import { Pencil, Trash2, Check, Copy, ArrowUp, ArrowDown, ArrowUpDown, Loader2, Route } from 'lucide-react';
-import EmptyState from './EmptyState';
-import { Skeleton, SkeletonTableRow } from './Skeleton';
+import {
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  type ReactNode,
+} from "react";
+import { type TripRow } from "../../store/useAppStore";
+import { peso, cn } from "../../lib/utils";
+import {
+  Pencil,
+  Trash2,
+  Check,
+  Copy,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
+  Loader2,
+  Route,
+} from "lucide-react";
+import EmptyState from "./EmptyState";
+import { Skeleton, SkeletonTableRow } from "./Skeleton";
 
 export interface TripTableProps {
   rows: TripRow[];
@@ -13,7 +29,11 @@ export interface TripTableProps {
   onEdit?: (row: TripRow) => void;
   onDelete?: (row: TripRow) => void;
   onDuplicate?: (row: TripRow) => void;
-  onExpenseClick?: (data: { truckId: string; dateIso: string; dateText: string }) => void;
+  onExpenseClick?: (data: {
+    truckId: string;
+    dateIso: string;
+    dateText: string;
+  }) => void;
   /** Fallback truckId used when the row's truck field is not available */
   selectedTruck?: string;
   /** Use report-specific net/payable fields when true */
@@ -23,11 +43,15 @@ export interface TripTableProps {
   selectedIds?: string[];
   onSelectionChange?: (ids: string[]) => void;
   /** Inline quick-edit callback */
-  onQuickEdit?: (id: string, field: string, value: number | string) => Promise<void>;
+  onQuickEdit?: (
+    id: string,
+    field: string,
+    value: number | string,
+  ) => Promise<void>;
   /** Column sorting */
   sortable?: boolean;
   sortField?: string;
-  sortDirection?: 'asc' | 'desc';
+  sortDirection?: "asc" | "desc";
   onSort?: (field: string) => void;
   /** Custom empty state content */
   emptyState?: ReactNode;
@@ -41,31 +65,64 @@ export interface TripTableProps {
 
 // Map header labels to sortable field keys
 const SORTABLE_FIELDS: Record<string, string> = {
-  'Date': 'dateIso',
-  'Rate': 'rate',
-  'Trips': 'trips',
-  'Crew Salary': 'crewSalary',
-  'Gross': 'grossIncome',
-  'Net': 'netIncome',
-  'Payable': 'payable',
+  Date: "dateIso",
+  Rate: "rate",
+  Trips: "trips",
+  "Crew Salary": "crewSalary",
+  Gross: "grossIncome",
+  Net: "netIncome",
+  Payable: "payable",
 };
 
-const BASE_HEADERS_WITH_ACTIONS = ['Week', 'Date', 'Status', 'Shipment #', 'Rate', 'Trips', 'Crew Salary', 'Cash Adv.', 'Reimb.', 'Expenses', 'Note', 'Gross', 'Net', 'Payable', 'Action'];
-const BASE_HEADERS_NO_ACTIONS = ['Week', 'Date', 'Status', 'Shipment #', 'Rate', 'Trips', 'Crew Salary', 'Cash Adv.', 'Reimb.', 'Expenses', 'Note', 'Gross', 'Net', 'Payable'];
+const BASE_HEADERS_WITH_ACTIONS = [
+  "Week",
+  "Date",
+  "Status",
+  "Shipment #",
+  "Rate",
+  "Trips",
+  "Crew Salary",
+  "Cash Adv.",
+  "Reimb.",
+  "Expenses",
+  "Note",
+  "Gross",
+  "Net",
+  "Payable",
+  "Action",
+];
+const BASE_HEADERS_NO_ACTIONS = [
+  "Week",
+  "Date",
+  "Status",
+  "Shipment #",
+  "Rate",
+  "Trips",
+  "Crew Salary",
+  "Cash Adv.",
+  "Reimb.",
+  "Expenses",
+  "Note",
+  "Gross",
+  "Net",
+  "Payable",
+];
 
 function buildHeaders(base: string[], showTruck: boolean): string[] {
   if (!showTruck) return base;
-  const dateIdx = base.indexOf('Date');
+  const dateIdx = base.indexOf("Date");
   const result = [...base];
-  result.splice(dateIdx + 1, 0, 'Truck');
+  result.splice(dateIdx + 1, 0, "Truck");
   return result;
 }
 
 function statusBadge(status: string) {
   const s = status.toUpperCase();
-  if (s === 'WORKING DAY') return 'bg-green-500/10 text-green-500 border-green-500/20';
-  if (s === 'HOLIDAY') return 'bg-amber-500/10 text-amber-500 border-amber-500/20';
-  return 'bg-slate-400/10 text-slate-400 border-slate-400/20';
+  if (s === "WORKING DAY")
+    return "bg-green-500/10 text-green-500 border-green-500/20";
+  if (s === "HOLIDAY")
+    return "bg-amber-500/10 text-amber-500 border-amber-500/20";
+  return "bg-slate-400/10 text-slate-400 border-slate-400/20";
 }
 
 /* ─── Inline Edit Cell ─── */
@@ -105,7 +162,7 @@ function EditableCell({
   }, [value]);
 
   const save = useCallback(async () => {
-    const newVal = isNote ? draft : (Number(draft) || 0);
+    const newVal = isNote ? draft : Number(draft) || 0;
     if (String(newVal) === String(value)) {
       setEditing(false);
       return;
@@ -123,15 +180,15 @@ function EditableCell({
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
+      if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
         save();
       }
-      if (e.key === 'Escape') {
+      if (e.key === "Escape") {
         cancel();
       }
     },
-    [save, cancel]
+    [save, cancel],
   );
 
   if (saving) {
@@ -144,7 +201,7 @@ function EditableCell({
 
   if (editing) {
     const sharedClass =
-      'w-full text-xs text-center bg-white dark:bg-slate-800 border border-blue-400 rounded-md px-1.5 py-1 focus:ring-2 focus:ring-blue-500/30 outline-none transition-all';
+      "w-full text-xs text-center bg-white dark:bg-slate-800 border border-blue-400 rounded-md px-1.5 py-1 focus:ring-2 focus:ring-blue-500/30 outline-none transition-all";
     return isNote ? (
       <textarea
         ref={inputRef as React.RefObject<HTMLTextAreaElement>}
@@ -153,7 +210,7 @@ function EditableCell({
         onKeyDown={handleKeyDown}
         onBlur={save}
         rows={2}
-        className={cn(sharedClass, 'resize-none text-left min-w-[100px]')}
+        className={cn(sharedClass, "resize-none text-left min-w-[100px]")}
       />
     ) : (
       <input
@@ -163,15 +220,13 @@ function EditableCell({
         onChange={(e) => setDraft(e.target.value)}
         onKeyDown={handleKeyDown}
         onBlur={save}
-        className={cn(sharedClass, 'min-w-[70px]')}
+        className={cn(sharedClass, "min-w-[70px]")}
       />
     );
   }
 
   // Display mode
-  const displayValue = isNote
-    ? (value || '—')
-    : peso(Number(value));
+  const displayValue = isNote ? value || "—" : peso(Number(value));
 
   return (
     <span
@@ -179,7 +234,7 @@ function EditableCell({
       className="cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded px-1 py-0.5 -mx-1 transition-colors"
       title="Double-click to edit"
     >
-      {field === 'trips' ? value : displayValue}
+      {field === "trips" ? value : displayValue}
     </span>
   );
 }
@@ -195,7 +250,7 @@ function SortHeader({
   label: string;
   fieldKey: string | undefined;
   sortField?: string;
-  sortDirection?: 'asc' | 'desc';
+  sortDirection?: "asc" | "desc";
   onSort?: (field: string) => void;
 }) {
   if (!fieldKey || !onSort) {
@@ -211,13 +266,16 @@ function SortHeader({
     >
       {label}
       {isActive ? (
-        sortDirection === 'asc' ? (
+        sortDirection === "asc" ? (
           <ArrowUp size={12} className="text-blue-500" />
         ) : (
           <ArrowDown size={12} className="text-blue-500" />
         )
       ) : (
-        <ArrowUpDown size={12} className="text-slate-300 dark:text-slate-600 group-hover:text-slate-400" />
+        <ArrowUpDown
+          size={12}
+          className="text-slate-300 dark:text-slate-600 group-hover:text-slate-400"
+        />
       )}
     </button>
   );
@@ -246,22 +304,30 @@ function TripCard({
   onEdit?: (row: TripRow) => void;
   onDelete?: (row: TripRow) => void;
   onDuplicate?: (row: TripRow) => void;
-  onExpenseClick?: (data: { truckId: string; dateIso: string; dateText: string }) => void;
+  onExpenseClick?: (data: {
+    truckId: string;
+    dateIso: string;
+    dateText: string;
+  }) => void;
   selectedTruck?: string;
   selectable?: boolean;
   selected?: boolean;
   onSelectToggle?: (id: string) => void;
   showTruckColumn?: boolean;
 }) {
-  const netValue = reportMode ? (r.reportNetIncome ?? r.netIncome) : r.netIncome;
+  const netValue = reportMode
+    ? (r.reportNetIncome ?? r.netIncome)
+    : r.netIncome;
   const payableValue = reportMode ? (r.reportPayable ?? r.payable) : r.payable;
-  const displayPayable = !reportMode && r.paid ? '₱0.00' : peso(payableValue);
+  const displayPayable = !reportMode && r.paid ? "₱0.00" : peso(payableValue);
 
   return (
-    <div className={cn(
-      'glass-card rounded-xl border border-slate-200 dark:border-slate-700 p-4',
-      selectable && selected && 'ring-2 ring-blue-500/30 border-blue-400'
-    )}>
+    <div
+      className={cn(
+        "glass-card rounded-xl border border-slate-200 dark:border-slate-700 p-4",
+        selectable && selected && "ring-2 ring-blue-500/30 border-blue-400",
+      )}
+    >
       <div className="flex justify-between items-start mb-3">
         <div className="flex items-start gap-2.5">
           {selectable && onSelectToggle && (
@@ -275,17 +341,26 @@ function TripCard({
           <div>
             <div className="font-bold text-sm">{r.dateText}</div>
             {showTruckColumn && r.truckName && (
-              <div className="text-xs font-semibold text-blue-600 dark:text-blue-400">{r.truckName}</div>
+              <div className="text-xs font-semibold text-blue-600 dark:text-blue-400">
+                {r.truckName}
+              </div>
             )}
             <div className="text-xs text-slate-500">{r.week}</div>
           </div>
         </div>
-        <span className={cn('inline-block px-3 py-1.5 rounded-full text-xs font-bold border', statusBadge(r.status))}>
+        <span
+          className={cn(
+            "inline-block px-2.5 py-1 rounded-full text-[10px] font-bold leading-none border whitespace-nowrap",
+            statusBadge(r.status),
+          )}
+        >
           {r.status.toUpperCase()}
         </span>
       </div>
 
-      <div className="text-orange-500 font-semibold text-sm mb-3">{r.shipmentNumber}</div>
+      <div className="text-orange-500 font-semibold text-sm mb-3">
+        {r.shipmentNumber}
+      </div>
 
       <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs mb-3">
         <div>
@@ -294,7 +369,12 @@ function TripCard({
         </div>
         <div>
           <div className="text-slate-500">Net</div>
-          <div className={cn('font-semibold', netValue < 0 ? 'text-red-500' : 'text-green-500')}>
+          <div
+            className={cn(
+              "font-semibold",
+              netValue < 0 ? "text-red-500" : "text-green-500",
+            )}
+          >
             {peso(netValue)}
           </div>
         </div>
@@ -334,10 +414,19 @@ function TripCard({
             {onExpenseClick && (r.hasExpenses || r.expenses > 0) ? (
               <button
                 onClick={() => {
-                  const truckId = typeof r.truck === 'string'
-                    ? r.truck
-                    : (r.truck && typeof r.truck === 'object' && '_id' in r.truck ? r.truck._id : selectedTruck || '');
-                  onExpenseClick({ truckId, dateIso: r.dateIso, dateText: r.dateText });
+                  const truckId =
+                    typeof r.truck === "string"
+                      ? r.truck
+                      : r.truck &&
+                          typeof r.truck === "object" &&
+                          "_id" in r.truck
+                        ? r.truck._id
+                        : selectedTruck || "";
+                  onExpenseClick({
+                    truckId,
+                    dateIso: r.dateIso,
+                    dateText: r.dateText,
+                  });
                 }}
                 className="font-semibold truncate text-blue-600 dark:text-blue-400 hover:underline cursor-pointer text-left"
               >
@@ -356,13 +445,13 @@ function TripCard({
             <button
               onClick={() => onTogglePaid(r._id)}
               className={cn(
-                'flex-1 h-9 rounded-xl inline-flex items-center justify-center gap-1.5 border text-xs font-semibold transition-all',
+                "flex-1 h-9 rounded-xl inline-flex items-center justify-center gap-1.5 border text-xs font-semibold transition-all",
                 r.paid
-                  ? 'bg-green-500/10 border-green-500/25 text-green-500'
-                  : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600'
+                  ? "bg-green-500/10 border-green-500/25 text-green-500"
+                  : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600",
               )}
             >
-              <Check size={14} /> {r.paid ? 'Paid' : 'Unpaid'}
+              <Check size={14} /> {r.paid ? "Paid" : "Unpaid"}
             </button>
           )}
           {onDuplicate && (
@@ -408,7 +497,7 @@ export default function TripTable({
   onDelete,
   onDuplicate,
   onExpenseClick,
-  selectedTruck = '',
+  selectedTruck = "",
   reportMode = false,
   selectable = false,
   selectedIds = [],
@@ -423,17 +512,22 @@ export default function TripTable({
   canEditRow,
   canDeleteRow,
 }: TripTableProps) {
-  const baseHeaders = showActions ? BASE_HEADERS_WITH_ACTIONS : BASE_HEADERS_NO_ACTIONS;
+  const baseHeaders = showActions
+    ? BASE_HEADERS_WITH_ACTIONS
+    : BASE_HEADERS_NO_ACTIONS;
   const headers = buildHeaders(baseHeaders, showTruckColumn);
   const colCount = headers.length + (selectable ? 1 : 0);
 
-  const allSelected = rows.length > 0 && rows.every((r) => selectedIds.includes(r._id));
+  const allSelected =
+    rows.length > 0 && rows.every((r) => selectedIds.includes(r._id));
   const someSelected = rows.some((r) => selectedIds.includes(r._id));
 
   const handleSelectAll = () => {
     if (!onSelectionChange) return;
     if (allSelected) {
-      onSelectionChange(selectedIds.filter((id) => !rows.some((r) => r._id === id)));
+      onSelectionChange(
+        selectedIds.filter((id) => !rows.some((r) => r._id === id)),
+      );
     } else {
       const visibleIds = rows.map((r) => r._id);
       const merged = [...new Set([...selectedIds, ...visibleIds])];
@@ -453,7 +547,12 @@ export default function TripTable({
   return (
     <div className="rounded-[18px] overflow-auto border border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-900">
       {/* ─── Desktop Table (hidden below md) ─── */}
-      <table className={cn('w-full trip-table hidden md:table border-separate border-spacing-0', !showActions && 'report-table')}>
+      <table
+        className={cn(
+          "w-full trip-table hidden md:table border-separate border-spacing-0",
+          !showActions && "report-table",
+        )}
+      >
         <thead>
           <tr>
             {selectable && (
@@ -461,7 +560,9 @@ export default function TripTable({
                 <input
                   type="checkbox"
                   checked={allSelected}
-                  ref={(el) => { if (el) el.indeterminate = someSelected && !allSelected; }}
+                  ref={(el) => {
+                    if (el) el.indeterminate = someSelected && !allSelected;
+                  }}
                   onChange={handleSelectAll}
                   className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500/20 cursor-pointer"
                 />
@@ -471,9 +572,13 @@ export default function TripTable({
               <th
                 key={h}
                 className={cn(
-                  'sticky top-0 z-10 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-slate-600 dark:text-slate-300 px-2.5 py-3 whitespace-nowrap',
-                  idx === 0 && !selectable && 'left-0 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]',
-                  idx === 0 && selectable && 'left-[40px] z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]',
+                  "sticky top-0 z-10 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-slate-600 dark:text-slate-300 px-2.5 py-3 whitespace-nowrap",
+                  idx === 0 &&
+                    !selectable &&
+                    "left-0 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]",
+                  idx === 0 &&
+                    selectable &&
+                    "left-[40px] z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]",
                 )}
               >
                 {sortable ? (
@@ -499,23 +604,38 @@ export default function TripTable({
           ) : rows.length === 0 ? (
             <tr>
               <td colSpan={colCount}>
-                {emptyState || <EmptyState icon={Route} title="No trips found" description="No trip records match your current filters." />}
+                {emptyState || (
+                  <EmptyState
+                    icon={Route}
+                    title="No trips found"
+                    description="No trip records match your current filters."
+                  />
+                )}
               </td>
             </tr>
           ) : (
             rows.map((r) => {
-              const netValue = reportMode ? (r.reportNetIncome ?? r.netIncome) : r.netIncome;
-              const payableValue = reportMode ? (r.reportPayable ?? r.payable) : r.payable;
-              const displayPayable = !reportMode && r.paid ? '₱0.00' : peso(payableValue);
+              const netValue = reportMode
+                ? (r.reportNetIncome ?? r.netIncome)
+                : r.netIncome;
+              const payableValue = reportMode
+                ? (r.reportPayable ?? r.payable)
+                : r.payable;
+              const displayPayable =
+                !reportMode && r.paid ? "₱0.00" : peso(payableValue);
 
               return (
                 <tr
                   key={r._id}
                   className={cn(
-                    'hover:bg-blue-50/50 dark:hover:bg-slate-800/50',
-                    r.status === 'Holiday' && 'bg-amber-50/50 dark:bg-amber-500/5',
-                    r.status === 'Day Off' && 'bg-slate-50/80 dark:bg-slate-800/30 text-slate-400',
-                    selectable && selectedIds.includes(r._id) && 'bg-blue-50/70 dark:bg-blue-500/10'
+                    "hover:bg-blue-50/50 dark:hover:bg-slate-800/50",
+                    r.status === "Holiday" &&
+                      "bg-amber-50/50 dark:bg-amber-500/5",
+                    r.status === "Day Off" &&
+                      "bg-slate-50/80 dark:bg-slate-800/30 text-slate-400",
+                    selectable &&
+                      selectedIds.includes(r._id) &&
+                      "bg-blue-50/70 dark:bg-blue-500/10",
                   )}
                 >
                   {/* Checkbox */}
@@ -530,10 +650,14 @@ export default function TripTable({
                     </td>
                   )}
                   {/* Week */}
-                  <td className={cn(
-                    'text-center text-xs px-2.5 py-2.5 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]',
-                    selectable ? 'sticky left-[40px] z-[5]' : 'sticky left-0 z-[5]'
-                  )}>
+                  <td
+                    className={cn(
+                      "text-center text-xs px-2.5 py-2.5 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]",
+                      selectable
+                        ? "sticky left-[40px] z-[5]"
+                        : "sticky left-0 z-[5]",
+                    )}
+                  >
                     {r.week}
                   </td>
                   {/* Date */}
@@ -543,12 +667,17 @@ export default function TripTable({
                   {/* Truck (conditional) */}
                   {showTruckColumn && (
                     <td className="text-center text-xs px-2.5 py-2.5 border-b border-slate-100 dark:border-slate-800 whitespace-nowrap font-semibold text-blue-600 dark:text-blue-400">
-                      {r.truckName || '—'}
+                      {r.truckName || "—"}
                     </td>
                   )}
                   {/* Status */}
                   <td className="text-center text-xs px-2.5 py-2.5 border-b border-slate-100 dark:border-slate-800">
-                    <span className={cn('inline-block px-3 py-1.5 rounded-full text-xs font-bold border', statusBadge(r.status))}>
+                    <span
+                      className={cn(
+                        "inline-block px-2.5 py-1 rounded-full text-[10px] font-bold leading-none border whitespace-nowrap",
+                        statusBadge(r.status),
+                      )}
+                    >
                       {r.status.toUpperCase()}
                     </span>
                   </td>
@@ -559,7 +688,12 @@ export default function TripTable({
                   {/* Rate */}
                   <td className="text-center text-xs px-2.5 py-2.5 border-b border-slate-100 dark:border-slate-800">
                     {onQuickEdit ? (
-                      <EditableCell rowId={r._id} field="rate" value={r.rate} onSave={onQuickEdit} />
+                      <EditableCell
+                        rowId={r._id}
+                        field="rate"
+                        value={r.rate}
+                        onSave={onQuickEdit}
+                      />
                     ) : (
                       peso(r.rate)
                     )}
@@ -567,7 +701,12 @@ export default function TripTable({
                   {/* Trips */}
                   <td className="text-center text-xs px-2.5 py-2.5 border-b border-slate-100 dark:border-slate-800">
                     {onQuickEdit ? (
-                      <EditableCell rowId={r._id} field="trips" value={r.trips} onSave={onQuickEdit} />
+                      <EditableCell
+                        rowId={r._id}
+                        field="trips"
+                        value={r.trips}
+                        onSave={onQuickEdit}
+                      />
                     ) : (
                       r.trips
                     )}
@@ -575,7 +714,12 @@ export default function TripTable({
                   {/* Crew Salary */}
                   <td className="text-center text-xs px-2.5 py-2.5 border-b border-slate-100 dark:border-slate-800">
                     {onQuickEdit ? (
-                      <EditableCell rowId={r._id} field="crewSalary" value={r.crewSalary} onSave={onQuickEdit} />
+                      <EditableCell
+                        rowId={r._id}
+                        field="crewSalary"
+                        value={r.crewSalary}
+                        onSave={onQuickEdit}
+                      />
                     ) : (
                       peso(r.crewSalary)
                     )}
@@ -583,7 +727,12 @@ export default function TripTable({
                   {/* Cash Advance */}
                   <td className="text-center text-xs px-2.5 py-2.5 border-b border-slate-100 dark:border-slate-800">
                     {onQuickEdit ? (
-                      <EditableCell rowId={r._id} field="cashAdvance" value={r.cashAdvance} onSave={onQuickEdit} />
+                      <EditableCell
+                        rowId={r._id}
+                        field="cashAdvance"
+                        value={r.cashAdvance}
+                        onSave={onQuickEdit}
+                      />
                     ) : (
                       peso(r.cashAdvance)
                     )}
@@ -591,7 +740,12 @@ export default function TripTable({
                   {/* Reimbursements */}
                   <td className="text-center text-xs px-2.5 py-2.5 border-b border-slate-100 dark:border-slate-800">
                     {onQuickEdit ? (
-                      <EditableCell rowId={r._id} field="reimbursements" value={r.reimbursements} onSave={onQuickEdit} />
+                      <EditableCell
+                        rowId={r._id}
+                        field="reimbursements"
+                        value={r.reimbursements}
+                        onSave={onQuickEdit}
+                      />
                     ) : (
                       peso(r.reimbursements)
                     )}
@@ -602,13 +756,19 @@ export default function TripTable({
                   </td>
                   {/* Note */}
                   <td className="text-center text-xs px-2.5 py-2.5 border-b border-slate-100 dark:border-slate-800 max-w-[120px]">
-                    {onExpenseClick && (r.hasExpenses || r.expenses > 0 || r.note) ? (
+                    {onExpenseClick &&
+                    (r.hasExpenses || r.expenses > 0 || r.note) ? (
                       <button
                         onClick={() => {
                           if (r.hasExpenses || r.expenses > 0) {
-                            const truckId = typeof r.truck === 'string'
-                              ? r.truck
-                              : (r.truck && typeof r.truck === 'object' && '_id' in r.truck ? r.truck._id : selectedTruck);
+                            const truckId =
+                              typeof r.truck === "string"
+                                ? r.truck
+                                : r.truck &&
+                                    typeof r.truck === "object" &&
+                                    "_id" in r.truck
+                                  ? r.truck._id
+                                  : selectedTruck;
                             onExpenseClick({
                               truckId,
                               dateIso: r.dateIso,
@@ -617,18 +777,25 @@ export default function TripTable({
                           }
                         }}
                         className={cn(
-                          'text-left text-xs truncate block max-w-[120px]',
-                          (r.hasExpenses || r.expenses > 0)
-                            ? 'text-blue-600 dark:text-blue-400 hover:underline cursor-pointer font-medium'
-                            : 'text-slate-500 cursor-default'
+                          "text-left text-xs truncate block max-w-[120px]",
+                          r.hasExpenses || r.expenses > 0
+                            ? "text-blue-600 dark:text-blue-400 hover:underline cursor-pointer font-medium"
+                            : "text-slate-500 cursor-default",
                         )}
                         title={r.note}
                       >
-                        {r.note || '—'}
+                        {r.note || "—"}
                       </button>
                     ) : (
-                      <span className={r.note ? 'truncate block max-w-[120px]' : 'text-slate-300'} title={r.note}>
-                        {r.note || '—'}
+                      <span
+                        className={
+                          r.note
+                            ? "truncate block max-w-[120px]"
+                            : "text-slate-300"
+                        }
+                        title={r.note}
+                      >
+                        {r.note || "—"}
                       </span>
                     )}
                   </td>
@@ -637,7 +804,12 @@ export default function TripTable({
                     {peso(r.grossIncome)}
                   </td>
                   {/* Net */}
-                  <td className={cn('text-center text-xs px-2.5 py-2.5 border-b border-slate-100 dark:border-slate-800 font-semibold', netValue < 0 ? 'text-red-500' : 'text-green-500')}>
+                  <td
+                    className={cn(
+                      "text-center text-xs px-2.5 py-2.5 border-b border-slate-100 dark:border-slate-800 font-semibold",
+                      netValue < 0 ? "text-red-500" : "text-green-500",
+                    )}
+                  >
                     {peso(netValue)}
                   </td>
                   {/* Payable */}
@@ -652,10 +824,10 @@ export default function TripTable({
                           <button
                             onClick={() => onTogglePaid(r._id)}
                             className={cn(
-                              'w-[34px] h-[34px] rounded-xl inline-flex items-center justify-center border transition-all',
+                              "w-[34px] h-[34px] rounded-xl inline-flex items-center justify-center border transition-all",
                               r.paid
-                                ? 'bg-green-500/10 border-green-500/25 text-green-500 hover:bg-red-500/10 hover:border-red-500/25 hover:text-red-500'
-                                : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600 hover:bg-green-500/10 hover:border-green-500/25 hover:text-green-500'
+                                ? "bg-green-500/10 border-green-500/25 text-green-500 hover:bg-red-500/10 hover:border-red-500/25 hover:text-red-500"
+                                : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600 hover:bg-green-500/10 hover:border-green-500/25 hover:text-green-500",
                             )}
                             title="Toggle paid"
                           >
@@ -706,18 +878,23 @@ export default function TripTable({
             <input
               type="checkbox"
               checked={allSelected}
-              ref={(el) => { if (el) el.indeterminate = someSelected && !allSelected; }}
+              ref={(el) => {
+                if (el) el.indeterminate = someSelected && !allSelected;
+              }}
               onChange={handleSelectAll}
               className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500/20 cursor-pointer"
             />
             <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-              {allSelected ? 'Deselect All' : 'Select All'}
+              {allSelected ? "Deselect All" : "Select All"}
             </span>
           </div>
         )}
         {loading ? (
           Array.from({ length: 3 }).map((_, i) => (
-            <div key={`skel-card-${i}`} className="glass-card rounded-xl border border-slate-200 dark:border-slate-700 p-4 animate-pulse">
+            <div
+              key={`skel-card-${i}`}
+              className="glass-card rounded-xl border border-slate-200 dark:border-slate-700 p-4 animate-pulse"
+            >
               <div className="flex justify-between items-start mb-3">
                 <div>
                   <Skeleton className="h-4 w-24 mb-1.5" />
@@ -737,7 +914,15 @@ export default function TripTable({
             </div>
           ))
         ) : rows.length === 0 ? (
-          <div>{emptyState || <EmptyState icon={Route} title="No trips found" description="No trip records match your current filters." />}</div>
+          <div>
+            {emptyState || (
+              <EmptyState
+                icon={Route}
+                title="No trips found"
+                description="No trip records match your current filters."
+              />
+            )}
+          </div>
         ) : (
           rows.map((r) => (
             <TripCard
