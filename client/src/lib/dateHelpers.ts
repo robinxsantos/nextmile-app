@@ -10,19 +10,19 @@ export function currentCutoffBounds(
   const d = new Date(today);
   d.setHours(0, 0, 0, 0);
 
-  const spanDays = cutoffSpanDays_(startDay, endDay);
   const currentDay = d.getDay();
+  const spanDays = cutoffSpanDays_(startDay, endDay);
 
-  // last occurrence of cutoff end, not the next one
-  const endOffset = (currentDay - endDay + 7) % 7;
+  let diffToStart = currentDay - startDay;
+  if (diffToStart < 0) diffToStart += 7;
 
-  const end = new Date(d);
-  end.setDate(d.getDate() - endOffset);
-  end.setHours(23, 59, 59, 999);
-
-  const start = new Date(end);
-  start.setDate(end.getDate() - (spanDays - 1));
+  const start = new Date(d);
+  start.setDate(d.getDate() - diffToStart);
   start.setHours(0, 0, 0, 0);
+
+  const end = new Date(start);
+  end.setDate(start.getDate() + (spanDays - 1));
+  end.setHours(23, 59, 59, 999);
 
   return { start, end };
 }
