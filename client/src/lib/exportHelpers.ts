@@ -1,6 +1,11 @@
 import type { TripRow } from "../store/useAppStore";
 import { peso } from "./utils";
 
+function pesoOrBlank(n: number | undefined | null): string {
+  const value = Number(n || 0);
+  return value === 0 ? "" : peso(value);
+}
+
 function escapeCsv(v: string | number): string {
   const s = String(v ?? "");
   return `"${s.replace(/"/g, '""')}"`;
@@ -112,7 +117,7 @@ export function exportPayslip(
     .filter((r) => r.status === "Working Day" && !r.paid)
     .map(
       (r) =>
-        `<tr><td>${escHtml(r.dateText)}</td><td>${escHtml(r.shipmentNumber)}</td><td>${r.trips}</td><td>${peso(r.crewSalary)}</td><td>${peso(r.cashAdvance)}</td><td>${peso(r.reimbursements)}</td><td>${peso(r.paid ? 0 : r.payable)}</td></tr>`,
+        `<tr><td>${escHtml(r.dateText)}</td><td>${escHtml(r.shipmentNumber)}</td><td>${r.trips}</td><td>${pesoOrBlank(r.crewSalary)}</td><td>${pesoOrBlank(r.cashAdvance)}</td><td>${pesoOrBlank(r.reimbursements)}</td><td>${pesoOrBlank(r.paid ? 0 : r.payable)}</td></tr>`,
     )
     .join("");
 
@@ -146,7 +151,7 @@ tbody tr:nth-child(even) td { background-color: #f9fafb; }
 </table>
 <div class="totals">
   <div class="total-row"><span class="label">TOTAL TRIPS</span><span>${totalTrips.toLocaleString()}</span></div>
-  <div class="total-row"><span class="label">TOTAL PAYABLE</span><span>${peso(totalPayable)}</span></div>
+  <div class="total-row"><span class="label">TOTAL PAYABLE</span><span>${pesoOrBlank(totalPayable)}</span></div>
 </div>
 <script>window.onload=function(){window.print();}</script>
 </body></html>`;
@@ -180,7 +185,7 @@ export function exportMonthlyReport(
   const rowHtml = rows
     .map(
       (r) =>
-        `<tr><td>${escHtml(r.dateText)}</td><td>${escHtml(r.shipmentNumber)}</td><td>${peso(r.rate)}</td><td>${r.trips}</td><td>${peso(r.crewSalary)}</td><td>${peso(r.cashAdvance)}</td><td>${peso(r.reimbursements)}</td><td>${peso(r.expenses)}</td><td>${escHtml(r.note || "")}</td><td>${peso(r.grossIncome)}</td><td>${peso(r.reportNetIncome ?? r.netIncome)}</td><td>${peso(r.reportPayable ?? r.payable)}</td></tr>`,
+        `<tr><td>${escHtml(r.dateText)}</td><td>${escHtml(r.shipmentNumber)}</td><td>${pesoOrBlank(r.rate)}</td><td>${r.trips}</td><td>${pesoOrBlank(r.crewSalary)}</td><td>${pesoOrBlank(r.cashAdvance)}</td><td>${pesoOrBlank(r.reimbursements)}</td><td>${pesoOrBlank(r.expenses)}</td><td>${escHtml(r.note || "")}</td><td>${pesoOrBlank(r.grossIncome)}</td><td>${pesoOrBlank(r.reportNetIncome ?? r.netIncome)}</td><td>${pesoOrBlank(r.reportPayable ?? r.payable)}</td></tr>`,
     )
     .join("");
 

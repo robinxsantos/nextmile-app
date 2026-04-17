@@ -3,6 +3,7 @@ import {
   useRef,
   useEffect,
   useCallback,
+  useMemo,
   type ReactNode,
 } from "react";
 import { type TripRow } from "../../store/useAppStore";
@@ -78,6 +79,7 @@ export interface TripTableProps {
   emptyState?: ReactNode;
   showTruckColumn?: boolean;
   visibleColumns?: VisibleColumns;
+  totalsRows?: TripRow[];
   canEditRow?: (row: TripRow) => boolean;
   canDeleteRow?: (row: TripRow) => boolean;
 }
@@ -459,6 +461,7 @@ export default function TripTable({
   onDuplicate,
   onExpenseClick,
   selectedTruck = "",
+  totalsRows,
   reportMode = false,
   selectable = false,
   selectedIds = [],
@@ -474,6 +477,40 @@ export default function TripTable({
   canEditRow,
   canDeleteRow,
 }: TripTableProps) {
+  const totalsSource = totalsRows ?? rows;
+
+  const totals = useMemo(() => {
+    return totalsSource.reduce(
+      (acc, r) => {
+        acc.rate += Number(r.rate || 0);
+        acc.trips += Number(r.trips || 0);
+        acc.crewSalary += Number(r.crewSalary || 0);
+        acc.cashAdvance += Number(r.cashAdvance || 0);
+        acc.reimbursements += Number(r.reimbursements || 0);
+        acc.expenses += Number(r.expenses || 0);
+        acc.grossIncome += Number(r.grossIncome || 0);
+        acc.netIncome += Number(
+          reportMode ? (r.reportNetIncome ?? r.netIncome) : r.netIncome,
+        );
+        acc.payable += Number(
+          reportMode ? (r.reportPayable ?? r.payable) : r.payable,
+        );
+        return acc;
+      },
+      {
+        rate: 0,
+        trips: 0,
+        crewSalary: 0,
+        cashAdvance: 0,
+        reimbursements: 0,
+        expenses: 0,
+        grossIncome: 0,
+        netIncome: 0,
+        payable: 0,
+      },
+    );
+  }, [totalsSource, reportMode]);
+
   const show = (key: ColumnKey) => visibleColumns[key] !== false;
   const truckVisible = showTruckColumn && show("truck");
 
@@ -608,9 +645,7 @@ export default function TripTable({
                 const truckId =
                   typeof r.truck === "string"
                     ? r.truck
-                    : r.truck &&
-                        typeof r.truck === "object" &&
-                        "_id" in r.truck
+                    : r.truck && typeof r.truck === "object" && "_id" in r.truck
                       ? r.truck._id
                       : selectedTruck;
                 onExpenseClick({
@@ -632,7 +667,9 @@ export default function TripTable({
           </button>
         ) : (
           <span
-            className={r.note ? "truncate block max-w-[120px]" : "text-slate-300"}
+            className={
+              r.note ? "truncate block max-w-[120px]" : "text-slate-300"
+            }
             title={r.note}
           >
             {r.note || "—"}
@@ -678,7 +715,8 @@ export default function TripTable({
       ),
     });
 
-  const colCount = (selectable ? 1 : 0) + columns.length + (showActions ? 1 : 0);
+  const colCount =
+    (selectable ? 1 : 0) + columns.length + (showActions ? 1 : 0);
 
   const allSelected =
     rows.length > 0 && rows.every((r) => selectedIds.includes(r._id));
@@ -707,7 +745,7 @@ export default function TripTable({
   };
 
   return (
-    <div className="rounded-[18px] overflow-auto border border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-900">
+    <div className="rounded-[18px] border border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-900 flex flex-col">
       <table
         className={cn(
           "w-full trip-table hidden md:table border-separate border-spacing-0",
@@ -874,6 +912,59 @@ export default function TripTable({
             })
           )}
         </tbody>
+        <tfoot>
+          <tr>
+            {selectable && (
+              <td className="sticky bottom-0 z-30 bg-slate-100 dark:bg-slate-800 border-t-2 border-slate-300 dark:border-slate-600 px-2.5 py-3" />
+            )}
+
+            {columns.map((col, idx) => {
+              const isFirst = idx === 0;
+              const value =
+                col.key === "rate"
+                  ? peso(totals.rate)
+                  : col.key === "trips"
+                    ? totals.trips
+                    : col.key === "crewSalary"
+                      ? peso(totals.crewSalary)
+                      : col.key === "cashAdvance"
+                        ? peso(totals.cashAdvance)
+                        : col.key === "reimbursements"
+                          ? peso(totals.reimbursements)
+                          : col.key === "expenses"
+                            ? peso(totals.expenses)
+                            : col.key === "grossIncome"
+                              ? peso(totals.grossIncome)
+                              : col.key === "netIncome"
+                                ? peso(totals.netIncome)
+                                : col.key === "payable"
+                                  ? peso(totals.payable)
+                                  : isFirst
+                                    ? "TOTALS"
+                                    : "";
+
+              return (
+                <td
+                  key={`total-${col.key}`}
+                  className={cn(
+                    "sticky bottom-0 z-30 bg-slate-100 dark:bg-slate-800 border-t-2 border-slate-300 dark:border-slate-600 text-center text-xs px-2.5 py-3 font-bold",
+                    idx === 0 && !selectable && "left-0 z-[31]",
+                    idx === 0 && selectable && "left-[40px] z-[31]",
+                    col.key === "netIncome" &&
+                      "text-green-700 dark:text-green-300",
+                    col.key === "payable" && "text-red-600 dark:text-red-400",
+                  )}
+                >
+                  {value}
+                </td>
+              );
+            })}
+
+            {showActions && (
+              <td className="sticky bottom-0 z-30 bg-slate-100 dark:bg-slate-800 border-t-2 border-slate-300 dark:border-slate-600 px-2.5 py-3" />
+            )}
+          </tr>
+        </tfoot>
       </table>
 
       <div className="flex flex-col gap-3 md:hidden p-3">

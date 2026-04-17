@@ -69,12 +69,17 @@ export default function ExpensesPage() {
   useEffect(() => {
     if (admin) initApp();
   }, [initApp, admin]);
+
+  useEffect(() => {
+    if (admin) {
+      const currentMonth = String(new Date().getMonth() + 1);
+      setExpensesMonth(currentMonth);
+    }
+  }, [admin, setExpensesMonth]);
+
   useEffect(() => {
     if (admin) fetchExpenses();
   }, [fetchExpenses, expensesMonth, admin]);
-  useEffect(() => {
-    if (admin) fetchExpenseCategories();
-  }, [fetchExpenseCategories, selectedTruck, admin]);
 
   if (!admin) return null;
 

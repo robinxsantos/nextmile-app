@@ -83,9 +83,9 @@ export default function TripsPage() {
     dateText: string;
   } | null>(null);
   const [showColumnsMenu, setShowColumnsMenu] = useState(false);
-  const [visibleColumns, setVisibleColumns] = useState<
-    Record<ColumnKey, boolean>
-  >({
+  const COLUMN_STORAGE_KEY = "trips-columns";
+
+  const defaultVisibleColumns: Record<ColumnKey, boolean> = {
     truck: true,
     week: true,
     date: true,
@@ -101,6 +101,22 @@ export default function TripsPage() {
     grossIncome: true,
     netIncome: true,
     payable: true,
+  };
+
+  const [visibleColumns, setVisibleColumns] = useState<
+    Record<ColumnKey, boolean>
+  >(() => {
+    const saved = localStorage.getItem(COLUMN_STORAGE_KEY);
+    if (!saved) return defaultVisibleColumns;
+
+    try {
+      return {
+        ...defaultVisibleColumns,
+        ...JSON.parse(saved),
+      };
+    } catch {
+      return defaultVisibleColumns;
+    }
   });
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -114,6 +130,10 @@ export default function TripsPage() {
   useEffect(() => {
     initApp();
   }, [initApp]);
+
+  useEffect(() => {
+    localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(visibleColumns));
+  }, [visibleColumns]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -401,6 +421,7 @@ export default function TripsPage() {
 
         <TripTable
           rows={paginatedRows}
+          totalsRows={filteredRows}
           loading={loading}
           showActions
           selectable={admin}
