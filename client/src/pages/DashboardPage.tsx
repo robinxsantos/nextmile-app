@@ -11,7 +11,6 @@ import { exportTripsCsv, exportPayslip } from "../lib/exportHelpers";
 import {
   DollarSign,
   CheckCircle2,
-  Truck as TruckIcon,
   BarChart3,
   ArrowUpDown,
   Plus,
@@ -31,6 +30,9 @@ import {
   ResponsiveContainer,
   Area,
   AreaChart,
+  Bar,
+  BarChart,
+  Legend,
 } from "recharts";
 import Modal from "../components/shared/Modal";
 import Pagination from "../components/shared/Pagination";
@@ -140,6 +142,11 @@ export default function DashboardPage() {
     return rows;
   }, [tripRows, searchQuery, sortField, sortDirection]);
 
+  const moneyFormat = new Intl.NumberFormat("en-PH", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
   const {
     paginatedItems: paginatedRows,
     currentPage,
@@ -227,7 +234,7 @@ export default function DashboardPage() {
       />
 
       {/* KPIs */}
-      <div className="grid grid-cols-1 min-[480px]:grid-cols-2 xl:grid-cols-5 gap-2.5 sm:gap-3 mb-3">
+      <div className="grid grid-cols-1 min-[480px]:grid-cols-2 xl:grid-cols-4 gap-2.5 sm:gap-3 mb-3">
         <KpiCard
           label={`${kpiPrefix} Gross`}
           value={kpis.gross}
@@ -246,17 +253,6 @@ export default function DashboardPage() {
           subtitle="After salary and expenses"
           icon={<CheckCircle2 size={22} />}
           colorClass="bg-teal-500/10 text-teal-500 dark:bg-teal-500/15 dark:text-teal-400"
-        />
-
-        <KpiCard
-          label={`${kpiPrefix} Trips`}
-          value={kpis.trips}
-          currentValue={kpis.trips}
-          previousValue={previousKpis.trips}
-          subtitle="Trip count summary"
-          icon={<TruckIcon size={22} />}
-          colorClass="bg-amber-500/10 text-amber-500 dark:bg-amber-500/15 dark:text-amber-400"
-          format="number" // 👈 no decimals
         />
 
         <KpiCard
@@ -283,91 +279,119 @@ export default function DashboardPage() {
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-3">
-        {[
-          {
-            title: "Monthly Gross Income",
-            dataKey: "gross",
-            color: "#2563eb",
-            fill: "rgba(37,99,235,0.08)",
-          },
-          {
-            title: "Monthly Net Income",
-            dataKey: "net",
-            color: "#14b8a6",
-            fill: "rgba(20,184,166,0.08)",
-          },
-          {
-            title: "Monthly Trips",
-            dataKey: "trips",
-            color: "#f59e0b",
-            fill: "rgba(245,158,11,0.08)",
-          },
-        ].map((chart) => (
-          <div
-            key={chart.dataKey}
-            className="glass-card rounded-[22px] border border-slate-200/90 dark:border-slate-700/90 shadow-sm p-4 hover:-translate-y-0.5 hover:shadow-lg transition-all"
-          >
-            <div className="flex items-center justify-between mb-3">
-              <span className="font-semibold text-sm tracking-tight">
-                {chart.title}
-              </span>
-              <span className="text-xs text-slate-500 font-semibold">
-                Trend
-              </span>
-            </div>
-            <div className="h-[260px]">
-              <ResponsiveContainer width="100%" height={260}>
-                <AreaChart data={chartData}>
-                  <defs>
-                    <linearGradient
-                      id={`grad-${chart.dataKey}`}
-                      x1="0"
-                      y1="0"
-                      x2="0"
-                      y2="1"
-                    >
-                      <stop
-                        offset="0%"
-                        stopColor={chart.color}
-                        stopOpacity={0.15}
-                      />
-                      <stop
-                        offset="100%"
-                        stopColor={chart.color}
-                        stopOpacity={0}
-                      />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="label" fontSize={12} stroke="#94a3b8" />
-                  <YAxis fontSize={12} stroke="#94a3b8" />
-                  <Tooltip
-                    contentStyle={{
-                      background: "#111827",
-                      border: "none",
-                      borderRadius: 12,
-                      color: "#fff",
-                      fontSize: 13,
-                    }}
-                    formatter={(value: number) =>
-                      chart.dataKey === "trips" ? value.toLocaleString() : value
-                    }
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey={chart.dataKey}
-                    stroke={chart.color}
-                    strokeWidth={2.5}
-                    fill={`url(#grad-${chart.dataKey})`}
-                    dot={{ r: 3 }}
-                    activeDot={{ r: 6 }}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-3">
+        {/* Gross + Net in one chart */}
+        <div className="glass-card rounded-[22px] border border-slate-200/90 dark:border-slate-700/90 shadow-sm p-4 hover:-translate-y-0.5 hover:shadow-lg transition-all">
+          <div className="flex items-center justify-between mb-3">
+            <span className="font-semibold text-sm tracking-tight">
+              Monthly Gross vs Net Income
+            </span>
+            <span className="text-xs text-slate-500 font-semibold">Trend</span>
           </div>
-        ))}
+
+          <div className="h-[260px]">
+            <ResponsiveContainer width="100%" height={260}>
+              <AreaChart data={chartData}>
+                <defs>
+                  <linearGradient id="grossGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#2563eb" stopOpacity={0.18} />
+                    <stop offset="100%" stopColor="#2563eb" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="netGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#14b8a6" stopOpacity={0.18} />
+                    <stop offset="100%" stopColor="#14b8a6" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="label" fontSize={12} stroke="#94a3b8" />
+                <YAxis fontSize={12} stroke="#94a3b8" />
+                <Tooltip
+                  contentStyle={{
+                    background: "#111827",
+                    border: "none",
+                    borderRadius: 12,
+                    color: "#fff",
+                    fontSize: 13,
+                  }}
+                  formatter={(value: unknown, name: string) => {
+                    if (typeof value !== "number") return [value ?? "", name];
+
+                    const label =
+                      name === "gross"
+                        ? "Gross Income"
+                        : name === "net"
+                          ? "Net Income"
+                          : name;
+
+                    return [moneyFormat.format(value), label]; // ❌ alisin Math.round
+                  }}
+                />
+                <Legend />
+                <Area
+                  type="monotone"
+                  dataKey="gross"
+                  name="Gross Income"
+                  stroke="#2563eb"
+                  strokeWidth={2.5}
+                  fill="url(#grossGrad)"
+                  dot={{ r: 3 }}
+                  activeDot={{ r: 6 }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="net"
+                  name="Net Income"
+                  stroke="#14b8a6"
+                  strokeWidth={2.5}
+                  fill="url(#netGrad)"
+                  dot={{ r: 3 }}
+                  activeDot={{ r: 6 }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Trips as Bar Chart */}
+        <div className="glass-card rounded-[22px] border border-slate-200/90 dark:border-slate-700/90 shadow-sm p-4 hover:-translate-y-0.5 hover:shadow-lg transition-all">
+          <div className="flex items-center justify-between mb-3">
+            <span className="font-semibold text-sm tracking-tight">
+              Monthly Trips
+            </span>
+            <span className="text-xs text-slate-500 font-semibold">Volume</span>
+          </div>
+
+          <div className="h-[260px]">
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="label" fontSize={12} stroke="#94a3b8" />
+                <YAxis fontSize={12} stroke="#94a3b8" />
+                <Tooltip
+                  contentStyle={{
+                    background: "#111827",
+                    border: "none",
+                    borderRadius: 12,
+                    color: "#fff",
+                    fontSize: 13,
+                  }}
+                  formatter={(value: unknown) =>
+                    typeof value === "number"
+                      ? value.toLocaleString()
+                      : (value ?? "")
+                  }
+                />
+                <Bar
+                  dataKey="trips"
+                  name="Trips"
+                  fill="#f59e0b"
+                  radius={[10, 10, 0, 0]}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
       </div>
 
       {/* Trip Records Table */}
@@ -426,6 +450,7 @@ export default function DashboardPage() {
           onDuplicate={handleDuplicate}
           onExpenseClick={(data) => setExpenseBreakdown(data)}
           selectedTruck={selectedTruck}
+          showTruckColumn={!selectedTruck}
           onQuickEdit={quickEditTrip}
           sortable
           sortField={sortField}
