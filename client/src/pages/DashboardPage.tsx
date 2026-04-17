@@ -6,7 +6,6 @@ import FilterBar from "../components/shared/FilterBar";
 import TripModal from "../components/shared/TripModal";
 import TripTable from "../components/shared/TripTable";
 import ErrorState from "../components/shared/ErrorState";
-// import { peso, pesoCompact } from "../lib/utils";
 import { exportTripsCsv, exportPayslip } from "../lib/exportHelpers";
 import {
   DollarSign,
@@ -21,6 +20,7 @@ import {
   CheckCheck,
   XCircle,
   Trash2,
+  ChevronDown,
 } from "lucide-react";
 import {
   XAxis,
@@ -40,6 +40,26 @@ import { usePagination } from "../hooks/usePagination";
 import ExpenseBreakdownModal from "../components/shared/ExpenseBreakdownModal";
 import { AnimatePresence, motion } from "framer-motion";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
+
+const COLUMN_OPTIONS = [
+  ["truck", "Truck"],
+  ["week", "Week"],
+  ["date", "Date"],
+  ["status", "Status"],
+  ["shipmentNumber", "Shipment #"],
+  ["rate", "Rate"],
+  ["trips", "Trips"],
+  ["crewSalary", "Crew Salary"],
+  ["cashAdvance", "Cash Adv."],
+  ["reimbursements", "Reimb."],
+  ["expenses", "Expenses"],
+  ["note", "Note"],
+  ["grossIncome", "Gross"],
+  ["netIncome", "Net"],
+  ["payable", "Payable"],
+] as const;
+
+type ColumnKey = (typeof COLUMN_OPTIONS)[number][0];
 
 export default function DashboardPage() {
   const {
@@ -80,6 +100,27 @@ export default function DashboardPage() {
     dateIso: string;
     dateText: string;
   } | null>(null);
+  const [showColumnsMenu, setShowColumnsMenu] = useState(false);
+  const [visibleColumns, setVisibleColumns] = useState<
+    Record<ColumnKey, boolean>
+  >({
+    truck: true,
+    week: true,
+    date: true,
+    status: true,
+    shipmentNumber: true,
+    rate: true,
+    trips: true,
+    crewSalary: true,
+    cashAdvance: true,
+    reimbursements: true,
+    expenses: true,
+    note: true,
+    grossIncome: true,
+    netIncome: true,
+    payable: true,
+  });
+
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   useKeyboardShortcuts({
@@ -94,6 +135,7 @@ export default function DashboardPage() {
   const selectedTruckName = truckOptions.find(
     (t) => t._id === selectedTruck,
   )?.truckName;
+
   const rangeLabels: Record<string, string> = {
     ALL: "Selected",
     CC: "Current Cutoff's",
@@ -109,7 +151,8 @@ export default function DashboardPage() {
     ? `${selectedTruckName} Overview`
     : "Overview";
 
-  // Sorting state
+  const showTruckColumn = !selectedTruck || selectedTruck === "ALL";
+
   const [sortField, setSortField] = useState("");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
@@ -193,12 +236,10 @@ export default function DashboardPage() {
 
   return (
     <div>
-      {/* Error State */}
       {error && !loading && (
         <ErrorState message={error} onRetry={() => fetchDashboard()} />
       )}
 
-      {/* Header */}
       <div className="glass-card rounded-[22px] sm:rounded-[28px] border border-slate-200/80 dark:border-slate-700/90 shadow-lg p-3.5 sm:p-5 mb-3">
         <div className="flex flex-col md:flex-row justify-between md:items-end gap-3">
           <div>
@@ -219,7 +260,6 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Filters */}
       <FilterBar
         showTruck={admin}
         allowedRangePresets={admin ? undefined : (["CC", "LC"] as const)}
@@ -233,7 +273,6 @@ export default function DashboardPage() {
         }
       />
 
-      {/* KPIs */}
       <div className="grid grid-cols-1 min-[480px]:grid-cols-2 xl:grid-cols-4 gap-2.5 sm:gap-3 mb-3">
         <KpiCard
           label={`${kpiPrefix} Gross`}
@@ -244,7 +283,6 @@ export default function DashboardPage() {
           icon={<DollarSign size={22} />}
           colorClass="bg-blue-600/10 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400"
         />
-
         <KpiCard
           label={`${kpiPrefix} Net`}
           value={kpis.net}
@@ -254,7 +292,6 @@ export default function DashboardPage() {
           icon={<CheckCircle2 size={22} />}
           colorClass="bg-teal-500/10 text-teal-500 dark:bg-teal-500/15 dark:text-teal-400"
         />
-
         <KpiCard
           label={`${kpiPrefix} Payable`}
           value={kpis.payable}
@@ -265,7 +302,6 @@ export default function DashboardPage() {
           colorClass="bg-cyan-500/10 text-cyan-500 dark:bg-cyan-500/15 dark:text-cyan-400"
           invertTrend
         />
-
         <KpiCard
           label={`${kpiPrefix} Cash Outflow`}
           value={kpis.cashOutflow}
@@ -278,9 +314,7 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-3">
-        {/* Gross + Net in one chart */}
         <div className="glass-card rounded-[22px] border border-slate-200/90 dark:border-slate-700/90 shadow-sm p-4 hover:-translate-y-0.5 hover:shadow-lg transition-all">
           <div className="flex items-center justify-between mb-3">
             <span className="font-semibold text-sm tracking-tight">
@@ -288,7 +322,6 @@ export default function DashboardPage() {
             </span>
             <span className="text-xs text-slate-500 font-semibold">Trend</span>
           </div>
-
           <div className="h-[260px]">
             <ResponsiveContainer width="100%" height={260}>
               <AreaChart data={chartData}>
@@ -302,7 +335,6 @@ export default function DashboardPage() {
                     <stop offset="100%" stopColor="#14b8a6" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                 <XAxis dataKey="label" fontSize={12} stroke="#94a3b8" />
                 <YAxis fontSize={12} stroke="#94a3b8" />
@@ -316,15 +348,13 @@ export default function DashboardPage() {
                   }}
                   formatter={(value: unknown, name: string) => {
                     if (typeof value !== "number") return [value ?? "", name];
-
                     const label =
                       name === "gross"
                         ? "Gross Income"
                         : name === "net"
                           ? "Net Income"
                           : name;
-
-                    return [moneyFormat.format(value), label]; // ❌ alisin Math.round
+                    return [moneyFormat.format(value), label];
                   }}
                 />
                 <Legend />
@@ -353,7 +383,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Trips as Bar Chart */}
         <div className="glass-card rounded-[22px] border border-slate-200/90 dark:border-slate-700/90 shadow-sm p-4 hover:-translate-y-0.5 hover:shadow-lg transition-all">
           <div className="flex items-center justify-between mb-3">
             <span className="font-semibold text-sm tracking-tight">
@@ -361,7 +390,6 @@ export default function DashboardPage() {
             </span>
             <span className="text-xs text-slate-500 font-semibold">Volume</span>
           </div>
-
           <div className="h-[260px]">
             <ResponsiveContainer width="100%" height={260}>
               <BarChart data={chartData}>
@@ -394,7 +422,6 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Trip Records Table */}
       <div className="glass-card rounded-[22px] border border-slate-200/90 dark:border-slate-700/90 shadow-sm p-3.5 overflow-hidden">
         <div className="flex flex-col gap-3 mb-3">
           <div>
@@ -430,6 +457,43 @@ export default function DashboardPage() {
             >
               <FileText size={16} /> Payslip
             </button>
+            <div className="relative">
+              <button
+                onClick={() => setShowColumnsMenu((v) => !v)}
+                className="min-h-[44px] px-3 rounded-[14px] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-1.5"
+              >
+                Columns
+                <ChevronDown
+                  size={16}
+                  className={`transition-transform ${
+                    showColumnsMenu ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
+              {showColumnsMenu && (
+                <div className="absolute right-0 mt-2 z-50 w-64 max-h-80 overflow-auto rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg p-2">
+                  {COLUMN_OPTIONS.map(([key, label]) => (
+                    <label
+                      key={key}
+                      className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer text-sm"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={visibleColumns[key]}
+                        onChange={() =>
+                          setVisibleColumns((prev) => ({
+                            ...prev,
+                            [key]: !prev[key],
+                          }))
+                        }
+                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500/20"
+                      />
+                      <span>{label}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -450,7 +514,8 @@ export default function DashboardPage() {
           onDuplicate={handleDuplicate}
           onExpenseClick={(data) => setExpenseBreakdown(data)}
           selectedTruck={selectedTruck}
-          showTruckColumn={!selectedTruck}
+          showTruckColumn={showTruckColumn}
+          visibleColumns={visibleColumns}
           onQuickEdit={quickEditTrip}
           sortable
           sortField={sortField}
@@ -467,7 +532,6 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* Floating Bulk Action Bar */}
       <AnimatePresence>
         {selectedTripIds.length > 0 && (
           <motion.div
@@ -514,7 +578,6 @@ export default function DashboardPage() {
         )}
       </AnimatePresence>
 
-      {/* Trip Modal */}
       <TripModal
         open={tripModal}
         onClose={() => {
@@ -526,7 +589,6 @@ export default function DashboardPage() {
         duplicateFrom={duplicateFrom}
       />
 
-      {/* Delete Confirmation */}
       <Modal
         open={!!deleteModal}
         onClose={() => setDeleteModal(null)}
@@ -554,7 +616,6 @@ export default function DashboardPage() {
         </p>
       </Modal>
 
-      {/* Bulk Delete Confirmation */}
       <Modal
         open={bulkDeleteModal}
         onClose={() => setBulkDeleteModal(false)}
@@ -587,7 +648,6 @@ export default function DashboardPage() {
         </p>
       </Modal>
 
-      {/* Expense Breakdown Modal */}
       <ExpenseBreakdownModal
         open={!!expenseBreakdown}
         onClose={() => setExpenseBreakdown(null)}
@@ -596,7 +656,6 @@ export default function DashboardPage() {
         dateText={expenseBreakdown?.dateText || ""}
       />
 
-      {/* Truck Required Warning */}
       <Modal
         open={showTruckWarning}
         onClose={() => setShowTruckWarning(false)}

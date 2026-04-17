@@ -21,6 +21,33 @@ import {
 import EmptyState from "./EmptyState";
 import { Skeleton, SkeletonTableRow } from "./Skeleton";
 
+type ColumnKey =
+  | "truck"
+  | "week"
+  | "date"
+  | "status"
+  | "shipmentNumber"
+  | "rate"
+  | "trips"
+  | "crewSalary"
+  | "cashAdvance"
+  | "reimbursements"
+  | "expenses"
+  | "note"
+  | "grossIncome"
+  | "netIncome"
+  | "payable";
+
+type VisibleColumns = Partial<Record<ColumnKey, boolean>>;
+
+type ColumnDef = {
+  key: ColumnKey;
+  label: string;
+  sortField?: string;
+  className?: string;
+  render: (row: TripRow) => ReactNode;
+};
+
 export interface TripTableProps {
   rows: TripRow[];
   loading?: boolean;
@@ -34,86 +61,25 @@ export interface TripTableProps {
     dateIso: string;
     dateText: string;
   }) => void;
-  /** Fallback truckId used when the row's truck field is not available */
   selectedTruck?: string;
-  /** Use report-specific net/payable fields when true */
   reportMode?: boolean;
-  /** Enable checkbox selection */
   selectable?: boolean;
   selectedIds?: string[];
   onSelectionChange?: (ids: string[]) => void;
-  /** Inline quick-edit callback */
   onQuickEdit?: (
     id: string,
     field: string,
     value: number | string,
   ) => Promise<void>;
-  /** Column sorting */
   sortable?: boolean;
   sortField?: string;
   sortDirection?: "asc" | "desc";
   onSort?: (field: string) => void;
-  /** Custom empty state content */
   emptyState?: ReactNode;
-  /** Show truck name column (when All Trucks selected) */
   showTruckColumn?: boolean;
-  /** Per-row filter: can this row be edited? */
+  visibleColumns?: VisibleColumns;
   canEditRow?: (row: TripRow) => boolean;
-  /** Per-row filter: can this row be deleted? */
   canDeleteRow?: (row: TripRow) => boolean;
-}
-
-// Map header labels to sortable field keys
-const SORTABLE_FIELDS: Record<string, string> = {
-  Date: "dateIso",
-  Rate: "rate",
-  Trips: "trips",
-  "Crew Salary": "crewSalary",
-  Gross: "grossIncome",
-  Net: "netIncome",
-  Payable: "payable",
-};
-
-const BASE_HEADERS_WITH_ACTIONS = [
-  "Week",
-  "Date",
-  "Status",
-  "Shipment #",
-  "Rate",
-  "Trips",
-  "Crew Salary",
-  "Cash Adv.",
-  "Reimb.",
-  "Expenses",
-  "Note",
-  "Gross",
-  "Net",
-  "Payable",
-  "Action",
-];
-const BASE_HEADERS_NO_ACTIONS = [
-  "Week",
-  "Date",
-  "Status",
-  "Shipment #",
-  "Rate",
-  "Trips",
-  "Crew Salary",
-  "Cash Adv.",
-  "Reimb.",
-  "Expenses",
-  "Note",
-  "Gross",
-  "Net",
-  "Payable",
-];
-
-function buildHeaders(base: string[], showTruck: boolean): string[] {
-  if (!showTruck) return base;
-  const dateIdx = base.indexOf("Date");
-  const result = [...base];
-  result.splice(dateIdx + 1, 0, "Truck");
-  return result;
 }
 
 function statusBadge(status: string) {
@@ -125,7 +91,6 @@ function statusBadge(status: string) {
   return "bg-slate-400/10 text-slate-400 border-slate-400/20";
 }
 
-/* ─── Inline Edit Cell ─── */
 function EditableCell({
   rowId,
   field,
@@ -225,7 +190,6 @@ function EditableCell({
     );
   }
 
-  // Display mode
   const displayValue = isNote ? value || "—" : peso(Number(value));
 
   return (
@@ -239,7 +203,6 @@ function EditableCell({
   );
 }
 
-/* ─── Sort Header ─── */
 function SortHeader({
   label,
   fieldKey,
@@ -281,7 +244,6 @@ function SortHeader({
   );
 }
 
-/* ─── Mobile Trip Card ─── */
 function TripCard({
   r,
   showActions,
@@ -487,7 +449,6 @@ function TripCard({
   );
 }
 
-/* ─── Main TripTable Component ─── */
 export default function TripTable({
   rows,
   loading = false,
@@ -509,14 +470,215 @@ export default function TripTable({
   onSort,
   emptyState,
   showTruckColumn = false,
+  visibleColumns = {},
   canEditRow,
   canDeleteRow,
 }: TripTableProps) {
-  const baseHeaders = showActions
-    ? BASE_HEADERS_WITH_ACTIONS
-    : BASE_HEADERS_NO_ACTIONS;
-  const headers = buildHeaders(baseHeaders, showTruckColumn);
-  const colCount = headers.length + (selectable ? 1 : 0);
+  const show = (key: ColumnKey) => visibleColumns[key] !== false;
+  const truckVisible = showTruckColumn && show("truck");
+
+  const netValueFor = (r: TripRow) =>
+    reportMode ? (r.reportNetIncome ?? r.netIncome) : r.netIncome;
+  const payableValueFor = (r: TripRow) =>
+    reportMode ? (r.reportPayable ?? r.payable) : r.payable;
+  const displayPayableFor = (r: TripRow) =>
+    !reportMode && r.paid ? "₱0.00" : peso(payableValueFor(r));
+
+  const columns: ColumnDef[] = [];
+  if (show("week"))
+    columns.push({
+      key: "week",
+      label: "Week",
+      render: (r) => r.week,
+    });
+  if (show("date"))
+    columns.push({
+      key: "date",
+      label: "Date",
+      sortField: "dateIso",
+      render: (r) => r.dateText,
+    });
+  if (truckVisible)
+    columns.push({
+      key: "truck",
+      label: "Truck",
+      render: (r) => r.truckName || "—",
+      className: "font-semibold text-blue-600 dark:text-blue-400",
+    });
+  if (show("status"))
+    columns.push({
+      key: "status",
+      label: "Status",
+      render: (r) => (
+        <span
+          className={cn(
+            "inline-block px-2.5 py-1 rounded-full text-[10px] font-bold leading-none border whitespace-nowrap",
+            statusBadge(r.status),
+          )}
+        >
+          {r.status.toUpperCase()}
+        </span>
+      ),
+    });
+  if (show("shipmentNumber"))
+    columns.push({
+      key: "shipmentNumber",
+      label: "Shipment #",
+      render: (r) => r.shipmentNumber,
+      className: "font-semibold text-orange-500",
+    });
+  if (show("rate"))
+    columns.push({
+      key: "rate",
+      label: "Rate",
+      sortField: "rate",
+      render: (r) =>
+        onQuickEdit ? (
+          <EditableCell
+            rowId={r._id}
+            field="rate"
+            value={r.rate}
+            onSave={onQuickEdit}
+          />
+        ) : (
+          peso(r.rate)
+        ),
+    });
+  if (show("trips"))
+    columns.push({
+      key: "trips",
+      label: "Trips",
+      sortField: "trips",
+      render: (r) =>
+        onQuickEdit ? (
+          <EditableCell
+            rowId={r._id}
+            field="trips"
+            value={r.trips}
+            onSave={onQuickEdit}
+          />
+        ) : (
+          r.trips
+        ),
+    });
+  if (show("crewSalary"))
+    columns.push({
+      key: "crewSalary",
+      label: "Crew Salary",
+      sortField: "crewSalary",
+      render: (r) =>
+        onQuickEdit ? (
+          <EditableCell
+            rowId={r._id}
+            field="crewSalary"
+            value={r.crewSalary}
+            onSave={onQuickEdit}
+          />
+        ) : (
+          peso(r.crewSalary)
+        ),
+    });
+  if (show("cashAdvance"))
+    columns.push({
+      key: "cashAdvance",
+      label: "Cash Adv.",
+      render: (r) => peso(r.cashAdvance),
+    });
+  if (show("reimbursements"))
+    columns.push({
+      key: "reimbursements",
+      label: "Reimb.",
+      render: (r) => peso(r.reimbursements),
+    });
+  if (show("expenses"))
+    columns.push({
+      key: "expenses",
+      label: "Expenses",
+      render: (r) => peso(r.expenses),
+    });
+  if (show("note"))
+    columns.push({
+      key: "note",
+      label: "Note",
+      render: (r) =>
+        onExpenseClick && (r.hasExpenses || r.expenses > 0 || r.note) ? (
+          <button
+            onClick={() => {
+              if (r.hasExpenses || r.expenses > 0) {
+                const truckId =
+                  typeof r.truck === "string"
+                    ? r.truck
+                    : r.truck &&
+                        typeof r.truck === "object" &&
+                        "_id" in r.truck
+                      ? r.truck._id
+                      : selectedTruck;
+                onExpenseClick({
+                  truckId,
+                  dateIso: r.dateIso,
+                  dateText: r.dateText,
+                });
+              }
+            }}
+            className={cn(
+              "text-left text-xs truncate block max-w-[120px]",
+              r.hasExpenses || r.expenses > 0
+                ? "text-blue-600 dark:text-blue-400 hover:underline cursor-pointer font-medium"
+                : "text-slate-500 cursor-default",
+            )}
+            title={r.note}
+          >
+            {r.note || "—"}
+          </button>
+        ) : (
+          <span
+            className={r.note ? "truncate block max-w-[120px]" : "text-slate-300"}
+            title={r.note}
+          >
+            {r.note || "—"}
+          </span>
+        ),
+      className: "max-w-[120px]",
+    });
+  if (show("grossIncome"))
+    columns.push({
+      key: "grossIncome",
+      label: "Gross",
+      sortField: "grossIncome",
+      render: (r) => peso(r.grossIncome),
+    });
+  if (show("netIncome"))
+    columns.push({
+      key: "netIncome",
+      label: "Net",
+      sortField: "netIncome",
+      render: (r) => {
+        const netValue = netValueFor(r);
+        return (
+          <span
+            className={cn(
+              "font-semibold",
+              netValue < 0 ? "text-red-500" : "text-green-500",
+            )}
+          >
+            {peso(netValue)}
+          </span>
+        );
+      },
+    });
+  if (show("payable"))
+    columns.push({
+      key: "payable",
+      label: "Payable",
+      sortField: "payable",
+      render: (r) => (
+        <span className="text-red-500 font-semibold">
+          {displayPayableFor(r)}
+        </span>
+      ),
+    });
+
+  const colCount = (selectable ? 1 : 0) + columns.length + (showActions ? 1 : 0);
 
   const allSelected =
     rows.length > 0 && rows.every((r) => selectedIds.includes(r._id));
@@ -546,7 +708,6 @@ export default function TripTable({
 
   return (
     <div className="rounded-[18px] overflow-auto border border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-900">
-      {/* ─── Desktop Table (hidden below md) ─── */}
       <table
         className={cn(
           "w-full trip-table hidden md:table border-separate border-spacing-0",
@@ -568,9 +729,9 @@ export default function TripTable({
                 />
               </th>
             )}
-            {headers.map((h, idx) => (
+            {columns.map((col, idx) => (
               <th
-                key={h}
+                key={col.key}
                 className={cn(
                   "sticky top-0 z-10 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-slate-600 dark:text-slate-300 px-2.5 py-3 whitespace-nowrap",
                   idx === 0 &&
@@ -583,17 +744,22 @@ export default function TripTable({
               >
                 {sortable ? (
                   <SortHeader
-                    label={h}
-                    fieldKey={SORTABLE_FIELDS[h]}
+                    label={col.label}
+                    fieldKey={col.sortField}
                     sortField={sortField}
                     sortDirection={sortDirection}
                     onSort={onSort}
                   />
                 ) : (
-                  h
+                  col.label
                 )}
               </th>
             ))}
+            {showActions && (
+              <th className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-slate-600 dark:text-slate-300 px-2.5 py-3 whitespace-nowrap">
+                Action
+              </th>
+            )}
           </tr>
         </thead>
         <tbody>
@@ -615,15 +781,6 @@ export default function TripTable({
             </tr>
           ) : (
             rows.map((r) => {
-              const netValue = reportMode
-                ? (r.reportNetIncome ?? r.netIncome)
-                : r.netIncome;
-              const payableValue = reportMode
-                ? (r.reportPayable ?? r.payable)
-                : r.payable;
-              const displayPayable =
-                !reportMode && r.paid ? "₱0.00" : peso(payableValue);
-
               return (
                 <tr
                   key={r._id}
@@ -638,7 +795,6 @@ export default function TripTable({
                       "bg-blue-50/70 dark:bg-blue-500/10",
                   )}
                 >
-                  {/* Checkbox */}
                   {selectable && (
                     <td className="sticky left-0 z-[5] bg-white dark:bg-slate-900 text-center px-2.5 py-2.5 border-b border-slate-100 dark:border-slate-800 w-[40px] min-w-[40px] max-w-[40px]">
                       <input
@@ -649,174 +805,23 @@ export default function TripTable({
                       />
                     </td>
                   )}
-                  {/* Week */}
-                  <td
-                    className={cn(
-                      "text-center text-xs px-2.5 py-2.5 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]",
-                      selectable
-                        ? "sticky left-[40px] z-[5]"
-                        : "sticky left-0 z-[5]",
-                    )}
-                  >
-                    {r.week}
-                  </td>
-                  {/* Date */}
-                  <td className="text-center text-xs px-2.5 py-2.5 border-b border-slate-100 dark:border-slate-800 whitespace-nowrap">
-                    {r.dateText}
-                  </td>
-                  {/* Truck (conditional) */}
-                  {showTruckColumn && (
-                    <td className="text-center text-xs px-2.5 py-2.5 border-b border-slate-100 dark:border-slate-800 whitespace-nowrap font-semibold text-blue-600 dark:text-blue-400">
-                      {r.truckName || "—"}
-                    </td>
-                  )}
-                  {/* Status */}
-                  <td className="text-center text-xs px-2.5 py-2.5 border-b border-slate-100 dark:border-slate-800">
-                    <span
+                  {columns.map((col, idx) => (
+                    <td
+                      key={col.key}
                       className={cn(
-                        "inline-block px-2.5 py-1 rounded-full text-[10px] font-bold leading-none border whitespace-nowrap",
-                        statusBadge(r.status),
+                        "text-center text-xs px-2.5 py-2.5 border-b border-slate-100 dark:border-slate-800",
+                        idx === 0 &&
+                          !selectable &&
+                          "sticky left-0 z-[5] bg-white dark:bg-slate-900 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]",
+                        idx === 0 &&
+                          selectable &&
+                          "sticky left-[40px] z-[5] bg-white dark:bg-slate-900 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]",
+                        col.className,
                       )}
                     >
-                      {r.status.toUpperCase()}
-                    </span>
-                  </td>
-                  {/* Shipment # */}
-                  <td className="text-center text-xs px-2.5 py-2.5 border-b border-slate-100 dark:border-slate-800 font-semibold text-orange-500">
-                    {r.shipmentNumber}
-                  </td>
-                  {/* Rate */}
-                  <td className="text-center text-xs px-2.5 py-2.5 border-b border-slate-100 dark:border-slate-800">
-                    {onQuickEdit ? (
-                      <EditableCell
-                        rowId={r._id}
-                        field="rate"
-                        value={r.rate}
-                        onSave={onQuickEdit}
-                      />
-                    ) : (
-                      peso(r.rate)
-                    )}
-                  </td>
-                  {/* Trips */}
-                  <td className="text-center text-xs px-2.5 py-2.5 border-b border-slate-100 dark:border-slate-800">
-                    {onQuickEdit ? (
-                      <EditableCell
-                        rowId={r._id}
-                        field="trips"
-                        value={r.trips}
-                        onSave={onQuickEdit}
-                      />
-                    ) : (
-                      r.trips
-                    )}
-                  </td>
-                  {/* Crew Salary */}
-                  <td className="text-center text-xs px-2.5 py-2.5 border-b border-slate-100 dark:border-slate-800">
-                    {onQuickEdit ? (
-                      <EditableCell
-                        rowId={r._id}
-                        field="crewSalary"
-                        value={r.crewSalary}
-                        onSave={onQuickEdit}
-                      />
-                    ) : (
-                      peso(r.crewSalary)
-                    )}
-                  </td>
-                  {/* Cash Advance */}
-                  <td className="text-center text-xs px-2.5 py-2.5 border-b border-slate-100 dark:border-slate-800">
-                    {onQuickEdit ? (
-                      <EditableCell
-                        rowId={r._id}
-                        field="cashAdvance"
-                        value={r.cashAdvance}
-                        onSave={onQuickEdit}
-                      />
-                    ) : (
-                      peso(r.cashAdvance)
-                    )}
-                  </td>
-                  {/* Reimbursements */}
-                  <td className="text-center text-xs px-2.5 py-2.5 border-b border-slate-100 dark:border-slate-800">
-                    {onQuickEdit ? (
-                      <EditableCell
-                        rowId={r._id}
-                        field="reimbursements"
-                        value={r.reimbursements}
-                        onSave={onQuickEdit}
-                      />
-                    ) : (
-                      peso(r.reimbursements)
-                    )}
-                  </td>
-                  {/* Expenses */}
-                  <td className="text-center text-xs px-2.5 py-2.5 border-b border-slate-100 dark:border-slate-800">
-                    {peso(r.expenses)}
-                  </td>
-                  {/* Note */}
-                  <td className="text-center text-xs px-2.5 py-2.5 border-b border-slate-100 dark:border-slate-800 max-w-[120px]">
-                    {onExpenseClick &&
-                    (r.hasExpenses || r.expenses > 0 || r.note) ? (
-                      <button
-                        onClick={() => {
-                          if (r.hasExpenses || r.expenses > 0) {
-                            const truckId =
-                              typeof r.truck === "string"
-                                ? r.truck
-                                : r.truck &&
-                                    typeof r.truck === "object" &&
-                                    "_id" in r.truck
-                                  ? r.truck._id
-                                  : selectedTruck;
-                            onExpenseClick({
-                              truckId,
-                              dateIso: r.dateIso,
-                              dateText: r.dateText,
-                            });
-                          }
-                        }}
-                        className={cn(
-                          "text-left text-xs truncate block max-w-[120px]",
-                          r.hasExpenses || r.expenses > 0
-                            ? "text-blue-600 dark:text-blue-400 hover:underline cursor-pointer font-medium"
-                            : "text-slate-500 cursor-default",
-                        )}
-                        title={r.note}
-                      >
-                        {r.note || "—"}
-                      </button>
-                    ) : (
-                      <span
-                        className={
-                          r.note
-                            ? "truncate block max-w-[120px]"
-                            : "text-slate-300"
-                        }
-                        title={r.note}
-                      >
-                        {r.note || "—"}
-                      </span>
-                    )}
-                  </td>
-                  {/* Gross */}
-                  <td className="text-center text-xs px-2.5 py-2.5 border-b border-slate-100 dark:border-slate-800">
-                    {peso(r.grossIncome)}
-                  </td>
-                  {/* Net */}
-                  <td
-                    className={cn(
-                      "text-center text-xs px-2.5 py-2.5 border-b border-slate-100 dark:border-slate-800 font-semibold",
-                      netValue < 0 ? "text-red-500" : "text-green-500",
-                    )}
-                  >
-                    {peso(netValue)}
-                  </td>
-                  {/* Payable */}
-                  <td className="text-center text-xs px-2.5 py-2.5 border-b border-slate-100 dark:border-slate-800 text-red-500 font-semibold">
-                    {displayPayable}
-                  </td>
-                  {/* Action */}
+                      {col.render(r)}
+                    </td>
+                  ))}
                   {showActions && (
                     <td className="text-center text-xs px-2.5 py-2.5 border-b border-slate-100 dark:border-slate-800">
                       <div className="flex items-center justify-center gap-1">
@@ -871,7 +876,6 @@ export default function TripTable({
         </tbody>
       </table>
 
-      {/* ─── Mobile Cards (visible below md) ─── */}
       <div className="flex flex-col gap-3 md:hidden p-3">
         {selectable && rows.length > 0 && !loading && (
           <div className="flex items-center gap-2 px-1 pb-1">
@@ -939,7 +943,7 @@ export default function TripTable({
               selectable={selectable}
               selected={selectedIds.includes(r._id)}
               onSelectToggle={handleSelectRow}
-              showTruckColumn={showTruckColumn}
+              showTruckColumn={truckVisible}
             />
           ))
         )}

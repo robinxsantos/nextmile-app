@@ -16,6 +16,7 @@ import {
   XCircle,
   Trash2,
   Route,
+  ChevronDown,
 } from "lucide-react";
 import Pagination from "../components/shared/Pagination";
 import { usePagination } from "../hooks/usePagination";
@@ -23,6 +24,26 @@ import ExpenseBreakdownModal from "../components/shared/ExpenseBreakdownModal";
 import { AnimatePresence, motion } from "framer-motion";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 import EmptyState from "../components/shared/EmptyState";
+
+const COLUMN_OPTIONS = [
+  ["truck", "Truck"],
+  ["week", "Week"],
+  ["date", "Date"],
+  ["status", "Status"],
+  ["shipmentNumber", "Shipment #"],
+  ["rate", "Rate"],
+  ["trips", "Trips"],
+  ["crewSalary", "Crew Salary"],
+  ["cashAdvance", "Cash Adv."],
+  ["reimbursements", "Reimb."],
+  ["expenses", "Expenses"],
+  ["note", "Note"],
+  ["grossIncome", "Gross"],
+  ["netIncome", "Net"],
+  ["payable", "Payable"],
+] as const;
+
+type ColumnKey = (typeof COLUMN_OPTIONS)[number][0];
 
 export default function TripsPage() {
   const {
@@ -61,6 +82,26 @@ export default function TripsPage() {
     dateIso: string;
     dateText: string;
   } | null>(null);
+  const [showColumnsMenu, setShowColumnsMenu] = useState(false);
+  const [visibleColumns, setVisibleColumns] = useState<
+    Record<ColumnKey, boolean>
+  >({
+    truck: true,
+    week: true,
+    date: true,
+    status: true,
+    shipmentNumber: true,
+    rate: true,
+    trips: true,
+    crewSalary: true,
+    cashAdvance: true,
+    reimbursements: true,
+    expenses: true,
+    note: true,
+    grossIncome: true,
+    netIncome: true,
+    payable: true,
+  });
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   useKeyboardShortcuts({
@@ -76,8 +117,8 @@ export default function TripsPage() {
     (t) => t._id === selectedTruck,
   )?.truckName;
   const pageTitle = selectedTruckName ? `${selectedTruckName} Trips` : "Trips";
+  const showTruckColumn = !selectedTruck || selectedTruck === "ALL";
 
-  // Sorting state
   const [sortField, setSortField] = useState("");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
@@ -93,7 +134,6 @@ export default function TripsPage() {
 
   const filteredRows = useMemo(() => {
     let rows = tripRows;
-    // Driver paid/unpaid filter
     if (!admin && driverStatus !== "ALL") {
       rows = rows.filter((r) => (driverStatus === "PAID" ? r.paid : !r.paid));
     }
@@ -141,7 +181,6 @@ export default function TripsPage() {
     setTripModal(true);
   };
 
-  // Build a human-readable range label for exports
   const getRangeLabel = useCallback((): string => {
     const RANGE_LABELS: Record<string, string> = {
       ALL: "All Time",
@@ -176,6 +215,7 @@ export default function TripsPage() {
     const filename = `NEXTMILE_${truckLabel.replace(/\s+/g, "_")}_${rangeLabel.replace(/[^a-zA-Z0-9-]/g, "_")}.csv`;
     exportTripsCsv(filteredRows, filename);
   };
+
   const handleExportPayslip = () => {
     const truckLabel =
       truckOptions.find((t) => t._id === selectedTruck)?.truckName ||
@@ -282,6 +322,43 @@ export default function TripsPage() {
                 </button>
               </>
             )}
+            <div className="relative">
+              <button
+                onClick={() => setShowColumnsMenu((v) => !v)}
+                className="min-h-[44px] px-3 rounded-[14px] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-1.5"
+              >
+                Columns
+                <ChevronDown
+                  size={16}
+                  className={`transition-transform ${
+                    showColumnsMenu ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
+              {showColumnsMenu && (
+                <div className="absolute right-0 mt-2 z-50 w-64 max-h-80 overflow-auto rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg p-2">
+                  {COLUMN_OPTIONS.map(([key, label]) => (
+                    <label
+                      key={key}
+                      className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer text-sm"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={visibleColumns[key]}
+                        onChange={() =>
+                          setVisibleColumns((prev) => ({
+                            ...prev,
+                            [key]: !prev[key],
+                          }))
+                        }
+                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500/20"
+                      />
+                      <span>{label}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -304,7 +381,8 @@ export default function TripsPage() {
           canEditRow={admin ? undefined : (r) => !r.paid}
           canDeleteRow={admin ? undefined : (r) => !r.paid}
           selectedTruck={selectedTruck}
-          showTruckColumn={!selectedTruck}
+          showTruckColumn={showTruckColumn}
+          visibleColumns={visibleColumns}
           onQuickEdit={admin ? quickEditTrip : undefined}
           sortable
           sortField={sortField}
@@ -343,7 +421,6 @@ export default function TripsPage() {
         />
       </div>
 
-      {/* Floating Bulk Action Bar (admin only) */}
       <AnimatePresence>
         {admin && selectedTripIds.length > 0 && (
           <motion.div
@@ -436,7 +513,6 @@ export default function TripsPage() {
         </p>
       </Modal>
 
-      {/* Bulk Delete Confirmation */}
       <Modal
         open={bulkDeleteModal}
         onClose={() => setBulkDeleteModal(false)}
