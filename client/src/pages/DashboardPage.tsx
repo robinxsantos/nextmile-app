@@ -20,7 +20,7 @@ import {
   CheckCheck,
   XCircle,
   Trash2,
-  ChevronDown,
+  Columns3,
 } from "lucide-react";
 import {
   XAxis,
@@ -132,6 +132,22 @@ export default function DashboardPage() {
     initApp();
   }, [initApp]);
 
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setShowColumnsMenu(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   const selectedTruckName = truckOptions.find(
     (t) => t._id === selectedTruck,
   )?.truckName;
@@ -189,6 +205,8 @@ export default function DashboardPage() {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const {
     paginatedItems: paginatedRows,
@@ -457,18 +475,18 @@ export default function DashboardPage() {
             >
               <FileText size={16} /> Payslip
             </button>
-            <div className="relative">
+            <div ref={dropdownRef} className="relative">
               <button
                 onClick={() => setShowColumnsMenu((v) => !v)}
-                className="min-h-[44px] px-3 rounded-[14px] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-1.5"
-              >
-                Columns
-                <ChevronDown
-                  size={16}
-                  className={`transition-transform ${
-                    showColumnsMenu ? "rotate-180" : ""
+                className={`min-h-[44px] w-[44px] rounded-[14px] border flex items-center justify-center transition-colors
+                  ${
+                    showColumnsMenu
+                      ? "bg-blue-50 dark:bg-blue-500/10 border-blue-400 text-blue-600"
+                      : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
                   }`}
-                />
+                title="Show / Hide Columns"
+              >
+                <Columns3 size={18} />
               </button>
               {showColumnsMenu && (
                 <div className="absolute right-0 mt-2 z-50 w-64 max-h-80 overflow-auto rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg p-2">
