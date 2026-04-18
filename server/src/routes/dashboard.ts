@@ -3,7 +3,7 @@ import { Trip } from "../models/Trip.js";
 import { Expense } from "../models/Expense.js";
 import { Truck } from "../models/Truck.js";
 import { formatTripResponse } from "../services/tripService.js";
-import { toISODateString } from "../utils/calculations.js";
+// import { toISODateString } from "../utils/calculations.js";
 import { attachExpenseNotes } from "../utils/enrichNotes.js";
 
 const router = Router();
@@ -105,26 +105,13 @@ router.get("/", async (req: Request, res: Response) => {
       .populate("truck", "truckName")
       .sort({ date: 1, createdAt: 1 });
 
-    // Build expense note map by date
     const allExpenses = await Expense.find(truck ? { truck } : {});
-    const expenseNoteMap: Record<string, string> = {};
-    allExpenses.forEach((e) => {
-      const dateKey = e.date.toISOString().slice(0, 10);
-      const label = [e.category, e.description].filter(Boolean).join(": ");
-      if (!expenseNoteMap[dateKey]) expenseNoteMap[dateKey] = label;
-      else expenseNoteMap[dateKey] += " | " + label;
-    });
-
     const formattedTrips = trips.map((t) => formatTripResponse(t as any));
-
     const enriched = attachExpenseNotes(formattedTrips, allExpenses);
 
     const rows = enriched.map((resp: any) => {
-      const expNote = ""; // optional na to, pwede mo tanggalin later
-
       (resp as any).hasExpenses = resp.expenses > 0;
       (resp as any).expenseNote = resp.note || "";
-
       return resp;
     });
 
@@ -269,7 +256,7 @@ router.get("/reports", async (req: Request, res: Response) => {
       .populate("truck", "truckName")
       .sort({ date: 1, createdAt: 1 });
 
-    const allExpenses = await Expense.find(truck ? { truck } : {});
+    const allExpenses = await Expense.find(filter);
 
     const formattedTrips = trips.map((t) => formatTripResponse(t as any));
     const enriched = attachExpenseNotes(formattedTrips, allExpenses);

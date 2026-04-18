@@ -1,4 +1,16 @@
-export function attachExpenseNotes(trips: any[], expenses: any[]) {
+type NoteTrip = {
+  dateIso: string;
+  note?: string;
+  [key: string]: any;
+};
+
+type NoteExpense = {
+  date: Date;
+  category?: string;
+  description?: string;
+};
+
+export function attachExpenseNotes(trips: NoteTrip[], expenses: NoteExpense[]) {
   const expenseNoteMap: Record<string, string> = {};
 
   expenses.forEach((e) => {
