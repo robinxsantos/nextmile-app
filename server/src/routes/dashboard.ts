@@ -5,6 +5,50 @@ import { Truck } from "../models/Truck.js";
 import { formatTripResponse } from "../services/tripService.js";
 // import { toISODateString } from "../utils/calculations.js";
 import { attachExpenseNotes } from "../utils/enrichNotes.js";
+import { previousRangeForPreset } from "../utils/dateHelpers.js";
+
+type DateRange = {
+  prevStart: Date;
+  prevEnd: Date;
+};
+
+function getComparisonRangeForPreset(
+  preset: string | undefined,
+  currentStart: Date,
+  currentEnd: Date,
+  truckConfig?: { cutoffStart?: number; cutoffEnd?: number },
+): DateRange | null {
+  const start = new Date(currentStart);
+  const end = new Date(currentEnd);
+
+  // current cutoff / last cutoff
+  if (preset === "CC" || preset === "current_cutoff") {
+    const durationMs = end.getTime() - start.getTime();
+    const prevEnd = new Date(start.getTime() - 1);
+    const prevStart = new Date(prevEnd.getTime() - durationMs);
+
+    return { prevStart, prevEnd };
+  }
+
+  // this month
+  if (preset === "TM" || preset === "this_month") {
+    const prevMonthStart = new Date(
+      start.getFullYear(),
+      start.getMonth() - 1,
+      1,
+    );
+    const prevMonthEnd = new Date(start.getFullYear(), start.getMonth(), 0);
+
+    return { prevStart: prevMonthStart, prevEnd: prevMonthEnd };
+  }
+
+  // fallback
+  const durationMs = end.getTime() - start.getTime();
+  const prevEnd = new Date(start.getTime() - 1);
+  const prevStart = new Date(prevEnd.getTime() - durationMs);
+
+  return { prevStart, prevEnd };
+}
 
 const router = Router();
 
@@ -70,7 +114,7 @@ function getPreviousPeriodRange(
 // GET /api/dashboard?truck=&start=&end=
 router.get("/", async (req: Request, res: Response) => {
   try {
-    const { truck, start, end } = req.query;
+    const { truck, start, end, rangePreset } = req.query;
 
     // Get active trucks for dropdown
     const allTrucks = await Truck.find({ status: "Active" }).sort({
@@ -142,33 +186,43 @@ router.get("/", async (req: Request, res: Response) => {
       cashOutflow: 0,
       expenses: 0,
     };
-    const prevRange = getPreviousPeriodRange(
-      start as string | undefined,
-      end as string | undefined,
-    );
-    if (prevRange) {
-      const prevTripFilter: any = {};
-      if (truck) prevTripFilter.truck = truck;
-      prevTripFilter.date = {
-        $gte: prevRange.prevStart,
-        $lte: prevRange.prevEnd,
-      };
 
-      const prevTrips = await Trip.find(prevTripFilter)
-        .populate("truck", "truckName")
-        .sort({ date: 1, createdAt: 1 });
+    if (start && end) {
+      const truckConfig = truckOptions.find(
+        (t) => String(t._id) === String(truck || ""),
+      );
 
-      const prevRows = prevTrips.map((t) => formatTripResponse(t as any));
+      const prevRange = previousRangeForPreset(
+        (rangePreset as RangePreset) || "ALL",
+        truckConfig?.cutoffStart ?? 1,
+        truckConfig?.cutoffEnd ?? 6,
+      );
 
-      const prevExpenseFilter: any = {};
-      if (truck) prevExpenseFilter.truck = truck;
-      prevExpenseFilter.date = {
-        $gte: prevRange.prevStart,
-        $lte: prevRange.prevEnd,
-      };
+      if (prevRange) {
+        const prevTripFilter: any = {};
+        if (truck) prevTripFilter.truck = truck;
+        prevTripFilter.date = {
+          $gte: prevRange.start,
+          $lte: prevRange.end,
+        };
 
-      const prevExpenses = await Expense.find(prevExpenseFilter);
-      previousKpis = calculateKpis(prevRows, prevExpenses);
+        const prevTrips = await Trip.find(prevTripFilter)
+          .populate("truck", "truckName")
+          .sort({ date: 1, createdAt: 1 });
+
+        const prevRows = prevTrips.map((t) => formatTripResponse(t as any));
+
+        const prevExpenseFilter: any = {};
+        if (truck) prevExpenseFilter.truck = truck;
+        prevExpenseFilter.date = {
+          $gte: prevRange.start,
+          $lte: prevRange.end,
+        };
+
+        const prevExpenses = await Expense.find(prevExpenseFilter);
+
+        previousKpis = calculateKpis(prevRows, prevExpenses);
+      }
     }
 
     // Build chart data (monthly aggregation)

@@ -43,6 +43,75 @@ export function lastCutoffBounds(
   return { start, end };
 }
 
+export function previousRangeForPreset(
+  preset: RangePreset,
+  cutoffStart: number = 1,
+  cutoffEnd: number = 6,
+): { start: Date; end: Date } | null {
+  const now = new Date();
+
+  switch (preset) {
+    case "CC": {
+      const b = lastCutoffBounds(now, cutoffStart, cutoffEnd);
+      return { start: b.start, end: b.end };
+    }
+
+    case "LC": {
+      const b = lastCutoffBounds(now, cutoffStart, cutoffEnd);
+      const start = new Date(b.start);
+      start.setDate(start.getDate() - 7);
+
+      const end = new Date(b.end);
+      end.setDate(end.getDate() - 7);
+
+      return { start, end };
+    }
+
+    case "TM":
+      return {
+        start: prevMonthStart(now),
+        end: prevMonthEnd(now),
+      };
+
+    case "LM": {
+      const d = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+      return {
+        start: monthStart(d),
+        end: monthEnd(d),
+      };
+    }
+
+    case "MTD": {
+      const thisMonthStart = monthStart(now);
+      const daysSoFar = Math.floor(
+        (todayEnd(now).getTime() - thisMonthStart.getTime()) / 86400000,
+      );
+
+      const prevMonthRef = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const start = monthStart(prevMonthRef);
+      const end = new Date(start);
+      end.setDate(start.getDate() + daysSoFar);
+      end.setHours(23, 59, 59, 999);
+
+      return { start, end };
+    }
+
+    case "YTD": {
+      const start = yearStart(new Date(now.getFullYear() - 1, 0, 1));
+      const end = new Date(
+        now.getFullYear() - 1,
+        now.getMonth(),
+        now.getDate(),
+      );
+      end.setHours(23, 59, 59, 999);
+      return { start, end };
+    }
+
+    default:
+      return null;
+  }
+}
+
 export function monthStart(date: Date): Date {
   const d = new Date(date.getFullYear(), date.getMonth(), 1);
   d.setHours(0, 0, 0, 0);

@@ -499,6 +499,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (range.start) params.start = range.start;
       if (range.end) params.end = range.end;
 
+      params.rangePreset = state.rangePreset;
+
       const { data } = await api.get("/dashboard", { params });
 
       // Update truck options from response if available
