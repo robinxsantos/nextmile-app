@@ -35,7 +35,7 @@ const COLUMN_OPTIONS = [
   ["trips", "Trips"],
   ["crewSalary", "Crew Salary"],
   ["cashAdvance", "Cash Adv."],
-  ["reimbursements", "Reimb."],
+  ["reimbursements", "Cr. Reimb."],
   ["expenses", "Expenses"],
   ["note", "Note"],
   ["grossIncome", "Gross"],

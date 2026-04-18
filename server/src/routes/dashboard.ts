@@ -4,6 +4,7 @@ import { Expense } from "../models/Expense.js";
 import { Truck } from "../models/Truck.js";
 import { formatTripResponse } from "../services/tripService.js";
 import { toISODateString } from "../utils/calculations.js";
+import { attachExpenseNotes } from "../utils/enrichNotes.js";
 
 const router = Router();
 
@@ -114,16 +115,16 @@ router.get("/", async (req: Request, res: Response) => {
       else expenseNoteMap[dateKey] += " | " + label;
     });
 
-    const rows = trips.map((t) => {
-      const resp = formatTripResponse(t as any);
-      // Auto-fill note from expenses if trip has no manual note
-      const expNote = expenseNoteMap[resp.dateIso] || "";
-      if (!resp.note && expNote) {
-        resp.note = expNote;
-      }
-      // Flag whether this row has linked expenses (for clickable note)
+    const formattedTrips = trips.map((t) => formatTripResponse(t as any));
+
+    const enriched = attachExpenseNotes(formattedTrips, allExpenses);
+
+    const rows = enriched.map((resp: any) => {
+      const expNote = ""; // optional na to, pwede mo tanggalin later
+
       (resp as any).hasExpenses = resp.expenses > 0;
-      (resp as any).expenseNote = expNote;
+      (resp as any).expenseNote = resp.note || "";
+
       return resp;
     });
 
@@ -268,21 +269,24 @@ router.get("/reports", async (req: Request, res: Response) => {
       .populate("truck", "truckName")
       .sort({ date: 1, createdAt: 1 });
 
-    // Apply single-expense-per-date logic
+    const allExpenses = await Expense.find(truck ? { truck } : {});
+
+    const formattedTrips = trips.map((t) => formatTripResponse(t as any));
+    const enriched = attachExpenseNotes(formattedTrips, allExpenses);
+
     const seenDates = new Set<string>();
-    const rows = trips.map((t) => {
-      const response = formatTripResponse(t as any);
+
+    const rows = enriched.map((response: any) => {
       const dateKey = response.dateIso;
 
       if (seenDates.has(dateKey)) {
-        // Duplicate date: zero out expenses, recalculate net
         const net =
           response.grossIncome - response.crewSalary - response.expenses;
+
         return {
           ...response,
           expenses: 0,
           netIncome: net,
-          // Report shows original payable (ignoring paid state)
           reportPayable:
             response.crewSalary -
             response.cashAdvance +
@@ -292,8 +296,10 @@ router.get("/reports", async (req: Request, res: Response) => {
       }
 
       seenDates.add(dateKey);
+
       const reportPayable =
         response.crewSalary - response.cashAdvance + response.reimbursements;
+
       const reportNetIncome =
         response.grossIncome - response.crewSalary - response.expenses;
 

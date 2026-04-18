@@ -32,6 +32,12 @@ const DEFAULT_CATEGORIES = [
   "REGISTRATION",
 ];
 
+const REIMBURSABLE_CATEGORIES = new Set(["FUEL", "TOLL", "PARKING"]);
+
+function isReimbursableCategory(category?: string) {
+  return REIMBURSABLE_CATEGORIES.has((category || "").trim().toUpperCase());
+}
+
 export default function ExpensesPage() {
   const {
     expenseRows,
@@ -335,7 +341,7 @@ export default function ExpensesPage() {
                         </td>
                         {admin && (
                           <td className="text-center text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800">
-                            {r.category.toUpperCase() === "PARKING" ? (
+                            {isReimbursableCategory(r.category) ? (
                               <button
                                 onClick={() => toggleExpenseReimbursed(r._id)}
                                 className={`w-[34px] h-[34px] rounded-xl inline-flex items-center justify-center border transition-all ${
@@ -442,7 +448,7 @@ export default function ExpensesPage() {
                     </div>
                   )}
                   <div className="flex gap-2 pt-2 border-t border-slate-200 dark:border-slate-700">
-                    {r.category.toUpperCase() === "PARKING" && (
+                    {isReimbursableCategory(r.category) && (
                       <button
                         onClick={() => toggleExpenseReimbursed(r._id)}
                         className={`h-9 px-3 rounded-xl inline-flex items-center justify-center gap-1.5 border text-xs font-semibold transition-all ${

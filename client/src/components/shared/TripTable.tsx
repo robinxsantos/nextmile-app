@@ -624,7 +624,7 @@ export default function TripTable({
   if (show("reimbursements"))
     columns.push({
       key: "reimbursements",
-      label: "Reimb.",
+      label: "Cr. Reimb.",
       render: (r) => peso(r.reimbursements),
     });
   if (show("expenses"))

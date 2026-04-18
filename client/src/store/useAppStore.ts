@@ -28,7 +28,12 @@ function applyReimbursedParkingAdjustments(
 
   for (const expense of expenses) {
     if (!expense.reimbursed) continue;
-    if ((expense.category || "").trim().toUpperCase() !== "PARKING") continue;
+    if (
+      !REIMBURSABLE_CATEGORIES.has(
+        (expense.category || "").trim().toUpperCase(),
+      )
+    )
+      continue;
 
     const key = `${getTruckId(expense.truck)}|${expense.dateIso}`;
     reimbursedByKey.set(
@@ -250,6 +255,8 @@ const getStoredTheme = (): "light" | "dark" => {
     return "light";
   }
 };
+
+const REIMBURSABLE_CATEGORIES = new Set(["FUEL", "TOLL", "PARKING"]);
 
 export const useAppStore = create<AppState>((set, get) => ({
   // UI
