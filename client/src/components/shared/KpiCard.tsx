@@ -40,6 +40,10 @@ export default function KpiCard({
   const goodDirection = invertTrend ? isNegative : isPositive;
   const badDirection = invertTrend ? isPositive : isNegative;
 
+  const displayDelta = delta === null ? null : Math.abs(delta);
+  const displaySign =
+    delta === null ? "" : delta > 0 ? "+" : delta < 0 ? "-" : "";
+
   return (
     <div className="relative p-3 sm:p-[18px] min-h-[100px] sm:min-h-[122px] rounded-[18px] sm:rounded-[22px] bg-gradient-to-b from-white to-slate-50/95 dark:from-slate-900 dark:to-slate-800/90 border border-slate-200/90 dark:border-slate-700/90 shadow-sm hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200 flex flex-col justify-between gap-1.5 sm:gap-2.5 kpi-glow">
       <div className="flex items-start justify-between gap-2 sm:gap-3">
@@ -86,8 +90,8 @@ export default function KpiCard({
           >
             {isPositive ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
             <span>
-              {isPositive ? "+" : ""}
-              {delta.toFixed(1)}%
+              {displaySign}
+              {displayDelta?.toFixed(1) ?? "0.0"}%
             </span>
           </div>
         )}
