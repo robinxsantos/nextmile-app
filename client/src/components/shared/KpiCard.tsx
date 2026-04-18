@@ -33,6 +33,20 @@ export default function KpiCard({
 }: KpiCardProps) {
   const delta = getDelta(currentValue, previousValue);
 
+  const absoluteChange =
+    currentValue !== undefined && previousValue !== undefined
+      ? currentValue - previousValue
+      : null;
+
+  const absSign =
+    absoluteChange === null
+      ? ""
+      : absoluteChange > 0
+        ? "+"
+        : absoluteChange < 0
+          ? "-"
+          : "";
+
   const isPositive = delta !== null && delta > 0;
   const isNegative = delta !== null && delta < 0;
   const isNeutral = delta === null || delta === 0;
@@ -92,6 +106,21 @@ export default function KpiCard({
             <span>
               {displaySign}
               {displayDelta?.toFixed(1) ?? "0.0"}%
+              {absoluteChange !== null && (
+                <>
+                  {" "}
+                  ({absSign}
+                  {format === "currency"
+                    ? Math.abs(absoluteChange).toLocaleString("en-PH", {
+                        style: "currency",
+                        currency: "PHP",
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 0,
+                      })
+                    : Math.abs(absoluteChange).toLocaleString()}
+                  )
+                </>
+              )}
             </span>
           </div>
         )}
