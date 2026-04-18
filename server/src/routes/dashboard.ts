@@ -192,8 +192,10 @@ router.get("/", async (req: Request, res: Response) => {
         (t) => String(t._id) === String(truck || ""),
       );
 
+      const preset = String(rangePreset || "ALL");
+
       const prevRange = previousRangeForPreset(
-        (rangePreset as RangePreset) || "ALL",
+        preset,
         truckConfig?.cutoffStart ?? 1,
         truckConfig?.cutoffEnd ?? 6,
       );
