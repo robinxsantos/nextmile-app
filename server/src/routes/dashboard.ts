@@ -123,6 +123,7 @@ router.get("/", async (req: Request, res: Response) => {
     const truckOptions = allTrucks.map((t) => ({
       _id: t._id,
       truckName: t.truckName,
+      cutoffType: t.cutoffType || "weekly",
       cutoffStart: t.cutoffStart,
       cutoffEnd: t.cutoffEnd,
       payday: t.payday,
@@ -196,6 +197,7 @@ router.get("/", async (req: Request, res: Response) => {
 
       const prevRange = previousRangeForPreset(
         preset,
+        truckConfig?.cutoffType ?? "weekly",
         truckConfig?.cutoffStart ?? 1,
         truckConfig?.cutoffEnd ?? 6,
       );
@@ -224,13 +226,6 @@ router.get("/", async (req: Request, res: Response) => {
         const prevExpenses = await Expense.find(prevExpenseFilter);
 
         previousKpis = calculateKpis(prevRows, prevExpenses);
-
-        console.log("DASHBOARD RAW", {
-          start,
-          end,
-          prevKpis: previousKpis,
-          kpis,
-        });
       }
     }
 

@@ -177,8 +177,7 @@ export function validateTruckData(
   const {
     truckName,
     status,
-    client,
-    lastChangeOil,
+    cutoffType = "weekly",
     cutoffStart,
     cutoffEnd,
     payday,
@@ -191,28 +190,58 @@ export function validateTruckData(
   if (status && !["Active", "Inactive"].includes(status)) {
     errors.push("Status must be Active or Inactive");
   }
-
-  if (client !== undefined && typeof client === "string" && !client.trim()) {
-    errors.push("Client cannot be empty");
+  if (!["weekly", "monthly"].includes(cutoffType)) {
+    errors.push("Cutoff type must be weekly or monthly");
   }
 
-  if (lastChangeOil !== undefined && lastChangeOil !== null) {
-    const oilNum = Number(lastChangeOil);
-    if (Number.isNaN(oilNum) || oilNum < 0) {
-      errors.push("Last Change Oil must be a valid non-negative number");
-    }
+  const isMonthly = cutoffType === "monthly";
+  const minValue = isMonthly ? 1 : 0;
+  const maxValue = isMonthly ? 31 : 6;
+
+  const startNum = cutoffStart !== undefined ? Number(cutoffStart) : undefined;
+  const endNum = cutoffEnd !== undefined ? Number(cutoffEnd) : undefined;
+  const paydayNum = payday !== undefined ? Number(payday) : undefined;
+  const dayOffNum = dayOff !== undefined ? Number(dayOff) : undefined;
+
+  if (
+    startNum !== undefined &&
+    (!Number.isFinite(startNum) || startNum < minValue || startNum > maxValue)
+  ) {
+    errors.push(
+      isMonthly
+        ? "Monthly cutoff start must be between 1-31"
+        : "Cutoff start must be between 0-6",
+    );
   }
 
-  if (cutoffStart !== undefined && (cutoffStart < 0 || cutoffStart > 6)) {
-    errors.push("Cutoff start must be between 0-6");
+  if (
+    endNum !== undefined &&
+    (!Number.isFinite(endNum) || endNum < minValue || endNum > maxValue)
+  ) {
+    errors.push(
+      isMonthly
+        ? "Monthly cutoff end must be between 1-31"
+        : "Cutoff end must be between 0-6",
+    );
   }
-  if (cutoffEnd !== undefined && (cutoffEnd < 0 || cutoffEnd > 6)) {
-    errors.push("Cutoff end must be between 0-6");
+
+  if (
+    paydayNum !== undefined &&
+    (!Number.isFinite(paydayNum) ||
+      paydayNum < minValue ||
+      paydayNum > maxValue)
+  ) {
+    errors.push(
+      isMonthly
+        ? "Salary day must be between 1-31"
+        : "Payday must be between 0-6",
+    );
   }
-  if (payday !== undefined && (payday < 0 || payday > 6)) {
-    errors.push("Payday must be between 0-6");
-  }
-  if (dayOff !== undefined && (dayOff < 0 || dayOff > 6)) {
+
+  if (
+    dayOffNum !== undefined &&
+    (!Number.isFinite(dayOffNum) || dayOffNum < 0 || dayOffNum > 6)
+  ) {
     errors.push("Day off must be between 0-6");
   }
 

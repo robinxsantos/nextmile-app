@@ -13,23 +13,32 @@ router.get("/", async (_req: Request, res: Response) => {
   try {
     const trucks = await Truck.find().sort({ createdAt: -1 });
 
-    const rows = trucks.map((t) => ({
-      _id: t._id,
-      truckName: t.truckName,
-      status: t.status,
-      client: t.client || t.notes || "",
-      lastChangeOil: t.lastChangeOil ?? null,
-      notes: t.notes,
-      cutoffStart: t.cutoffStart,
-      cutoffEnd: t.cutoffEnd,
-      payday: t.payday,
-      dayOff: t.dayOff,
-      cutoffStartText: dayNameShort(t.cutoffStart),
-      cutoffEndText: dayNameShort(t.cutoffEnd),
-      paydayText: dayNameShort(t.payday),
-      dayOffText: dayNameShort(t.dayOff),
-      dateAdded: t.createdAt.toISOString().slice(0, 10),
-    }));
+    const rows = trucks.map((t) => {
+      const isMonthly = t.cutoffType === "monthly";
+
+      return {
+        _id: t._id,
+        truckName: t.truckName,
+        status: t.status,
+        cutoffType: t.cutoffType || "weekly",
+        client: t.client || t.notes || "",
+        lastChangeOil: t.lastChangeOil ?? null,
+        notes: t.notes,
+        cutoffStart: t.cutoffStart,
+        cutoffEnd: t.cutoffEnd,
+        payday: t.payday,
+        dayOff: t.dayOff,
+        cutoffStartText: isMonthly
+          ? String(t.cutoffStart)
+          : dayNameShort(t.cutoffStart),
+        cutoffEndText: isMonthly
+          ? String(t.cutoffEnd)
+          : dayNameShort(t.cutoffEnd),
+        paydayText: isMonthly ? String(t.payday) : dayNameShort(t.payday),
+        dayOffText: isMonthly ? "-" : dayNameShort(t.dayOff),
+        dateAdded: t.createdAt.toISOString().slice(0, 10),
+      };
+    });
 
     const total = trucks.length;
     const active = trucks.filter((t) => t.status === "Active").length;
@@ -51,6 +60,7 @@ router.post(
       const {
         truckName,
         status,
+        cutoffType = "weekly",
         client,
         lastChangeOil,
         notes,
@@ -77,6 +87,7 @@ router.post(
       const truck = await Truck.create({
         truckName: truckName.trim(),
         status: status || "Active",
+        cutoffType,
         client: client?.trim() || notes?.trim() || "",
         lastChangeOil:
           lastChangeOil !== undefined && lastChangeOil !== null
@@ -106,6 +117,7 @@ router.put(
       const {
         truckName,
         status,
+        cutoffType = "weekly",
         client,
         lastChangeOil,
         notes,
@@ -125,6 +137,7 @@ router.put(
         {
           truckName: truckName.trim(),
           status: status || "Active",
+          cutoffType,
           client: client?.trim() || notes?.trim() || "",
           lastChangeOil:
             lastChangeOil !== undefined && lastChangeOil !== null

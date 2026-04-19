@@ -76,6 +76,7 @@ function sumKpisFromTrips(
 export interface TruckOption {
   _id: string;
   truckName: string;
+  cutoffType: "weekly" | "monthly";
   cutoffStart: number;
   cutoffEnd: number;
   payday: number;
@@ -126,6 +127,7 @@ export interface TruckRow {
   _id: string;
   truckName: string;
   status: string;
+  cutoffType: "weekly" | "monthly";
   client?: string;
   lastChangeOil?: number | null;
   notes?: string;
@@ -431,6 +433,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       const truckOptions: TruckOption[] = activeTrucks.map((t: TruckRow) => ({
         _id: t._id,
         truckName: t.truckName,
+        cutoffType: t.cutoffType,
         cutoffStart: t.cutoffStart,
         cutoffEnd: t.cutoffEnd,
         payday: t.payday,
@@ -490,6 +493,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       );
       const range = getDateRangeForPreset(
         state.rangePreset,
+        truckConfig?.cutoffType ?? "weekly",
         truckConfig?.cutoffStart ?? 1,
         truckConfig?.cutoffEnd ?? 6,
         state.startDate,
@@ -587,6 +591,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         truckOptions: activeTrucks.map((t: TruckRow) => ({
           _id: t._id,
           truckName: t.truckName,
+          cutoffType: t.cutoffType,
           cutoffStart: t.cutoffStart,
           cutoffEnd: t.cutoffEnd,
           payday: t.payday,

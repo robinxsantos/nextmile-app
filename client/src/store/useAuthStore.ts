@@ -1,12 +1,12 @@
-import { create } from 'zustand';
-import api from '../api/client';
-import { useAppStore } from './useAppStore';
+import { create } from "zustand";
+import api from "../api/client";
+import { useAppStore } from "./useAppStore";
 
 export interface AuthUser {
   _id: string;
   username: string;
   displayName: string;
-  role: 'admin' | 'employee';
+  role: "admin" | "employee";
   truck?: string | { _id: string; truckName: string };
 }
 
@@ -16,7 +16,7 @@ interface AuthState {
   loading: boolean;
   initialized: boolean;
 
-  login: (username: string, password: string) => Promise<void>;
+  login: (username: string, password: string) => Promise<AuthUser>;
   logout: () => void;
   checkAuth: () => Promise<void>;
   isAdmin: () => boolean;
@@ -25,7 +25,7 @@ interface AuthState {
 
 const getStoredToken = (): string | null => {
   try {
-    return localStorage.getItem('nm_token');
+    return localStorage.getItem("nm_token");
   } catch {
     return null;
   }
@@ -33,7 +33,7 @@ const getStoredToken = (): string | null => {
 
 const getStoredUser = (): AuthUser | null => {
   try {
-    const raw = localStorage.getItem('nm_user');
+    const raw = localStorage.getItem("nm_user");
     return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
@@ -49,25 +49,29 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   login: async (username, password) => {
     set({ loading: true });
     try {
-      const { data } = await api.post('/auth/login', { username, password });
+      const { data } = await api.post("/auth/login", { username, password });
       const { token, user } = data;
 
-      localStorage.setItem('nm_token', token);
-      localStorage.setItem('nm_user', JSON.stringify(user));
+      localStorage.setItem("nm_token", token);
+      localStorage.setItem("nm_user", JSON.stringify(user));
 
       set({ user, token, loading: false });
+      return user;
     } catch (err: unknown) {
       set({ loading: false });
-      const axiosErr = err as { response?: { data?: { error?: string } }; message?: string };
+      const axiosErr = err as {
+        response?: { data?: { error?: string } };
+        message?: string;
+      };
       throw new Error(
-        axiosErr?.response?.data?.error || axiosErr?.message || 'Login failed'
+        axiosErr?.response?.data?.error || axiosErr?.message || "Login failed",
       );
     }
   },
 
   logout: () => {
-    localStorage.removeItem('nm_token');
-    localStorage.removeItem('nm_user');
+    localStorage.removeItem("nm_token");
+    localStorage.removeItem("nm_user");
     set({ user: null, token: null, initialized: true });
     // Reset app store so it re-fetches on next login
     useAppStore.setState({
@@ -78,16 +82,30 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       reportRows: [],
       rawReportRows: [],
       chartData: [],
-      kpis: { gross: 0, net: 0, trips: 0, payable: 0, cashOutflow: 0, expenses: 0 },
-      previousKpis: { gross: 0, net: 0, trips: 0, payable: 0, cashOutflow: 0, expenses: 0 },
-      selectedTruck: '',
+      kpis: {
+        gross: 0,
+        net: 0,
+        trips: 0,
+        payable: 0,
+        cashOutflow: 0,
+        expenses: 0,
+      },
+      previousKpis: {
+        gross: 0,
+        net: 0,
+        trips: 0,
+        payable: 0,
+        cashOutflow: 0,
+        expenses: 0,
+      },
+      selectedTruck: "",
       selectedTripIds: [],
-      rangePreset: 'CC',
-      startDate: '',
-      endDate: '',
-      expensesMonth: 'ALL',
-      reportsMonth: 'ALL',
-      searchQuery: '',
+      rangePreset: "CC",
+      startDate: "",
+      endDate: "",
+      expensesMonth: "ALL",
+      reportsMonth: "ALL",
+      searchQuery: "",
     });
   },
 
@@ -99,18 +117,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
 
     try {
-      const { data } = await api.get('/auth/me');
+      const { data } = await api.get("/auth/me");
       const user = data.user;
-      localStorage.setItem('nm_user', JSON.stringify(user));
+      localStorage.setItem("nm_user", JSON.stringify(user));
       set({ user, token, initialized: true });
     } catch {
       // Token invalid/expired
-      localStorage.removeItem('nm_token');
-      localStorage.removeItem('nm_user');
+      localStorage.removeItem("nm_token");
+      localStorage.removeItem("nm_user");
       set({ user: null, token: null, initialized: true });
     }
   },
 
-  isAdmin: () => get().user?.role === 'admin',
-  isEmployee: () => get().user?.role === 'employee',
+  isAdmin: () => get().user?.role === "admin",
+  isEmployee: () => get().user?.role === "employee",
 }));

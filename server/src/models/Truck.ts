@@ -3,9 +3,10 @@ import mongoose, { Schema, Document } from "mongoose";
 export interface ITruck extends Document {
   truckName: string;
   status: "Active" | "Inactive";
+  cutoffType: "weekly" | "monthly";
   client: string;
   lastChangeOil: number | null;
-  notes: string; // optional fallback for old data
+  notes: string;
   cutoffStart: number;
   cutoffEnd: number;
   payday: number;
@@ -27,6 +28,11 @@ const TruckSchema = new Schema(
       enum: ["Active", "Inactive"],
       default: "Active",
     },
+    cutoffType: {
+      type: String,
+      enum: ["weekly", "monthly"],
+      default: "weekly",
+    },
     client: {
       type: String,
       default: "",
@@ -44,19 +50,19 @@ const TruckSchema = new Schema(
     cutoffStart: {
       type: Number,
       min: 0,
-      max: 6,
+      max: 31,
       default: 1,
     },
     cutoffEnd: {
       type: Number,
       min: 0,
-      max: 6,
+      max: 31,
       default: 6,
     },
     payday: {
       type: Number,
       min: 0,
-      max: 6,
+      max: 31,
       default: 6,
     },
     dayOff: {

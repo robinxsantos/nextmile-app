@@ -18,8 +18,8 @@ export default function LoginPage() {
       return;
     }
     try {
-      await login(username.trim(), password);
-      toast.success("Welcome back!");
+      const user = await login(username.trim(), password);
+      toast.success(`Welcome back, ${user.displayName}!`);
       navigate("/", { replace: true });
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Login failed");

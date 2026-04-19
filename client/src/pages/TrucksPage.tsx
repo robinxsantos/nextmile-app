@@ -36,6 +36,16 @@ const DAY_OPTIONS = [
   { value: "6", label: "Saturday" },
 ];
 
+const CUTOFF_TYPE_OPTIONS = [
+  { value: "weekly", label: "Weekly" },
+  { value: "monthly", label: "Monthly" },
+];
+
+const MONTH_DAY_OPTIONS = Array.from({ length: 31 }, (_, i) => ({
+  value: String(i + 1),
+  label: String(i + 1),
+}));
+
 const formSelectStyles = {
   control: (base: Record<string, unknown>, state: { isFocused: boolean }) => ({
     ...base,
@@ -111,6 +121,7 @@ export default function TrucksPage() {
   const [form, setForm] = useState({
     truckName: "",
     status: "Active",
+    cutoffType: "weekly",
     client: "",
     lastChangeOil: "",
     cutoffStart: "1",
@@ -129,6 +140,7 @@ export default function TrucksPage() {
     setForm({
       truckName: "",
       status: "Active",
+      cutoffType: "weekly",
       client: "",
       lastChangeOil: "",
       cutoffStart: "1",
@@ -144,6 +156,7 @@ export default function TrucksPage() {
     setForm({
       truckName: row.truckName,
       status: row.status,
+      cutoffType: row.cutoffType || "weekly",
       client: row.client ?? row.notes ?? "",
       lastChangeOil:
         row.lastChangeOil !== undefined && row.lastChangeOil !== null
@@ -181,13 +194,14 @@ export default function TrucksPage() {
       const payload = {
         truckName: form.truckName.trim(),
         status: form.status,
+        cutoffType: form.cutoffType,
         client: form.client.trim(),
-        notes: form.client.trim(), // legacy compatibility if backend still expects notes
+        notes: form.client.trim(),
         lastChangeOil: lastChangeOilNum,
         cutoffStart: Number(form.cutoffStart),
         cutoffEnd: Number(form.cutoffEnd),
         payday: Number(form.payday),
-        dayOff: Number(form.dayOff),
+        dayOff: form.cutoffType === "weekly" ? Number(form.dayOff) : 0,
       };
 
       if (editRow) {
@@ -347,16 +361,22 @@ export default function TrucksPage() {
                         {kmDisplay(r.lastChangeOil)}
                       </td>
                       <td className="text-center text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800">
-                        {r.cutoffStartText}
+                        {r.cutoffType === "monthly"
+                          ? String(r.cutoffStart)
+                          : r.cutoffStartText}
                       </td>
                       <td className="text-center text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800">
-                        {r.cutoffEndText}
+                        {r.cutoffType === "monthly"
+                          ? String(r.cutoffEnd)
+                          : r.cutoffEndText}
                       </td>
                       <td className="text-center text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800">
-                        {r.paydayText}
+                        {r.cutoffType === "monthly"
+                          ? String(r.payday)
+                          : r.paydayText}
                       </td>
                       <td className="text-center text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800">
-                        {r.dayOffText}
+                        {r.cutoffType === "monthly" ? "-" : r.dayOffText}
                       </td>
                       <td className="sticky right-0 z-[5] bg-white dark:bg-slate-900 text-center text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)]">
                         <div className="flex items-center justify-center gap-1">
@@ -523,6 +543,44 @@ export default function TrucksPage() {
           </div>
 
           <div>
+            <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 block">
+              Cutoff Type
+            </label>
+            <Select
+              options={CUTOFF_TYPE_OPTIONS}
+              value={CUTOFF_TYPE_OPTIONS.find(
+                (o) => o.value === form.cutoffType,
+              )}
+              onChange={(opt) => {
+                if (!opt) return;
+                setForm((prev) =>
+                  opt.value === "monthly"
+                    ? {
+                        ...prev,
+                        cutoffType: opt.value,
+                        cutoffStart: "26",
+                        cutoffEnd: "25",
+                        payday: "26",
+                        dayOff: "0",
+                      }
+                    : {
+                        ...prev,
+                        cutoffType: opt.value,
+                        cutoffStart: "1",
+                        cutoffEnd: "6",
+                        payday: "6",
+                        dayOff: "0",
+                      },
+                );
+              }}
+              styles={formSelectStyles}
+              isSearchable={false}
+              menuPortalTarget={document.body}
+              classNamePrefix="nm-select"
+            />
+          </div>
+
+          <div>
             <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1 block">
               Client
             </label>
@@ -530,7 +588,7 @@ export default function TrucksPage() {
               type="text"
               value={form.client}
               onChange={(e) => setForm({ ...form, client: e.target.value })}
-              placeholder="Client name.."
+              placeholder="Client name"
               className={inputClass}
             />
           </div>
@@ -560,90 +618,158 @@ export default function TrucksPage() {
                 KM
               </div>
             </div>
-            <div className="mt-1 text-[11px] text-slate-500">
-              Input the odometer reading at the last oil change. This helps
-              track when the next oil change is due based on typical mileage
-              intervals.
-            </div>
           </div>
 
-          <div className="col-span-2">
-            <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2 block">
-              Cutoff Settings
-            </label>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs text-slate-500 mb-1.5 block">
-                  Cutoff Start
-                </label>
-                <Select
-                  options={DAY_OPTIONS}
-                  value={DAY_OPTIONS.find((o) => o.value === form.cutoffStart)}
-                  onChange={(opt) => {
-                    if (opt) setForm({ ...form, cutoffStart: opt.value });
-                  }}
-                  styles={formSelectStyles}
-                  isSearchable={false}
-                  menuPortalTarget={document.body}
-                  classNamePrefix="nm-select"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-slate-500 mb-1.5 block">
-                  Cutoff End
-                </label>
-                <Select
-                  options={DAY_OPTIONS}
-                  value={DAY_OPTIONS.find((o) => o.value === form.cutoffEnd)}
-                  onChange={(opt) => {
-                    if (opt) setForm({ ...form, cutoffEnd: opt.value });
-                  }}
-                  styles={formSelectStyles}
-                  isSearchable={false}
-                  menuPortalTarget={document.body}
-                  classNamePrefix="nm-select"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-slate-500 mb-1.5 block">
-                  Payday
-                </label>
-                <Select
-                  options={DAY_OPTIONS}
-                  value={DAY_OPTIONS.find((o) => o.value === form.payday)}
-                  onChange={(opt) => {
-                    if (opt) setForm({ ...form, payday: opt.value });
-                  }}
-                  styles={formSelectStyles}
-                  isSearchable={false}
-                  menuPortalTarget={document.body}
-                  classNamePrefix="nm-select"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-slate-500 mb-1.5 block">
-                  Day Off
-                </label>
-                <Select
-                  options={DAY_OPTIONS}
-                  value={DAY_OPTIONS.find((o) => o.value === form.dayOff)}
-                  onChange={(opt) => {
-                    if (opt) setForm({ ...form, dayOff: opt.value });
-                  }}
-                  styles={formSelectStyles}
-                  isSearchable={false}
-                  menuPortalTarget={document.body}
-                  classNamePrefix="nm-select"
-                />
+          {form.cutoffType === "weekly" ? (
+            <div className="col-span-2">
+              <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2 block">
+                Cutoff Settings
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-slate-500 mb-1.5 block">
+                    Cutoff Start
+                  </label>
+                  <Select
+                    options={DAY_OPTIONS}
+                    value={DAY_OPTIONS.find(
+                      (o) => o.value === form.cutoffStart,
+                    )}
+                    onChange={(opt) => {
+                      if (opt) setForm({ ...form, cutoffStart: opt.value });
+                    }}
+                    styles={formSelectStyles}
+                    isSearchable={false}
+                    menuPortalTarget={document.body}
+                    classNamePrefix="nm-select"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500 mb-1.5 block">
+                    Cutoff End
+                  </label>
+                  <Select
+                    options={DAY_OPTIONS}
+                    value={DAY_OPTIONS.find((o) => o.value === form.cutoffEnd)}
+                    onChange={(opt) => {
+                      if (opt) setForm({ ...form, cutoffEnd: opt.value });
+                    }}
+                    styles={formSelectStyles}
+                    isSearchable={false}
+                    menuPortalTarget={document.body}
+                    classNamePrefix="nm-select"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500 mb-1.5 block">
+                    Payday
+                  </label>
+                  <Select
+                    options={DAY_OPTIONS}
+                    value={DAY_OPTIONS.find((o) => o.value === form.payday)}
+                    onChange={(opt) => {
+                      if (opt) setForm({ ...form, payday: opt.value });
+                    }}
+                    styles={formSelectStyles}
+                    isSearchable={false}
+                    menuPortalTarget={document.body}
+                    classNamePrefix="nm-select"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500 mb-1.5 block">
+                    Day Off
+                  </label>
+                  <Select
+                    options={DAY_OPTIONS}
+                    value={DAY_OPTIONS.find((o) => o.value === form.dayOff)}
+                    onChange={(opt) => {
+                      if (opt) setForm({ ...form, dayOff: opt.value });
+                    }}
+                    styles={formSelectStyles}
+                    isSearchable={false}
+                    menuPortalTarget={document.body}
+                    classNamePrefix="nm-select"
+                  />
+                </div>
               </div>
             </div>
-          </div>
-
-          <div className="col-span-2 text-xs text-slate-500">
-            If salary is monthly, leave this as is. You can manually choose
-            cutoff days using the Date Period filter in the Trips and Dashboard
-            Page.
-          </div>
+          ) : (
+            <div className="col-span-2">
+              <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2 block">
+                Monthly Cutoff Settings
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-slate-500 mb-1.5 block">
+                    Cutoff Start Day
+                  </label>
+                  <Select
+                    options={MONTH_DAY_OPTIONS}
+                    value={MONTH_DAY_OPTIONS.find(
+                      (o) => o.value === form.cutoffStart,
+                    )}
+                    onChange={(opt) => {
+                      if (opt) setForm({ ...form, cutoffStart: opt.value });
+                    }}
+                    styles={formSelectStyles}
+                    isSearchable={false}
+                    menuPortalTarget={document.body}
+                    classNamePrefix="nm-select"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500 mb-1.5 block">
+                    Cutoff End Day
+                  </label>
+                  <Select
+                    options={MONTH_DAY_OPTIONS}
+                    value={MONTH_DAY_OPTIONS.find(
+                      (o) => o.value === form.cutoffEnd,
+                    )}
+                    onChange={(opt) => {
+                      if (opt) setForm({ ...form, cutoffEnd: opt.value });
+                    }}
+                    styles={formSelectStyles}
+                    isSearchable={false}
+                    menuPortalTarget={document.body}
+                    classNamePrefix="nm-select"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500 mb-1.5 block">
+                    Salary Day
+                  </label>
+                  <Select
+                    options={MONTH_DAY_OPTIONS}
+                    value={MONTH_DAY_OPTIONS.find(
+                      (o) => o.value === form.payday,
+                    )}
+                    onChange={(opt) => {
+                      if (opt) setForm({ ...form, payday: opt.value });
+                    }}
+                    styles={formSelectStyles}
+                    isSearchable={false}
+                    menuPortalTarget={document.body}
+                    classNamePrefix="nm-select"
+                  />
+                </div>
+              </div>
+              <div className="mt-2 text-xs text-slate-500">
+                <strong>Monthly Cutoff</strong>
+                <br />
+                When the cutoff start date is set to the 1st day of the month
+                and the cutoff end date is set to the 31st, the cutoff period
+                covers the entire calendar month.
+                <br />
+                <strong>Cross-Month Cutoff</strong>
+                <br />
+                When the cutoff start date is set to the 26th and the cutoff end
+                date is set to the 25th, the cutoff period begins on the 26th of
+                the current month and ends on the 25th of the following month.
+              </div>
+            </div>
+          )}
         </div>
       </Modal>
 
