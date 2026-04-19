@@ -1,35 +1,48 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction } from "express";
 
-export function validateTripData(req: Request, res: Response, next: NextFunction) {
-  const { truckId, date, status, rate, trips, crewSalary, cashAdvance, reimbursements } = req.body;
+export function validateTripData(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  const {
+    truckId,
+    date,
+    status,
+    rate,
+    trips,
+    crewSalary,
+    cashAdvance,
+    reimbursements,
+  } = req.body;
 
   const errors: string[] = [];
 
-  if (!truckId) errors.push('Truck is required');
-  if (!date) errors.push('Date is required');
-  if (!status) errors.push('Status is required');
+  if (!truckId) errors.push("Truck is required");
+  if (!date) errors.push("Date is required");
+  if (!status) errors.push("Status is required");
 
-  if (status === 'Working Day') {
+  if (status === "Working Day") {
     if (rate !== undefined && rate !== null && rate < 0) {
-      errors.push('Rate must be a non-negative number for working days');
+      errors.push("Rate must be a non-negative number for working days");
     }
     if (trips !== undefined && trips < 0) {
-      errors.push('Trips must be a non-negative number');
+      errors.push("Trips must be a non-negative number");
     }
   }
 
   if (crewSalary !== undefined && crewSalary < 0) {
-    errors.push('Crew salary must be non-negative');
+    errors.push("Crew salary must be non-negative");
   }
   if (cashAdvance !== undefined && cashAdvance < 0) {
-    errors.push('Cash advance must be non-negative');
+    errors.push("Cash advance must be non-negative");
   }
   if (reimbursements !== undefined && reimbursements < 0) {
-    errors.push('Reimbursements must be non-negative');
+    errors.push("Reimbursements must be non-negative");
   }
 
   if (errors.length > 0) {
-    res.status(400).json({ error: errors.join('. ') });
+    res.status(400).json({ error: errors.join(". ") });
     return;
   }
 
@@ -44,35 +57,40 @@ export function validateTripData(req: Request, res: Response, next: NextFunction
   next();
 }
 
-export function validateTripUpdate(req: Request, res: Response, next: NextFunction) {
-  const { date, status, rate, trips, crewSalary, cashAdvance, reimbursements } = req.body;
+export function validateTripUpdate(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  const { date, status, rate, trips, crewSalary, cashAdvance, reimbursements } =
+    req.body;
 
   const errors: string[] = [];
 
-  if (!date) errors.push('Date is required');
-  if (!status) errors.push('Status is required');
+  if (!date) errors.push("Date is required");
+  if (!status) errors.push("Status is required");
 
-  if (status === 'Working Day') {
+  if (status === "Working Day") {
     if (rate !== undefined && rate !== null && rate < 0) {
-      errors.push('Rate must be a non-negative number for working days');
+      errors.push("Rate must be a non-negative number for working days");
     }
     if (trips !== undefined && trips < 0) {
-      errors.push('Trips must be a non-negative number');
+      errors.push("Trips must be a non-negative number");
     }
   }
 
   if (crewSalary !== undefined && crewSalary < 0) {
-    errors.push('Crew salary must be non-negative');
+    errors.push("Crew salary must be non-negative");
   }
   if (cashAdvance !== undefined && cashAdvance < 0) {
-    errors.push('Cash advance must be non-negative');
+    errors.push("Cash advance must be non-negative");
   }
   if (reimbursements !== undefined && reimbursements < 0) {
-    errors.push('Reimbursements must be non-negative');
+    errors.push("Reimbursements must be non-negative");
   }
 
   if (errors.length > 0) {
-    res.status(400).json({ error: errors.join('. ') });
+    res.status(400).json({ error: errors.join(". ") });
     return;
   }
 
@@ -87,20 +105,24 @@ export function validateTripUpdate(req: Request, res: Response, next: NextFuncti
   next();
 }
 
-export function validateExpenseData(req: Request, res: Response, next: NextFunction) {
+export function validateExpenseData(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
   const { truckId, date, category, amount } = req.body;
 
   const errors: string[] = [];
 
-  if (!truckId) errors.push('Truck is required');
-  if (!date) errors.push('Date is required');
-  if (!category || !category.trim()) errors.push('Category is required');
+  if (!truckId) errors.push("Truck is required");
+  if (!date) errors.push("Date is required");
+  if (!category || !category.trim()) errors.push("Category is required");
   if (amount === undefined || amount === null || amount <= 0) {
-    errors.push('Amount must be a positive number');
+    errors.push("Amount must be a positive number");
   }
 
   if (errors.length > 0) {
-    res.status(400).json({ error: errors.join('. ') });
+    res.status(400).json({ error: errors.join(". ") });
     return;
   }
 
@@ -115,20 +137,24 @@ export function validateExpenseData(req: Request, res: Response, next: NextFunct
   next();
 }
 
-export function validateExpenseUpdate(req: Request, res: Response, next: NextFunction) {
+export function validateExpenseUpdate(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
   const { category, amount } = req.body;
 
   const errors: string[] = [];
 
   if (category !== undefined && !category.trim()) {
-    errors.push('Category cannot be empty');
+    errors.push("Category cannot be empty");
   }
   if (amount !== undefined && amount <= 0) {
-    errors.push('Amount must be a positive number');
+    errors.push("Amount must be a positive number");
   }
 
   if (errors.length > 0) {
-    res.status(400).json({ error: errors.join('. ') });
+    res.status(400).json({ error: errors.join(". ") });
     return;
   }
 
@@ -143,37 +169,63 @@ export function validateExpenseUpdate(req: Request, res: Response, next: NextFun
   next();
 }
 
-export function validateTruckData(req: Request, res: Response, next: NextFunction) {
-  const { truckName, status, cutoffStart, cutoffEnd, payday, dayOff } = req.body;
+export function validateTruckData(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  const {
+    truckName,
+    status,
+    client,
+    lastChangeOil,
+    cutoffStart,
+    cutoffEnd,
+    payday,
+    dayOff,
+  } = req.body;
 
   const errors: string[] = [];
 
-  if (!truckName || !truckName.trim()) errors.push('Truck name is required');
-  if (status && !['Active', 'Inactive'].includes(status)) {
-    errors.push('Status must be Active or Inactive');
+  if (!truckName || !truckName.trim()) errors.push("Truck name is required");
+  if (status && !["Active", "Inactive"].includes(status)) {
+    errors.push("Status must be Active or Inactive");
+  }
+
+  if (client !== undefined && typeof client === "string" && !client.trim()) {
+    errors.push("Client cannot be empty");
+  }
+
+  if (lastChangeOil !== undefined && lastChangeOil !== null) {
+    const oilNum = Number(lastChangeOil);
+    if (Number.isNaN(oilNum) || oilNum < 0) {
+      errors.push("Last Change Oil must be a valid non-negative number");
+    }
   }
 
   if (cutoffStart !== undefined && (cutoffStart < 0 || cutoffStart > 6)) {
-    errors.push('Cutoff start must be between 0-6');
+    errors.push("Cutoff start must be between 0-6");
   }
   if (cutoffEnd !== undefined && (cutoffEnd < 0 || cutoffEnd > 6)) {
-    errors.push('Cutoff end must be between 0-6');
+    errors.push("Cutoff end must be between 0-6");
   }
   if (payday !== undefined && (payday < 0 || payday > 6)) {
-    errors.push('Payday must be between 0-6');
+    errors.push("Payday must be between 0-6");
   }
   if (dayOff !== undefined && (dayOff < 0 || dayOff > 6)) {
-    errors.push('Day off must be between 0-6');
+    errors.push("Day off must be between 0-6");
   }
 
   if (errors.length > 0) {
-    res.status(400).json({ error: errors.join('. ') });
+    res.status(400).json({ error: errors.join(". ") });
     return;
   }
 
-  // Sanitize string inputs
   if (req.body.truckName) {
     req.body.truckName = sanitizeString(req.body.truckName);
+  }
+  if (req.body.client) {
+    req.body.client = sanitizeString(req.body.client);
   }
   if (req.body.notes) {
     req.body.notes = sanitizeString(req.body.notes);

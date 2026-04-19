@@ -1,9 +1,11 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document } from "mongoose";
 
 export interface ITruck extends Document {
   truckName: string;
-  status: 'Active' | 'Inactive';
-  notes: string;
+  status: "Active" | "Inactive";
+  client: string;
+  lastChangeOil: number | null;
+  notes: string; // optional fallback for old data
   cutoffStart: number;
   cutoffEnd: number;
   payday: number;
@@ -12,7 +14,7 @@ export interface ITruck extends Document {
   updatedAt: Date;
 }
 
-const TruckSchema = new Schema<ITruck>(
+const TruckSchema = new Schema(
   {
     truckName: {
       type: String,
@@ -22,41 +24,49 @@ const TruckSchema = new Schema<ITruck>(
     },
     status: {
       type: String,
-      enum: ['Active', 'Inactive'],
-      default: 'Active',
+      enum: ["Active", "Inactive"],
+      default: "Active",
+    },
+    client: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    lastChangeOil: {
+      type: Number,
+      default: null,
+      min: 0,
     },
     notes: {
       type: String,
-      default: '',
+      default: "",
     },
     cutoffStart: {
       type: Number,
       min: 0,
       max: 6,
-      default: 1, // Monday
+      default: 1,
     },
     cutoffEnd: {
       type: Number,
       min: 0,
       max: 6,
-      default: 6, // Saturday
+      default: 6,
     },
     payday: {
       type: Number,
       min: 0,
       max: 6,
-      default: 6, // Saturday
+      default: 6,
     },
     dayOff: {
       type: Number,
       min: 0,
       max: 6,
-      default: 0, // Sunday
+      default: 0,
     },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true },
 );
 
-export const Truck = mongoose.model<ITruck>('Truck', TruckSchema);
+export const Truck = mongoose.model("Truck", TruckSchema);

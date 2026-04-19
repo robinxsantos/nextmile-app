@@ -126,7 +126,9 @@ export interface TruckRow {
   _id: string;
   truckName: string;
   status: string;
-  notes: string;
+  client?: string;
+  lastChangeOil?: number | null;
+  notes?: string;
   cutoffStart: number;
   cutoffEnd: number;
   payday: number;
