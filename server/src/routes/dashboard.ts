@@ -5,7 +5,10 @@ import { Truck } from "../models/Truck.js";
 import { formatTripResponse } from "../services/tripService.js";
 // import { toISODateString } from "../utils/calculations.js";
 import { attachExpenseNotes } from "../utils/enrichNotes.js";
-import { previousRangeForPreset } from "../utils/dateHelpers.js";
+import {
+  previousRangeForPreset,
+  type RangePreset,
+} from "../utils/dateHelpers.js";
 
 type DateRange = {
   prevStart: Date;
@@ -193,7 +196,19 @@ router.get("/", async (req: Request, res: Response) => {
         (t) => String(t._id) === String(truck || ""),
       );
 
-      const preset = String(rangePreset || "ALL");
+      const rawPreset = String(rangePreset || "ALL");
+
+      const preset: RangePreset =
+        rawPreset === "ALL" ||
+        rawPreset === "CC" ||
+        rawPreset === "LC" ||
+        rawPreset === "TM" ||
+        rawPreset === "LM" ||
+        rawPreset === "MTD" ||
+        rawPreset === "YTD" ||
+        rawPreset === "CUSTOM"
+          ? rawPreset
+          : "ALL";
 
       const prevRange = previousRangeForPreset(
         preset,
