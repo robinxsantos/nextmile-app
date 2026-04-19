@@ -224,6 +224,13 @@ router.get("/", async (req: Request, res: Response) => {
         const prevExpenses = await Expense.find(prevExpenseFilter);
 
         previousKpis = calculateKpis(prevRows, prevExpenses);
+
+        console.log("DASHBOARD RAW", {
+          start,
+          end,
+          prevKpis: previousKpis,
+          kpis,
+        });
       }
     }
 
