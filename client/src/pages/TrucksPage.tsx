@@ -16,8 +16,8 @@ import { cn } from "../lib/utils";
 import Select from "react-select";
 
 const formatNumberWithComma = (value: string) => {
-  const num = value.replace(/,/g, '');
-  if (!num) return '';
+  const num = value.replace(/,/g, "");
+  if (!num) return "";
   return Number(num).toLocaleString();
 };
 
@@ -109,14 +109,14 @@ export default function TrucksPage() {
   const [deleteModal, setDeleteModal] = useState<TruckRow | null>(null);
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
-    truckName: '',
-    status: 'Active',
-    client: '',
-    lastChangeOil: '',
-    cutoffStart: '1',
-    cutoffEnd: '6',
-    payday: '6',
-    dayOff: '0',
+    truckName: "",
+    status: "Active",
+    client: "",
+    lastChangeOil: "",
+    cutoffStart: "1",
+    cutoffEnd: "6",
+    payday: "6",
+    dayOff: "0",
   });
 
   useEffect(() => {
@@ -127,14 +127,14 @@ export default function TrucksPage() {
   const openAdd = () => {
     setEditRow(null);
     setForm({
-      truckName: '',
-      status: 'Active',
-      client: '',
-      lastChangeOil: '',
-      cutoffStart: '1',
-      cutoffEnd: '6',
-      payday: '6',
-      dayOff: '0',
+      truckName: "",
+      status: "Active",
+      client: "",
+      lastChangeOil: "",
+      cutoffStart: "1",
+      cutoffEnd: "6",
+      payday: "6",
+      dayOff: "0",
     });
     setTruckModal(true);
   };
@@ -144,8 +144,11 @@ export default function TrucksPage() {
     setForm({
       truckName: row.truckName,
       status: row.status,
-      client: row.client ?? row.notes ?? '',
-      lastChangeOil: row.lastChangeOil !== undefined && row.lastChangeOil !== null ? String(row.lastChangeOil) : '',
+      client: row.client ?? row.notes ?? "",
+      lastChangeOil:
+        row.lastChangeOil !== undefined && row.lastChangeOil !== null
+          ? String(row.lastChangeOil)
+          : "",
       cutoffStart: String(row.cutoffStart),
       cutoffEnd: String(row.cutoffEnd),
       payday: String(row.payday),
@@ -418,7 +421,10 @@ export default function TrucksPage() {
                     </div>
                   )}
                   <div className="text-xs text-slate-500 mb-3">
-                    Last Change Oil: {r.lastChangeOil != null ? `${Number(r.lastChangeOil).toLocaleString()} km` : '-'}
+                    Last Change Oil:{" "}
+                    {r.lastChangeOil != null
+                      ? `${Number(r.lastChangeOil).toLocaleString()} km`
+                      : "-"}
                   </div>
 
                   <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs mb-3">
@@ -517,7 +523,9 @@ export default function TrucksPage() {
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1 block">Client</label>
+            <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1 block">
+              Client
+            </label>
             <input
               type="text"
               value={form.client}
@@ -528,13 +536,15 @@ export default function TrucksPage() {
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1 block">Last Change Oil</label>
+            <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1 block">
+              Last Change Oil
+            </label>
             <div className="relative">
               <input
                 type="text"
                 value={formatNumberWithComma(form.lastChangeOil)}
                 onChange={(e) => {
-                  const raw = e.target.value.replace(/,/g, '');
+                  const raw = e.target.value.replace(/,/g, "");
 
                   // allow only numbers
                   if (!/^\d*$/.test(raw)) return;
@@ -630,7 +640,9 @@ export default function TrucksPage() {
           </div>
 
           <div className="col-span-2 text-xs text-slate-500">
-            Auto-creates a dedicated data sheet per truck.
+            If salary is monthly, leave this as is. You can manually choose
+            cutoff days using the Date Period filter in the Trips and Dashboard
+            Page.
           </div>
         </div>
       </Modal>

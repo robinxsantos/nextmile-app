@@ -52,7 +52,7 @@ export default function ExpensesPage() {
     deleteExpense,
     toggleExpenseReimbursed,
     expenseCategories,
-    fetchExpenseCategories,
+    // fetchExpenseCategories,
     theme,
   } = useAppStore();
   const { isAdmin } = useAuthStore();
