@@ -235,8 +235,7 @@ export function exportMonthlyReport(
       }
 
       const expenseNoteHtml = isFirstRowForDate
-        ? notesByDate.get(dateKey) ||
-          escapeNoteWithLineBreaks(String(r.note || ""))
+        ? escapeNoteWithLineBreaks(String(r.expenseBreakdown || r.note || ""))
         : "";
 
       return `<tr>
@@ -314,10 +313,9 @@ tbody tr:nth-child(even) td{background-color:#f9fafb}
 .expense-note{
   text-align:left;
   vertical-align:middle;
-  white-space:pre-line;
+  white-space:nowrap;
   line-height:1.4;
   word-break:break-word;
-  white-space:nowrap;
 }
 .date-col{
   white-space:nowrap;
@@ -339,7 +337,7 @@ tbody tr:nth-child(even) td{background-color:#f9fafb}
   <div class="meta"><strong>Period:</strong> ${escHtml(periodText)}<br><strong>Generated:</strong> ${new Date().toLocaleString()}</div>
 </div>
 <table>
-  <thead><tr><th>Date</th><th>Shipment #</th><th>Rate</th><th>Trips</th><th>Crew Salary</th><th>Cash Adv</th><th>Reimb</th><th>Expenses</th><th>Expense Note</th><th>Gross</th><th>Net</th><th>Payable</th></tr></thead>
+  <thead><tr><th>Date</th><th>Shipment #</th><th>Rate</th><th>Trips</th><th>Crew Salary</th><th>Cash Adv</th><th>Reimb</th><th>Expenses</th><th>Expense Breakdown</th><th>Gross</th><th>Net</th><th>Payable</th></tr></thead>
   <tbody>${rowHtml || '<tr><td colspan="12">No rows</td></tr>'}</tbody>
 </table>
 <div class="nothing-follows">***** NOTHING FOLLOWS *****</div>

@@ -101,6 +101,7 @@ export interface TripRow {
   reimbursements: number;
   expenses: number;
   note: string;
+  expenseBreakdown?: string;
   hasExpenses?: boolean;
   grossIncome: number;
   netIncome: number;
