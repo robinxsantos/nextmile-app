@@ -1,6 +1,6 @@
-import { Types } from 'mongoose';
-import { Trip, ITrip } from '../models/Trip.js';
-import { Expense } from '../models/Expense.js';
+import { Types } from "mongoose";
+import { Trip, ITrip } from "../models/Trip.js";
+import { Expense } from "../models/Expense.js";
 import {
   weekLabelForDate,
   normalizeStatus,
@@ -9,14 +9,14 @@ import {
   calculateTripFields,
   toISODateString,
   formatDateText,
-} from '../utils/calculations.js';
+} from "../utils/calculations.js";
 
 /**
  * Get the total expenses for a specific truck on a specific date
  */
 export async function getExpenseTotalForDate(
   truckId: Types.ObjectId | string,
-  date: Date
+  date: Date,
 ): Promise<{ total: number; notes: string[] }> {
   const startOfDay = new Date(date);
   startOfDay.setHours(0, 0, 0, 0);
@@ -29,14 +29,17 @@ export async function getExpenseTotalForDate(
   });
 
   // Exclude reimbursed expenses from the total (client pays for those)
-  const total = expenses.reduce((sum, e) => sum + (e.reimbursed ? 0 : e.amount), 0);
+  const total = expenses.reduce(
+    (sum, e) => sum + (e.reimbursed ? 0 : e.amount),
+    0,
+  );
   const notes = expenses
     .map((e) => {
       const parts = [];
       if (e.category) parts.push(e.category);
       if (e.description) parts.push(e.description);
-      if (e.reimbursed) parts.push('(Reimbursed)');
-      return parts.join(': ');
+      if (e.reimbursed) parts.push("(Reimbursed)");
+      return parts.join(": ");
     })
     .filter(Boolean);
 
@@ -49,7 +52,7 @@ export async function getExpenseTotalForDate(
  */
 export async function syncTripsForDate(
   truckId: Types.ObjectId | string,
-  date: Date
+  date: Date,
 ): Promise<void> {
   const startOfDay = new Date(date);
   startOfDay.setHours(0, 0, 0, 0);
@@ -63,11 +66,15 @@ export async function syncTripsForDate(
 
   if (trips.length === 0) return;
 
-  const { total: expenseTotal } = await getExpenseTotalForDate(truckId, date);
+  const { total: expenseTotal, notes } = await getExpenseTotalForDate(
+    truckId,
+    date,
+  );
+  const expenseNote = notes.join(" | ");
 
   for (let i = 0; i < trips.length; i++) {
     const trip = trips[i];
-    const applyExpense = i === 0; // Only first trip gets expenses
+    const applyExpense = i === 0;
     const expenses = applyExpense ? expenseTotal : 0;
 
     const computed = calculateTripFields({
@@ -82,6 +89,7 @@ export async function syncTripsForDate(
 
     await Trip.findByIdAndUpdate(trip._id, {
       expenses,
+      note: applyExpense ? expenseNote : trip.note,
       grossIncome: computed.grossIncome,
       netIncome: computed.netIncome,
       payable: computed.payable,
@@ -132,13 +140,13 @@ export function prepareTripData(data: {
     date,
     week: weekLabelForDate(date),
     status,
-    shipmentNumber: data.shipmentNumber || '',
+    shipmentNumber: data.shipmentNumber || "",
     rate,
     trips,
     crewSalary,
     cashAdvance,
     reimbursements,
-    note: data.note || '',
+    note: data.note || "",
     paid,
     expenses,
     grossIncome: computed.grossIncome,
@@ -155,7 +163,7 @@ export function formatTripResponse(trip: ITrip & { truck?: any }) {
   return {
     _id: trip._id,
     truck: trip.truck,
-    truckName: trip.truck?.truckName || '',
+    truckName: trip.truck?.truckName || "",
     createdBy: trip.createdBy ? String(trip.createdBy) : null,
     date: trip.date,
     dateIso: toISODateString(date),
