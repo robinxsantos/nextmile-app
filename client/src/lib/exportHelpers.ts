@@ -290,6 +290,13 @@ table{
   border-collapse:collapse;
   margin-top:14px;
 }
+.nothing-follows{
+  text-align:center;
+  font-size:11px;
+  font-weight:700;
+  margin-top:16px;
+  letter-spacing:0.08em;
+}
 th,td{padding:7px 6px;font-size:11px;text-align:center;vertical-align:middle}
 thead th{border-bottom:2px solid #000;font-weight:700;white-space:nowrap;text-transform:uppercase;font-size:10px;letter-spacing:0.05em}
 tbody td{border-bottom:1px solid #ddd}
@@ -324,6 +331,7 @@ tbody tr:nth-child(even) td{background-color:#f9fafb}
   <thead><tr><th>Date</th><th>Shipment #</th><th>Rate</th><th>Trips</th><th>Crew Salary</th><th>Cash Adv</th><th>Reimb</th><th>Expenses</th><th>Expense Note</th><th>Gross</th><th>Net</th><th>Payable</th></tr></thead>
   <tbody>${rowHtml || '<tr><td colspan="12">No rows</td></tr>'}</tbody>
 </table>
+<div class="nothing-follows">***** NOTHING FOLLOWS *****</div>
 <div class="totals">
   <div class="total-row"><span class="label">TOTAL TRIPS</span><span>${totalTrips.toLocaleString()}</span></div>
   <div class="total-row"><span class="label">GROSS INCOME</span><span>${peso(totalGross)}</span></div>
