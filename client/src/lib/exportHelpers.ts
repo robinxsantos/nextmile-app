@@ -302,7 +302,7 @@ thead th{border-bottom:2px solid #000;font-weight:700;white-space:nowrap;text-tr
 tbody td{border-bottom:1px solid #ddd}
 tbody tr:nth-child(even) td{background-color:#f9fafb}
 .expense-note{
-  text-align:center;
+  text-align:left;
   vertical-align:middle;
   white-space:pre-line;
   line-height:1.4;
