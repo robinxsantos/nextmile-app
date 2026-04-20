@@ -25,7 +25,7 @@ import EmptyState from "../components/shared/EmptyState";
 
 const DEFAULT_CATEGORIES = [
   "FUEL",
-  "MAINTENANCE",
+  "MAINT.",
   "TOLL",
   "PARKING",
   "INSURANCE",

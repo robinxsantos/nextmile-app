@@ -127,7 +127,7 @@ export function exportPayslip(
 body { font-family: Arial, sans-serif; color: #111; margin: 0; padding: 0 24px; }
 .header { text-align: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #000; }
 .title { font-size: 24px; font-weight: 700; margin-bottom: 6px; letter-spacing: 0.05em; }
-.meta { font-size: 13px; line-height: 1.6; color: #555; }
+.meta { font-size: 13px; line-height: 1.6; color: #000; }
 table { width: 100%; border-collapse: collapse; margin-top: 16px; }
 th, td { padding: 10px 8px; font-size: 12px; text-align: center; }
 thead th { border-bottom: 2px solid #000; font-weight: 700; text-transform: uppercase; font-size: 11px; letter-spacing: 0.05em; color: #333; }
@@ -256,7 +256,17 @@ export function exportMonthlyReport(
     })
     .join("");
 
-  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Monthly Report</title>
+  const safeFilePart = (value: string) =>
+    String(value || "")
+      .trim()
+      .replace(/[\\/:*?"<>|]/g, "")
+      .replace(/\s+/g, "_");
+
+  const monthPart = safeFilePart(periodText);
+  const truckPart = safeFilePart(truckLabel);
+  const reportTitle = `Monthly Report_${monthPart}_${truckPart}`;
+
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>${escHtml(reportTitle)}</title>
 <style>
 @page{size:A4;margin:16mm}
 body{
@@ -283,7 +293,7 @@ body{
 .meta{
   font-size:13px;
   line-height:1.6;
-  color:#555;
+  color:#000;
 }
 table{
   width:100%;
@@ -307,6 +317,7 @@ tbody tr:nth-child(even) td{background-color:#f9fafb}
   white-space:pre-line;
   line-height:1.4;
   word-break:break-word;
+  white-space:nowrap;
 }
 .date-col{
   white-space:nowrap;
