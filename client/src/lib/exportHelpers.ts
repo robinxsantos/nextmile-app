@@ -133,7 +133,7 @@ th, td { padding: 10px 8px; font-size: 12px; text-align: center; }
 thead th { border-bottom: 2px solid #000; font-weight: 700; text-transform: uppercase; font-size: 11px; letter-spacing: 0.05em; color: #333; }
 tbody td { border-bottom: 1px solid #ddd; }
 tbody tr:nth-child(even) td { background-color: #f9fafb; }
-.totals { margin-top: 28px; border-top: 2px solid #000; padding-top: 14px; }
+.totals { margin-top: 28px; border-top: 2px solid #000; padding-top: 14px; width:100%; }
 .total-row { display: flex; justify-content: space-between; font-size: 16px; font-weight: 600; margin-bottom: 6px; max-width: 400px; margin-left: auto; }
 .label { letter-spacing: 0.05em; color: #333; }
 </style></head><body>
@@ -182,35 +182,146 @@ export function exportMonthlyReport(
   );
   const totalCrewSalary = rows.reduce((s, r) => s + (r.crewSalary || 0), 0);
 
+  const escapeNoteWithLineBreaks = (note: string) => {
+    const lines = note
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    if (lines.length === 0) return "";
+
+    return lines.map((line) => escHtml(line)).join("<br>");
+  };
+
+  // Build a per-day note map so duplicate notes on the same date are removed,
+  // and multiple expense notes on the same day show as separate lines.
+  const notesByDate = new Map<string, string>();
+  const noteLinesByDate = new Map<string, Set<string>>();
+
+  for (const r of rows) {
+    const dateKey = r.dateIso || r.dateText || "";
+    if (!dateKey) continue;
+
+    const existing = noteLinesByDate.get(dateKey) || new Set<string>();
+    const rawNote = String(r.note || "");
+
+    rawNote
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .forEach((line) => existing.add(line));
+
+    noteLinesByDate.set(dateKey, existing);
+  }
+
+  for (const [dateKey, lines] of noteLinesByDate.entries()) {
+    notesByDate.set(
+      dateKey,
+      Array.from(lines)
+        .map((line) => escHtml(line).replace(/\s*\|\s*/g, "<br>"))
+        .join("<br>"),
+    );
+  }
+
+  const seenDates = new Set<string>();
+
   const rowHtml = rows
-    .map(
-      (r) =>
-        `<tr><td>${escHtml(r.dateText)}</td><td>${escHtml(r.shipmentNumber)}</td><td>${pesoOrBlank(r.rate)}</td><td>${r.trips}</td><td>${pesoOrBlank(r.crewSalary)}</td><td>${pesoOrBlank(r.cashAdvance)}</td><td>${pesoOrBlank(r.reimbursements)}</td><td>${pesoOrBlank(r.expenses)}</td><td>${escHtml(r.note || "")}</td><td>${pesoOrBlank(r.grossIncome)}</td><td>${pesoOrBlank(r.reportNetIncome ?? r.netIncome)}</td><td>${pesoOrBlank(r.reportPayable ?? r.payable)}</td></tr>`,
-    )
+    .map((r) => {
+      const dateKey = r.dateIso || r.dateText || "";
+      const isFirstRowForDate = !seenDates.has(dateKey);
+
+      if (isFirstRowForDate && dateKey) {
+        seenDates.add(dateKey);
+      }
+
+      const expenseNoteHtml = isFirstRowForDate
+        ? notesByDate.get(dateKey) ||
+          escapeNoteWithLineBreaks(String(r.note || ""))
+        : "";
+
+      return `<tr>
+        <td class="date-col">${escHtml(r.dateText)}</td>
+        <td>${escHtml(r.shipmentNumber)}</td>
+        <td>${pesoOrBlank(r.rate)}</td>
+        <td>${r.trips}</td>
+        <td>${pesoOrBlank(r.crewSalary)}</td>
+        <td>${pesoOrBlank(r.cashAdvance)}</td>
+        <td>${pesoOrBlank(r.reimbursements)}</td>
+        <td>${pesoOrBlank(r.expenses)}</td>
+        <td class="expense-note">${expenseNoteHtml}</td>
+        <td>${pesoOrBlank(r.grossIncome)}</td>
+        <td>${pesoOrBlank(r.reportNetIncome ?? r.netIncome)}</td>
+        <td>${pesoOrBlank(r.reportPayable ?? r.payable)}</td>
+      </tr>`;
+    })
     .join("");
 
   const html = `<!doctype html><html><head><meta charset="utf-8"><title>Monthly Report</title>
 <style>
 @page{size:A4;margin:16mm}
-body{font-family:Arial,sans-serif;color:#111;margin:0;padding:0 20px}
-.header{text-align:center;margin-bottom:18px;padding-bottom:10px;border-bottom:2px solid #000}
-.title{font-size:22px;font-weight:700;margin-bottom:6px}
-.meta{font-size:13px;line-height:1.6;color:#555}
-table{width:100%;border-collapse:collapse;margin-top:14px}
+body{
+  font-family:Arial,sans-serif;
+  color:#111;
+  margin:0;
+  padding:0;
+}
+
+.header{
+  width:100%;
+  text-align:center;
+  margin-bottom:18px;
+  padding-bottom:10px;
+  border-bottom:2px solid #000;
+}
+
+.title{
+  font-size:22px;
+  font-weight:700;
+  margin-bottom:6px;
+}
+
+.meta{
+  font-size:13px;
+  line-height:1.6;
+  color:#555;
+}
+table{
+  width:100%;
+  border-collapse:collapse;
+  margin-top:14px;
+}
 th,td{padding:7px 6px;font-size:11px;text-align:center;vertical-align:middle}
 thead th{border-bottom:2px solid #000;font-weight:700;white-space:nowrap;text-transform:uppercase;font-size:10px;letter-spacing:0.05em}
 tbody td{border-bottom:1px solid #ddd}
 tbody tr:nth-child(even) td{background-color:#f9fafb}
-.totals{margin-top:24px;border-top:2px solid #000;padding-top:14px}
+.expense-note{
+  text-align:center;
+  vertical-align:middle;
+  white-space:pre-line;
+  line-height:1.4;
+  word-break:break-word;
+}
+.date-col{
+  white-space:nowrap;
+  min-width:120px;
+}
+.totals{
+  margin-top:24px;
+  border-top:2px solid #000;
+  padding-top:14px;
+  width:100%;
+  box-sizing:border-box;
+}
 .total-row{display:grid;grid-template-columns:1fr auto;max-width:420px;margin-left:auto;font-size:14px;font-weight:600;margin-bottom:4px}
 .label{letter-spacing:0.04em;color:#333}
 </style></head><body>
+
 <div class="header">
   <div class="title">Monthly Report for ${escHtml(truckLabel)}</div>
   <div class="meta"><strong>Period:</strong> ${escHtml(periodText)}<br><strong>Generated:</strong> ${new Date().toLocaleString()}</div>
 </div>
 <table>
-  <thead><tr><th>Date</th><th>Shipment #</th><th>Rate</th><th>Trips</th><th>Crew Salary</th><th>Cash Adv</th><th>Reimb</th><th>Expenses</th><th>Note</th><th>Gross</th><th>Net</th><th>Payable</th></tr></thead>
+  <thead><tr><th>Date</th><th>Shipment #</th><th>Rate</th><th>Trips</th><th>Crew Salary</th><th>Cash Adv</th><th>Reimb</th><th>Expenses</th><th>Expense Note</th><th>Gross</th><th>Net</th><th>Payable</th></tr></thead>
   <tbody>${rowHtml || '<tr><td colspan="12">No rows</td></tr>'}</tbody>
 </table>
 <div class="totals">
