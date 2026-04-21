@@ -1,9 +1,12 @@
-import mongoose, { Schema, Document, Types } from 'mongoose';
+import mongoose, { Schema, Document, Types } from "mongoose";
 
 export interface IPayment extends Document {
   truck: Types.ObjectId;
   uploadedBy: Types.ObjectId;
   category: string;
+  recipient: string;
+  amount: number;
+  method: string;
   date: Date;
   filename: string;
   originalFilename: string;
@@ -19,13 +22,13 @@ const PaymentSchema = new Schema<IPayment>(
   {
     truck: {
       type: Schema.Types.ObjectId,
-      ref: 'Truck',
+      ref: "Truck",
       required: true,
       index: true,
     },
     uploadedBy: {
       type: Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       required: true,
     },
     category: {
@@ -55,19 +58,33 @@ const PaymentSchema = new Schema<IPayment>(
     },
     mimeType: {
       type: String,
-      default: 'image/png',
+      default: "image/png",
     },
     note: {
       type: String,
-      default: '',
+      default: "",
+      trim: true,
+    },
+    recipient: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    amount: {
+      type: Number,
+      default: 0,
+    },
+    method: {
+      type: String,
+      default: "",
       trim: true,
     },
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 PaymentSchema.index({ truck: 1, date: -1 });
 
-export const Payment = mongoose.model<IPayment>('Payment', PaymentSchema);
+export const Payment = mongoose.model<IPayment>("Payment", PaymentSchema);

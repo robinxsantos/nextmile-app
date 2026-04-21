@@ -23,7 +23,7 @@ export default function LoginPage() {
 
     try {
       const user = await login(username.trim(), password);
-      toast.success(`Welcome, ${user.displayName}`);
+      toast.success(`Welcome, ${user.displayName}!`);
       navigate("/", { replace: true });
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Login failed");

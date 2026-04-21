@@ -77,6 +77,9 @@ router.get("/", async (req: AuthRequest, res: Response) => {
       truckName: (p.truck as any)?.truckName || "",
       uploadedBy: (p.uploadedBy as any)?.displayName || "",
       category: p.category,
+      recipient: p.recipient,
+      amount: p.amount,
+      method: p.method,
       date: p.date,
       dateText: p.date.toLocaleDateString("en-US", {
         month: "short",
@@ -103,7 +106,8 @@ router.post(
   upload.single("file"),
   async (req: AuthRequest, res: Response) => {
     try {
-      const { truckId, category, date, note } = req.body;
+      const { truckId, category, recipient, amount, method, date, note } =
+        req.body;
       const file = req.file;
 
       if (!file) {
@@ -137,6 +141,9 @@ router.post(
         truck: truck._id,
         uploadedBy: req.user!._id,
         category: category.trim(),
+        recipient: (recipient || "").trim(),
+        amount: Number(amount || 0),
+        method: (method || "").trim(),
         date: parsedDate,
         filename: displayFilename,
         originalFilename: file.originalname,
