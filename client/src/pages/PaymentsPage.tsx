@@ -281,7 +281,7 @@ export default function PaymentsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[340px_minmax(0,1fr)] gap-3.5 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[420px_minmax(0,1fr)] gap-3.5 items-start">
         <div className="glass-card rounded-[22px] border border-slate-200/90 dark:border-slate-700/90 shadow-sm p-4">
           <div className="mb-4">
             <h2 className="text-base font-bold tracking-tight">
@@ -365,7 +365,7 @@ export default function PaymentsPage() {
                 type="text"
                 value={recipient}
                 onChange={(e) => setRecipient(e.target.value)}
-                placeholder="Crew Salary"
+                placeholder="Driver / Crew.."
                 className={inputClass}
               />
             </div>
