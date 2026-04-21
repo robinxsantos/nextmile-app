@@ -169,22 +169,57 @@ export function exportMonthlyReport(
   truckLabel: string,
   periodText: string,
 ) {
-  const totalTrips = rows.reduce((s, r) => s + (r.trips || 0), 0);
-  const totalGross = rows.reduce((s, r) => s + (r.grossIncome || 0), 0);
+  const totalTrips = rows.reduce((s, r) => s + Number(r.trips || 0), 0);
+  const totalGross = rows.reduce((s, r) => s + Number(r.grossIncome || 0), 0);
   const totalPayable = rows.reduce(
-    (s, r) => s + (r.reportPayable || r.payable || 0),
+    (s, r) => s + Number(r.reportPayable || r.payable || 0),
     0,
   );
-  const totalExpenses = rows.reduce((s, r) => s + (r.expenses || 0), 0);
+  const totalExpenses = rows.reduce((s, r) => s + Number(r.expenses || 0), 0);
   const totalNet = rows.reduce(
-    (s, r) => s + (r.reportNetIncome || r.netIncome || 0),
+    (s, r) => s + Number(r.reportNetIncome || r.netIncome || 0),
     0,
   );
-  const totalCrewSalary = rows.reduce((s, r) => s + (r.crewSalary || 0), 0);
+  const totalCrewSalary = rows.reduce(
+    (s, r) => s + Number(r.crewSalary || 0),
+    0,
+  );
 
-  const escapeNoteWithLineBreaks = (note: string) => {
-    const lines = note
-      .split(/\r?\n/)
+  const expenseRatio =
+    totalGross > 0 ? ((totalExpenses / totalGross) * 100).toFixed(1) : "0.0";
+  const netMargin =
+    totalGross > 0 ? ((totalNet / totalGross) * 100).toFixed(1) : "0.0";
+  const avgPerTrip = totalTrips > 0 ? totalGross / totalTrips : 0;
+  const crewCostRatio =
+    totalGross > 0 ? ((totalCrewSalary / totalGross) * 100).toFixed(1) : "0.0";
+
+  const formatDateTime = (d: Date) =>
+    d.toLocaleString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+
+  const formatDateLong = (value?: string) => {
+    if (!value) return "";
+    const d = new Date(value);
+    return d.toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  };
+
+  const escapeBreakdownText = (value: string) => {
+    const lines = String(value || "")
+      .replace(/\r/g, "")
+      .split("\n")
+      .flatMap((line) => line.split(/\s*\|\s*/))
       .map((line) => line.trim())
       .filter(Boolean);
 
@@ -193,35 +228,8 @@ export function exportMonthlyReport(
     return lines.map((line) => escHtml(line)).join("<br>");
   };
 
-  // Build a per-day note map so duplicate notes on the same date are removed,
-  // and multiple expense notes on the same day show as separate lines.
-  const notesByDate = new Map<string, string>();
-  const noteLinesByDate = new Map<string, Set<string>>();
-
-  for (const r of rows) {
-    const dateKey = r.dateIso || r.dateText || "";
-    if (!dateKey) continue;
-
-    const existing = noteLinesByDate.get(dateKey) || new Set<string>();
-    const rawNote = String(r.note || "");
-
-    rawNote
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter(Boolean)
-      .forEach((line) => existing.add(line));
-
-    noteLinesByDate.set(dateKey, existing);
-  }
-
-  for (const [dateKey, lines] of noteLinesByDate.entries()) {
-    notesByDate.set(
-      dateKey,
-      Array.from(lines)
-        .map((line) => escHtml(line).replace(/\s*\|\s*/g, "<br>"))
-        .join("<br>"),
-    );
-  }
+  const rangeLabel =
+    periodText && periodText.trim() ? periodText.trim() : "Selected Period";
 
   const seenDates = new Set<string>();
 
@@ -235,14 +243,14 @@ export function exportMonthlyReport(
       }
 
       const expenseNoteHtml = isFirstRowForDate
-        ? escapeNoteWithLineBreaks(String(r.expenseBreakdown || r.note || ""))
+        ? escapeBreakdownText(String(r.expenseBreakdown || r.note || ""))
         : "";
 
       return `<tr>
         <td class="date-col">${escHtml(r.dateText)}</td>
         <td>${escHtml(r.shipmentNumber)}</td>
         <td>${pesoOrBlank(r.rate)}</td>
-        <td>${r.trips}</td>
+        <td>${Number(r.trips || 0)}</td>
         <td>${pesoOrBlank(r.crewSalary)}</td>
         <td>${pesoOrBlank(r.cashAdvance)}</td>
         <td>${pesoOrBlank(r.reimbursements)}</td>
@@ -265,94 +273,276 @@ export function exportMonthlyReport(
   const truckPart = safeFilePart(truckLabel);
   const reportTitle = `Monthly Report_${monthPart}_${truckPart}`;
 
-  const html = `<!doctype html><html><head><meta charset="utf-8"><title>${escHtml(reportTitle)}</title>
-<style>
-@page{size:A4;margin:16mm}
-body{
-  font-family:Arial,sans-serif;
-  color:#111;
-  margin:0;
-  padding:0;
-}
+  const html = `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>${escHtml(reportTitle)}</title>
+  <style>
+    @page {
+      size: A4 landscape;
+      margin: 14mm;
+    }
 
-.header{
-  width:100%;
-  text-align:center;
-  margin-bottom:18px;
-  padding-bottom:10px;
-  border-bottom:2px solid #000;
-}
+    body {
+      font-family: Arial, sans-serif;
+      color: #111;
+      margin: 0;
+      padding: 0;
+      font-size: 11px;
+    }
 
-.title{
-  font-size:22px;
-  font-weight:700;
-  margin-bottom:6px;
-}
+    .header {
+      width: 100%;
+      text-align: center;
+      margin-bottom: 16px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #000;
+    }
 
-.meta{
-  font-size:13px;
-  line-height:1.6;
-  color:#000;
-}
-table{
-  width:100%;
-  border-collapse:collapse;
-  margin-top:14px;
-}
-.nothing-follows{
-  text-align:center;
-  font-size:11px;
-  font-weight:700;
-  margin-top:16px;
-  letter-spacing:0.08em;
-}
-th,td{padding:7px 6px;font-size:11px;text-align:center;vertical-align:middle}
-thead th{border-bottom:2px solid #000;font-weight:700;white-space:nowrap;text-transform:uppercase;font-size:10px;letter-spacing:0.05em}
-tbody td{border-bottom:1px solid #ddd}
-tbody tr:nth-child(even) td{background-color:#f9fafb}
-.expense-note{
-  text-align:left;
-  vertical-align:middle;
-  white-space:nowrap;
-  line-height:1.4;
-  word-break:break-word;
-}
-.date-col{
-  white-space:nowrap;
-  min-width:120px;
-}
-.totals{
-  margin-top:24px;
-  border-top:2px solid #000;
-  padding-top:14px;
-  width:100%;
-  box-sizing:border-box;
-}
-.total-row{display:grid;grid-template-columns:1fr auto;max-width:420px;margin-left:auto;font-size:14px;font-weight:600;margin-bottom:4px}
-.label{letter-spacing:0.04em;color:#333}
-</style></head><body>
+    .title {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      letter-spacing: 0.04em;
+    }
 
-<div class="header">
-  <div class="title">Monthly Report for ${escHtml(truckLabel)}</div>
-  <div class="meta"><strong>Period:</strong> ${escHtml(periodText)}<br><strong>Generated:</strong> ${new Date().toLocaleString()}</div>
-</div>
-<table>
-  <thead><tr><th>Date</th><th>Shipment #</th><th>Rate</th><th>Trips</th><th>Crew Salary</th><th>Cash Adv</th><th>Reimb</th><th>Expenses</th><th>Expense Breakdown</th><th>Gross</th><th>Net</th><th>Payable</th></tr></thead>
-  <tbody>${rowHtml || '<tr><td colspan="12">No rows</td></tr>'}</tbody>
-</table>
-<div class="nothing-follows">***** NOTHING FOLLOWS *****</div>
-<div class="totals">
-  <div class="total-row"><span class="label">TOTAL TRIPS</span><span>${totalTrips.toLocaleString()}</span></div>
-  <div class="total-row"><span class="label">GROSS INCOME</span><span>${peso(totalGross)}</span></div>
-  <div class="total-row"><span class="label">TOTAL CREW SALARY</span><span>${peso(totalCrewSalary)}</span></div>
-  <div class="total-row"><span class="label">TOTAL EXPENSES</span><span>${peso(totalExpenses)}</span></div>
-  <div class="total-row"><span class="label">TOTAL PAYABLE</span><span>${peso(totalPayable)}</span></div>
-  <div class="total-row"><span class="label">NET INCOME</span><span>${peso(totalNet)}</span></div>
-</div>
-<script>window.onload=function(){window.print();}</script>
-</body></html>`;
+    .subtitle {
+      font-size: 13px;
+      line-height: 1.5;
+      color: #000;
+    }
 
-  const win = window.open("", "_blank", "width=900,height=700");
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .summary-card {
+      border: 1px solid #d1d5db;
+      border-radius: 10px;
+      padding: 10px 12px;
+      background: #fff;
+    }
+
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 4px 0;
+      border-bottom: 1px dashed #e5e7eb;
+      font-size: 12px;
+    }
+
+    .summary-row:last-child {
+      border-bottom: none;
+    }
+
+    .summary-label {
+      font-weight: 600;
+      color: #374151;
+    }
+
+    .summary-value {
+      font-weight: 700;
+      color: #111;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .section-title {
+      font-size: 12px;
+      font-weight: 700;
+      margin: 16px 0 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .table-wrap {
+      width: 100%;
+    }
+
+    table{
+      width:100%;
+      border-collapse:collapse;
+      table-layout:fixed;
+    }
+
+    th,td{
+      padding:7px 5px;
+      font-size:9.5px;
+      text-align:center;
+      vertical-align:top;
+      border-bottom:1px solid #ddd;
+      overflow-wrap:anywhere;
+      word-break:break-word;
+    }
+
+    thead th{
+      border-bottom:2px solid #000;
+      font-weight:700;
+      text-transform:uppercase;
+      white-space:nowrap;
+      letter-spacing:0.04em;
+      font-size:8.5px;
+    }
+
+    .expense-note{
+      text-align:left;
+      vertical-align:top;
+      white-space:nowrap;
+      line-height:1.35;
+      overflow-wrap:anywhere;
+      word-break:break-word;
+    }
+
+    .date-col {
+      white-space: nowrap;
+      min-width: 120px;
+    }
+
+    .totals {
+      margin-top: 18px;
+      border-top: 2px solid #000;
+      padding-top: 12px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .total-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      max-width: 420px;
+      margin-left: auto;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 5px;
+    }
+
+    .label {
+      letter-spacing: 0.04em;
+      color: #333;
+    }
+
+    .nothing-follows {
+      text-align: center;
+      font-size: 11px;
+      font-weight: 700;
+      margin-top: 14px;
+      letter-spacing: 0.08em;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="title">Monthly Report for ${escHtml(truckLabel)}</div>
+    <div class="subtitle">
+      <strong>Period:</strong> ${escHtml(rangeLabel)}<br>
+      <strong>Generated:</strong> ${formatDateTime(new Date())}
+    </div>
+  </div>
+
+  <div class="summary-grid">
+    <div class="summary-card">
+      <div class="summary-row">
+        <span class="summary-label">Total Trips</span>
+        <span class="summary-value">${totalTrips.toLocaleString()}</span>
+      </div>
+      <div class="summary-row">
+        <span class="summary-label">Gross Income</span>
+        <span class="summary-value">${peso(totalGross)}</span>
+      </div>
+      <div class="summary-row">
+        <span class="summary-label">Total Crew Salary</span>
+        <span class="summary-value">${peso(totalCrewSalary)}</span>
+      </div>
+      <div class="summary-row">
+        <span class="summary-label">Total Expenses</span>
+        <span class="summary-value">${peso(totalExpenses)}</span>
+      </div>
+      <div class="summary-row">
+        <span class="summary-label">Net Income</span>
+        <span class="summary-value">${peso(totalNet)}</span>
+      </div>
+    </div>
+
+    <div class="summary-card">
+      <div class="summary-row">
+        <span class="summary-label">Total Payable</span>
+        <span class="summary-value">${peso(totalPayable)}</span>
+      </div>
+      <div class="summary-row">
+        <span class="summary-label">Expense Ratio</span>
+        <span class="summary-value">${expenseRatio}%</span>
+      </div>
+      <div class="summary-row">
+        <span class="summary-label">Crew Cost Ratio</span>
+        <span class="summary-value">${crewCostRatio}%</span>
+      </div>
+      <div class="summary-row">
+        <span class="summary-label">Net Margin (After Salary & Advances)</span>
+        <span class="summary-value">${netMargin}%</span>
+      </div>
+      <div class="summary-row">
+        <span class="summary-label">Avg per Trip</span>
+        <span class="summary-value">${peso(avgPerTrip)}</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-title">Detailed Report</div>
+  <div class="table-wrap">
+    <table>
+      <colgroup>
+        <col style="width:9%">
+        <col style="width:10%">
+        <col style="width:7%">
+        <col style="width:5%">
+        <col style="width:7%">
+        <col style="width:7%">
+        <col style="width:7%">
+        <col style="width:7%">
+        <col style="width:23%">
+        <col style="width:6%">
+        <col style="width:7%">
+        <col style="width:7%">
+      </colgroup>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Shipment #</th>
+          <th>Rate</th>
+          <th>Trips</th>
+          <th>Crew Salary</th>
+          <th>Cash Adv</th>
+          <th>Reimb</th>
+          <th>Expenses</th>
+          <th>Expense Breakdown</th>
+          <th>Gross</th>
+          <th>Net</th>
+          <th>Payable</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rowHtml || '<tr><td colspan="12" style="text-align:center;color:#999;padding:20px">No rows</td></tr>'}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="nothing-follows">***** NOTHING FOLLOWS *****</div>
+
+  <script>
+    window.onload = function () {
+      window.print();
+    };
+  </script>
+</body>
+</html>`;
+
+  const win = window.open("", "_blank", "width=1200,height=700");
   if (win) {
     win.document.open();
     win.document.write(html);
