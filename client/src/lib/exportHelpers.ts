@@ -525,7 +525,7 @@ export function exportMonthlyReport(
         <span class="summary-value">${crewCostRatio}%</span>
       </div>
       <div class="summary-row">
-        <span class="summary-label">Net Margin (After Salary & Advances)</span>
+        <span class="summary-label">Net Margin (After Salary & Expenses)</span>
         <span class="summary-value">${netMargin}%</span>
       </div>
       <div class="summary-row">
