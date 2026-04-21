@@ -22,6 +22,7 @@ import { usePagination } from "../hooks/usePagination";
 import CreatableSelect from "react-select/creatable";
 import { getSelectStyles } from "../lib/selectStyles";
 import EmptyState from "../components/shared/EmptyState";
+import { getExpenseBreakdown } from "../lib/expenseSummary";
 
 const DEFAULT_CATEGORIES = [
   "FUEL",
@@ -127,16 +128,10 @@ export default function ExpensesPage() {
     handlePageSizeChange,
   } = usePagination(filteredRows, 20);
 
-  const breakdown = useMemo(() => {
-    const byCategory: Record<string, number> = {};
-    filteredRows.forEach((r) => {
-      const cat = (r.category || "Others").trim().toUpperCase();
-      byCategory[cat] = (byCategory[cat] || 0) + r.amount;
-    });
-    const entries = Object.entries(byCategory).sort((a, b) => b[1] - a[1]);
-    const total = entries.reduce((sum, [, amt]) => sum + amt, 0);
-    return { entries, total };
-  }, [filteredRows]);
+  const breakdown = useMemo(
+    () => getExpenseBreakdown(filteredRows),
+    [filteredRows],
+  );
 
   const openAdd = () => {
     if (!selectedTruck) {
@@ -503,14 +498,12 @@ export default function ExpensesPage() {
               {breakdown.entries.length === 0 ? (
                 <div className="text-sm text-slate-400">No expenses found</div>
               ) : (
-                breakdown.entries.map(([category, amount]) => {
-                  const pct = breakdown.total
-                    ? (amount / breakdown.total) * 100
-                    : 0;
+                breakdown.entries.map((item) => {
+                  const pct = item.percent;
                   return (
-                    <div key={category} className="flex flex-col gap-1.5">
+                    <div key={item.category} className="flex flex-col gap-1.5">
                       <div className="flex justify-between items-center gap-3 font-bold text-sm tracking-tight">
-                        <span>{category}</span>
+                        <span>{item.category}</span>
                         <span>{pct.toFixed(1)}%</span>
                       </div>
                       <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">

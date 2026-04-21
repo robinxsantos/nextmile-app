@@ -18,6 +18,9 @@ export default function ReportsPage() {
     initApp,
     selectedTruck,
     truckOptions,
+    expenseRows,
+    fetchExpenses,
+    setExpensesMonth,
   } = useAppStore();
   const [expenseBreakdown, setExpenseBreakdown] = useState<{
     truckId: string;
@@ -37,6 +40,14 @@ export default function ReportsPage() {
   useEffect(() => {
     fetchReports();
   }, [fetchReports, reportsMonth, selectedTruck]);
+
+  useEffect(() => {
+    setExpensesMonth(reportsMonth);
+  }, [reportsMonth, setExpensesMonth]);
+
+  useEffect(() => {
+    if (selectedTruck) fetchExpenses();
+  }, [fetchExpenses, selectedTruck, reportsMonth]);
 
   const selectedTruckName = truckOptions.find(
     (t) => t._id === selectedTruck,
@@ -105,7 +116,7 @@ export default function ReportsPage() {
       reportsMonth === "ALL"
         ? `WHOLE YEAR ${year}`
         : `${reportMonth.toUpperCase()} ${year}`;
-    exportMonthlyReport(reportRows, truckLabel, periodText);
+    exportMonthlyReport(reportRows, truckLabel, periodText, expenseRows);
   };
 
   return (

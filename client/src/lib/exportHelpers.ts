@@ -1,5 +1,6 @@
 import type { TripRow } from "../store/useAppStore";
 import { peso } from "./utils";
+import { getExpenseBreakdown } from "./expenseSummary";
 
 function pesoOrBlank(n: number | undefined | null): string {
   const value = Number(n || 0);
@@ -168,6 +169,7 @@ export function exportMonthlyReport(
   rows: TripRow[],
   truckLabel: string,
   periodText: string,
+  expenseRows: { category?: string; amount?: number }[] = [],
 ) {
   const totalTrips = rows.reduce((s, r) => s + Number(r.trips || 0), 0);
   const totalGross = rows.reduce((s, r) => s + Number(r.grossIncome || 0), 0);
@@ -184,6 +186,7 @@ export function exportMonthlyReport(
     (s, r) => s + Number(r.crewSalary || 0),
     0,
   );
+  const expenseSummary = getExpenseBreakdown(expenseRows);
 
   const expenseRatio =
     totalGross > 0 ? ((totalExpenses / totalGross) * 100).toFixed(1) : "0.0";
@@ -250,12 +253,11 @@ export function exportMonthlyReport(
         <td class="date-col">${escHtml(r.dateText)}</td>
         <td>${escHtml(r.shipmentNumber)}</td>
         <td>${pesoOrBlank(r.rate)}</td>
-        <td>${Number(r.trips || 0)}</td>
         <td>${pesoOrBlank(r.crewSalary)}</td>
         <td>${pesoOrBlank(r.cashAdvance)}</td>
         <td>${pesoOrBlank(r.reimbursements)}</td>
         <td>${pesoOrBlank(r.expenses)}</td>
-        <td class="expense-note">${expenseNoteHtml}</td>
+        <td class="expense-breakdown">${expenseNoteHtml}</td>
         <td>${pesoOrBlank(r.grossIncome)}</td>
         <td>${pesoOrBlank(r.reportNetIncome ?? r.netIncome)}</td>
         <td>${pesoOrBlank(r.reportPayable ?? r.payable)}</td>
@@ -272,6 +274,26 @@ export function exportMonthlyReport(
   const monthPart = safeFilePart(periodText);
   const truckPart = safeFilePart(truckLabel);
   const reportTitle = `Monthly Report_${monthPart}_${truckPart}`;
+
+  const expenseBreakdownHtml =
+    expenseSummary.entries.length > 0
+      ? `
+        ${expenseSummary.entries
+          .map((item) => {
+            return `
+              <div style="display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px dashed #e5e7eb;font-size:12px;color:#6b7280;">
+                <span style="font-weight:700;">${escHtml(item.category)}</span>
+                <span style="font-weight:700;color:#111827;">${item.percent.toFixed(1)}% (${peso(item.amount)})</span>
+              </div>
+            `;
+          })
+          .join("")}
+        <div style="display:flex;justify-content:space-between;gap:12px;padding-top:8px;margin-top:6px;border-top:2px solid #d1d5db;font-size:12px;">
+          <span style="font-weight:800;color:#111827;">TOTAL</span>
+          <span style="font-weight:800;">${peso(expenseSummary.total)}</span>
+        </div>
+      `
+      : `<div style="font-size:12px;color:#94a3b8;">No expenses found</div>`;
 
   const html = `<!doctype html>
 <html>
@@ -313,15 +335,35 @@ export function exportMonthlyReport(
       color: #000;
     }
 
+    tbody tr:nth-child(even) td {
+      background-color: #f9fafb;
+    }
+
+    @media print {
+      * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
+      tbody tr:nth-child(even) td {
+        background-color: #f9fafb !important;
+      }
+    }
+
     .summary-grid {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 10px;
-      margin-bottom: 14px;
+      align-items: stretch;
+    }
+
+    .summary-card,
+    .summary-card * {
+      color: #111827 !important;
     }
 
     .summary-card {
-      border: 1px solid #d1d5db;
+      border: 1px solid #111827;
       border-radius: 10px;
       padding: 10px 12px;
       background: #fff;
@@ -342,12 +384,12 @@ export function exportMonthlyReport(
 
     .summary-label {
       font-weight: 600;
-      color: #374151;
+      color: #6b7280;
     }
 
     .summary-value {
       font-weight: 700;
-      color: #111;
+      color: #111827;
       text-align: right;
       white-space: nowrap;
     }
@@ -355,7 +397,7 @@ export function exportMonthlyReport(
     .section-title {
       font-size: 12px;
       font-weight: 700;
-      margin: 16px 0 8px;
+      margin: 24px 0 10px;
       text-transform: uppercase;
       letter-spacing: 0.05em;
     }
@@ -389,7 +431,7 @@ export function exportMonthlyReport(
       font-size:8.5px;
     }
 
-    .expense-note{
+    .expense-breakdown{
       text-align:left;
       vertical-align:top;
       white-space:nowrap;
@@ -490,6 +532,17 @@ export function exportMonthlyReport(
         <span class="summary-label">Avg per Trip</span>
         <span class="summary-value">${peso(avgPerTrip)}</span>
       </div>
+      <div style="margin-top:10px;padding-top:8px;border-top:1px solid #e5e7eb;font-size:9px;color:#9ca3af;line-height:1.5;">
+        <div>Expense Ratio = Expenses / Gross × 100</div>
+        <div>Crew Cost Ratio = Crew Salary / Gross × 100</div>
+        <div>Net Margin = Net Income / Gross × 100</div>
+      </div>
+    </div>
+
+    <div class="summary-card">
+      <div class="section-title" style="margin-top:4px;margin-bottom:2px;">Expense Breakdown</div>
+      <div class="muted" style="margin-bottom:8px;">Distribution by category</div>
+      ${expenseBreakdownHtml}
     </div>
   </div>
 
@@ -500,7 +553,6 @@ export function exportMonthlyReport(
         <col style="width:9%">
         <col style="width:10%">
         <col style="width:7%">
-        <col style="width:5%">
         <col style="width:7%">
         <col style="width:7%">
         <col style="width:7%">
@@ -515,19 +567,18 @@ export function exportMonthlyReport(
           <th>Date</th>
           <th>Shipment #</th>
           <th>Rate</th>
-          <th>Trips</th>
           <th>Crew Salary</th>
           <th>Cash Adv</th>
           <th>Reimb</th>
           <th>Expenses</th>
-          <th>Expense Breakdown</th>
+          <th class="expense-breakdown">Expense Breakdown</th>
           <th>Gross</th>
           <th>Net</th>
           <th>Payable</th>
         </tr>
       </thead>
       <tbody>
-        ${rowHtml || '<tr><td colspan="12" style="text-align:center;color:#999;padding:20px">No rows</td></tr>'}
+        ${rowHtml || '<tr><td colspan="11" style="text-align:center;color:#999;padding:20px">No rows</td></tr>'}
       </tbody>
     </table>
   </div>
