@@ -207,16 +207,16 @@ export function exportMonthlyReport(
       hour12: true,
     });
 
-  const formatDateLong = (value?: string) => {
-    if (!value) return "";
-    const d = new Date(value);
-    return d.toLocaleDateString("en-US", {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  };
+  // const formatDateLong = (value?: string) => {
+  //   if (!value) return "";
+  //   const d = new Date(value);
+  //   return d.toLocaleDateString("en-US", {
+  //     weekday: "long",
+  //     year: "numeric",
+  //     month: "long",
+  //     day: "numeric",
+  //   });
+  // };
 
   const escapeBreakdownText = (value: string) => {
     const lines = String(value || "")

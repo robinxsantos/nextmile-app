@@ -336,7 +336,7 @@ export default function PaymentsPage() {
 
             <div>
               <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1 block">
-                Method
+                Payment Method
               </label>
               <Select
                 options={METHOD_OPTIONS}
@@ -365,7 +365,7 @@ export default function PaymentsPage() {
                 type="text"
                 value={recipient}
                 onChange={(e) => setRecipient(e.target.value)}
-                placeholder="Driver / recipient"
+                placeholder="Crew Salary"
                 className={inputClass}
               />
             </div>
@@ -398,7 +398,7 @@ export default function PaymentsPage() {
 
             <div className="col-span-2">
               <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1 block">
-                Proof Image
+                Upload Image
               </label>
               <label className="group flex cursor-pointer flex-col items-center justify-center rounded-[16px] border-2 border-dashed border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-6 text-center transition-colors hover:border-blue-400 hover:bg-blue-50/40 dark:hover:bg-slate-800/50">
                 <input
@@ -490,7 +490,7 @@ export default function PaymentsPage() {
                     Amount
                   </th>
                   <th className="sticky top-0 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-slate-600 dark:text-slate-300 px-3 py-3 whitespace-nowrap">
-                    Method
+                    Payment Method
                   </th>
                   <th className="sticky top-0 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-slate-600 dark:text-slate-300 px-3 py-3 whitespace-nowrap">
                     Proof
