@@ -10,6 +10,7 @@ import {
   CreditCard,
   Eye,
   AlertTriangle,
+  Pencil,
 } from "lucide-react";
 import Select from "react-select";
 import DatePicker from "react-datepicker";
@@ -71,6 +72,16 @@ export default function PaymentsPage() {
   const [deleteModal, setDeleteModal] = useState<PaymentRow | null>(null);
   const [showTruckWarning, setShowTruckWarning] = useState(false);
 
+  const [editPayment, setEditPayment] = useState<PaymentRow | null>(null);
+  const [editFile, setEditFile] = useState<File | null>(null);
+  const [editCategory, setEditCategory] = useState(CATEGORY_OPTIONS[0].value);
+  const [editRecipient, setEditRecipient] = useState("");
+  const [editAmount, setEditAmount] = useState("");
+  const [editMethod, setEditMethod] = useState(METHOD_OPTIONS[0].value);
+  const [editDate, setEditDate] = useState(toInputDate(new Date()));
+  const [editNote, setEditNote] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
+
   useEffect(() => {
     initApp();
   }, [initApp]);
@@ -105,6 +116,12 @@ export default function PaymentsPage() {
     return `${category} - ${date}.${ext}`;
   }, [file, category, date]);
 
+  const editFilePreviewLabel = useMemo(() => {
+    if (!editFile) return "";
+    const ext = editFile.name.split(".").pop() || "png";
+    return `${editCategory} - ${editDate}.${ext}`;
+  }, [editFile, editCategory, editDate]);
+
   const paymentStats = useMemo(() => {
     const total = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
     return {
@@ -112,6 +129,27 @@ export default function PaymentsPage() {
       total,
     };
   }, [payments]);
+
+  const resetCreateForm = () => {
+    setFile(null);
+    setCategory(CATEGORY_OPTIONS[0].value);
+    setRecipient("");
+    setAmount("");
+    setMethod(METHOD_OPTIONS[0].value);
+    setDate(toInputDate(new Date()));
+    setNote("");
+  };
+
+  const openEdit = (p: PaymentRow) => {
+    setEditPayment(p);
+    setEditCategory(p.category || CATEGORY_OPTIONS[0].value);
+    setEditRecipient(p.recipient || "");
+    setEditAmount(String(p.amount ?? ""));
+    setEditMethod(p.method || METHOD_OPTIONS[0].value);
+    setEditDate(toInputDate(new Date(p.date)));
+    setEditNote(p.note || "");
+    setEditFile(null);
+  };
 
   const handleUpload = async () => {
     if (!file) {
@@ -148,13 +186,7 @@ export default function PaymentsPage() {
       });
 
       toast.success("Payment proof uploaded!");
-      setFile(null);
-      setCategory(CATEGORY_OPTIONS[0].value);
-      setRecipient("");
-      setAmount("");
-      setMethod(METHOD_OPTIONS[0].value);
-      setDate(toInputDate(new Date()));
-      setNote("");
+      resetCreateForm();
       fetchPayments();
     } catch (err: unknown) {
       const msg =
@@ -163,6 +195,51 @@ export default function PaymentsPage() {
       toast.error(msg);
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleUpdate = async () => {
+    if (!editPayment) return;
+    if (!selectedTruck) {
+      setShowTruckWarning(true);
+      return;
+    }
+    if (!editRecipient.trim()) {
+      toast.error("Recipient is required");
+      return;
+    }
+    if (!editAmount || Number(editAmount) <= 0) {
+      toast.error("Amount is required");
+      return;
+    }
+
+    setSavingEdit(true);
+    try {
+      const formData = new FormData();
+      formData.append("truckId", selectedTruck);
+      formData.append("category", editCategory);
+      formData.append("recipient", editRecipient.trim());
+      formData.append("amount", editAmount);
+      formData.append("method", editMethod);
+      formData.append("date", editDate);
+      formData.append("note", editNote.trim());
+      if (editFile) formData.append("file", editFile);
+
+      await api.put(`/payments/${editPayment._id}`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      toast.success("Payment updated!");
+      setEditPayment(null);
+      setEditFile(null);
+      fetchPayments();
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { error?: string } } })?.response?.data
+          ?.error || "Update failed";
+      toast.error(msg);
+    } finally {
+      setSavingEdit(false);
     }
   };
 
@@ -190,39 +267,29 @@ export default function PaymentsPage() {
               {pageTitle}
             </h1>
             <p className="text-sm text-slate-500 mt-1">
-              Upload payment proofs for Cash Advance and Salary transfers.
+              Upload screenshots sent via GCash, Cash, or Bank Transfer.
             </p>
           </div>
           <div className="text-right">
             <div className="text-[0.72rem] font-bold tracking-wider uppercase text-slate-500">
-              Payments view
+              Records
             </div>
             <div className="font-bold text-sm">
-              {selectedTruckName || "All trucks"}
+              {paymentStats.count} item{paymentStats.count === 1 ? "" : "s"}
             </div>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1.05fr_0.95fr] gap-3.5">
+      <div className="grid grid-cols-1 lg:grid-cols-[340px_minmax(0,1fr)] gap-3.5 items-start">
         <div className="glass-card rounded-[22px] border border-slate-200/90 dark:border-slate-700/90 shadow-sm p-4">
-          <div className="flex items-start justify-between gap-4 mb-4">
-            <div>
-              <h2 className="text-base font-bold tracking-tight">
-                Upload Payment Proof
-              </h2>
-              <p className="text-sm text-slate-500">
-                Save screenshots sent via GCash, Cash, or Bank Transfer.
-              </p>
-            </div>
-            <div className="text-right">
-              <div className="text-[0.72rem] font-bold tracking-wider uppercase text-slate-500">
-                Records
-              </div>
-              <div className="font-bold text-sm">
-                {paymentStats.count} item{paymentStats.count === 1 ? "" : "s"}
-              </div>
-            </div>
+          <div className="mb-4">
+            <h2 className="text-base font-bold tracking-tight">
+              Upload Payment Proof
+            </h2>
+            <p className="text-sm text-slate-500">
+              Save screenshots sent via GCash, Cash, or Bank Transfer.
+            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -378,15 +445,7 @@ export default function PaymentsPage() {
 
           <div className="flex items-center justify-end gap-2.5 mt-5">
             <button
-              onClick={() => {
-                setFile(null);
-                setCategory(CATEGORY_OPTIONS[0].value);
-                setRecipient("");
-                setAmount("");
-                setMethod(METHOD_OPTIONS[0].value);
-                setDate(toInputDate(new Date()));
-                setNote("");
-              }}
+              onClick={resetCreateForm}
               className="px-4 py-2.5 rounded-[14px] border border-slate-200 dark:border-slate-700 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-800"
             >
               Reset
@@ -402,258 +461,389 @@ export default function PaymentsPage() {
           </div>
         </div>
 
-        <div className="glass-card rounded-[22px] border border-slate-200/90 dark:border-slate-700/90 shadow-sm p-4">
-          <div className="flex items-start justify-between gap-4 mb-4">
+        <div className="glass-card rounded-[22px] border border-slate-200/90 dark:border-slate-700/90 shadow-sm overflow-hidden min-w-0">
+          <div className="p-3.5 pb-2 flex items-end justify-between gap-4">
             <div>
               <h2 className="text-base font-bold tracking-tight">
-                Payment Summary
+                Uploaded Payment Proofs
               </h2>
               <p className="text-sm text-slate-500">
-                Quick view of uploaded proofs.
+                Click View to open the image in a preview window.
               </p>
             </div>
-            <div className="text-right">
-              <div className="text-[0.72rem] font-bold tracking-wider uppercase text-slate-500">
-                Total amount
-              </div>
-              <div className="font-extrabold text-lg tracking-tight">
-                {peso(paymentStats.total)}
-              </div>
-            </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="rounded-[18px] border border-slate-200 dark:border-slate-700 p-4">
-              <div className="text-[0.72rem] uppercase tracking-wider text-slate-500 font-semibold">
-                Category mix
-              </div>
-              <div className="mt-2 space-y-2 text-sm">
-                {["Cash Advance", "Salary"].map((label) => {
-                  const count = payments.filter(
-                    (p) => p.category === label,
-                  ).length;
-                  return (
-                    <div
-                      key={label}
-                      className="flex items-center justify-between gap-3"
-                    >
-                      <span className="font-medium">{label}</span>
-                      <span className="font-bold">{count}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="rounded-[18px] border border-slate-200 dark:border-slate-700 p-4">
-              <div className="text-[0.72rem] uppercase tracking-wider text-slate-500 font-semibold">
-                Selected truck
-              </div>
-              <div className="mt-2 font-bold text-sm">
-                {selectedTruckName || "All trucks"}
-              </div>
-              <div className="mt-3 text-sm text-slate-500">
-                Payments are linked to the selected truck and stored with the
-                uploaded proof image.
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-4 rounded-[18px] border border-slate-200 dark:border-slate-700 p-4">
-            <div className="flex items-center gap-2 text-slate-500">
-              <CreditCard size={16} />
-              <span className="text-sm font-semibold">
-                Proof of payment page
-              </span>
-            </div>
-            <p className="mt-2 text-sm text-slate-500 leading-relaxed">
-              Use this page for GCash screenshots or other payment proofs sent
-              to drivers. Keep Cash Advance and Salary separate through the
-              category field.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div className="glass-card rounded-[22px] border border-slate-200/90 dark:border-slate-700/90 shadow-sm overflow-hidden">
-        <div className="p-3.5 pb-2 flex items-end justify-between gap-4">
-          <div>
-            <h2 className="text-base font-bold tracking-tight">
-              Uploaded Payment Proofs
-            </h2>
-            <p className="text-sm text-slate-500">
-              Click View to open the image in a preview window.
-            </p>
-          </div>
-          <div className="text-right text-sm text-slate-500">
-            {selectedTruckName || "All trucks"}
-          </div>
-        </div>
-
-        <div className="overflow-auto border-t border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-900 hidden md:block">
-          <table className="w-full border-separate border-spacing-0">
-            <thead>
-              <tr>
-                <th className="sticky top-0 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-slate-600 dark:text-slate-300 px-3 py-3 whitespace-nowrap">
-                  Date
-                </th>
-                <th className="sticky top-0 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-slate-600 dark:text-slate-300 px-3 py-3 whitespace-nowrap">
-                  Category
-                </th>
-                <th className="sticky top-0 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-slate-600 dark:text-slate-300 px-3 py-3 whitespace-nowrap">
-                  Recipient
-                </th>
-                <th className="sticky top-0 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-slate-600 dark:text-slate-300 px-3 py-3 whitespace-nowrap">
-                  Amount
-                </th>
-                <th className="sticky top-0 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-slate-600 dark:text-slate-300 px-3 py-3 whitespace-nowrap">
-                  Method
-                </th>
-                <th className="sticky top-0 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-slate-600 dark:text-slate-300 px-3 py-3 whitespace-nowrap">
-                  Proof
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {payments.length === 0 ? (
+          <div className="overflow-auto border-t border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-900 hidden md:block">
+            <table className="w-full border-separate border-spacing-0">
+              <thead>
                 <tr>
-                  <td colSpan={6}>
-                    <div className="py-14 text-center">
-                      <div className="mx-auto mb-3 w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 grid place-items-center text-slate-400">
-                        <ImageIcon size={24} />
-                      </div>
-                      <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                        No payment proofs yet
-                      </p>
-                      <p className="text-sm text-slate-500 mt-1">
-                        Upload your first GCash screenshot to start tracking
-                        payments.
-                      </p>
-                    </div>
-                  </td>
+                  <th className="sticky top-0 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-slate-600 dark:text-slate-300 px-3 py-3 whitespace-nowrap">
+                    Date
+                  </th>
+                  <th className="sticky top-0 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-slate-600 dark:text-slate-300 px-3 py-3 whitespace-nowrap">
+                    Category
+                  </th>
+                  <th className="sticky top-0 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-slate-600 dark:text-slate-300 px-3 py-3 whitespace-nowrap">
+                    Recipient
+                  </th>
+                  <th className="sticky top-0 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-slate-600 dark:text-slate-300 px-3 py-3 whitespace-nowrap">
+                    Amount
+                  </th>
+                  <th className="sticky top-0 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-slate-600 dark:text-slate-300 px-3 py-3 whitespace-nowrap">
+                    Method
+                  </th>
+                  <th className="sticky top-0 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-slate-600 dark:text-slate-300 px-3 py-3 whitespace-nowrap">
+                    Proof
+                  </th>
+                  <th className="sticky top-0 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-slate-600 dark:text-slate-300 px-3 py-3 whitespace-nowrap">
+                    Actions
+                  </th>
                 </tr>
-              ) : (
-                payments.map((p) => (
-                  <tr
-                    key={p._id}
-                    className="hover:bg-blue-50/50 dark:hover:bg-slate-800/50"
-                  >
-                    <td className="text-center text-xs px-3 py-3 border-b border-slate-100 dark:border-slate-800 whitespace-nowrap">
-                      {p.dateText}
+              </thead>
+              <tbody>
+                {payments.length === 0 ? (
+                  <tr>
+                    <td colSpan={7}>
+                      <div className="py-14 text-center">
+                        <div className="mx-auto mb-3 w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 grid place-items-center text-slate-400">
+                          <ImageIcon size={24} />
+                        </div>
+                        <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                          No payment proofs yet
+                        </p>
+                        <p className="text-sm text-slate-500 mt-1">
+                          Upload your first screenshot to start tracking
+                          payments.
+                        </p>
+                      </div>
                     </td>
-                    <td className="text-center text-xs px-3 py-3 border-b border-slate-100 dark:border-slate-800">
-                      <span className="inline-block px-2.5 py-1 rounded-full text-[0.72rem] font-bold bg-blue-600/10 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400">
-                        {p.category}
-                      </span>
-                    </td>
-                    <td className="text-center text-xs px-3 py-3 border-b border-slate-100 dark:border-slate-800">
-                      {p.recipient || "—"}
-                    </td>
-                    <td className="text-center text-xs px-3 py-3 border-b border-slate-100 dark:border-slate-800 font-semibold text-slate-900 dark:text-slate-100">
-                      {peso(Number(p.amount || 0))}
-                    </td>
-                    <td className="text-center text-xs px-3 py-3 border-b border-slate-100 dark:border-slate-800">
-                      {p.method || "—"}
-                    </td>
-                    <td className="text-center text-xs px-3 py-3 border-b border-slate-100 dark:border-slate-800">
-                      <div className="flex items-center justify-center gap-1.5">
+                  </tr>
+                ) : (
+                  payments.map((p) => (
+                    <tr
+                      key={p._id}
+                      className="hover:bg-blue-50/50 dark:hover:bg-slate-800/50"
+                    >
+                      <td className="text-center text-xs px-3 py-3 border-b border-slate-100 dark:border-slate-800 whitespace-nowrap">
+                        {p.dateText}
+                      </td>
+                      <td className="text-center text-xs px-3 py-3 border-b border-slate-100 dark:border-slate-800">
+                        <span className="inline-block px-2.5 py-1 rounded-full text-[0.72rem] font-bold bg-blue-600/10 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400">
+                          {p.category}
+                        </span>
+                      </td>
+                      <td className="text-center text-xs px-3 py-3 border-b border-slate-100 dark:border-slate-800">
+                        {p.recipient || "—"}
+                      </td>
+                      <td className="text-center text-xs px-3 py-3 border-b border-slate-100 dark:border-slate-800 font-semibold text-slate-900 dark:text-slate-100">
+                        {peso(Number(p.amount || 0))}
+                      </td>
+                      <td className="text-center text-xs px-3 py-3 border-b border-slate-100 dark:border-slate-800">
+                        {p.method || "—"}
+                      </td>
+                      <td className="text-center text-xs px-3 py-3 border-b border-slate-100 dark:border-slate-800">
                         <button
                           onClick={() => setPreviewPayment(p)}
                           className="h-8 px-3 rounded-xl inline-flex items-center justify-center gap-1.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-blue-500/10 hover:border-blue-500/20 hover:text-blue-600 transition-all text-xs font-semibold"
                         >
                           <Eye size={14} /> View
                         </button>
-                        <button
-                          onClick={() => setDeleteModal(p)}
-                          className="w-8 h-8 rounded-xl inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-500 transition-all"
-                          title="Delete payment"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                      </td>
+                      <td className="text-center text-xs px-3 py-3 border-b border-slate-100 dark:border-slate-800">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            onClick={() => openEdit(p)}
+                            className="w-8 h-8 rounded-xl inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-blue-500/10 hover:border-blue-500/20 hover:text-blue-600 transition-all"
+                            title="Edit"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                          <button
+                            onClick={() => setDeleteModal(p)}
+                            className="w-8 h-8 rounded-xl inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-500 transition-all"
+                            title="Delete"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
 
-        <div className="flex flex-col gap-3 md:hidden p-3 border-t border-slate-200/60 dark:border-slate-700/60">
-          {payments.length === 0 ? (
-            <div className="py-10 text-center">
-              <div className="mx-auto mb-3 w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 grid place-items-center text-slate-400">
-                <ImageIcon size={24} />
+          <div className="flex flex-col gap-3 md:hidden p-3 border-t border-slate-200/60 dark:border-slate-700/60">
+            {payments.length === 0 ? (
+              <div className="py-10 text-center">
+                <div className="mx-auto mb-3 w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 grid place-items-center text-slate-400">
+                  <ImageIcon size={24} />
+                </div>
+                <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                  No payment proofs yet
+                </p>
+                <p className="text-sm text-slate-500 mt-1">
+                  Upload your first screenshot to start tracking payments.
+                </p>
               </div>
-              <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                No payment proofs yet
-              </p>
-              <p className="text-sm text-slate-500 mt-1">
-                Upload your first screenshot to start tracking payments.
-              </p>
-            </div>
-          ) : (
-            payments.map((p) => (
-              <div
-                key={p._id}
-                className="glass-card rounded-xl border border-slate-200 dark:border-slate-700 p-4"
-              >
-                <div className="flex justify-between items-start mb-2">
-                  <div>
-                    <div className="font-bold text-sm">{p.dateText}</div>
-                    <div className="mt-1">
-                      <span className="inline-block px-2.5 py-1 rounded-full text-[0.72rem] font-bold bg-blue-600/10 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400">
-                        {p.category}
-                      </span>
+            ) : (
+              payments.map((p) => (
+                <div
+                  key={p._id}
+                  className="glass-card rounded-xl border border-slate-200 dark:border-slate-700 p-4"
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <div className="font-bold text-sm">{p.dateText}</div>
+                      <div className="mt-1">
+                        <span className="inline-block px-2.5 py-1 rounded-full text-[0.72rem] font-bold bg-blue-600/10 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400">
+                          {p.category}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="font-bold text-lg text-slate-900 dark:text-slate-100">
+                      {peso(Number(p.amount || 0))}
                     </div>
                   </div>
-                  <div className="font-bold text-lg text-slate-900 dark:text-slate-100">
-                    {peso(Number(p.amount || 0))}
-                  </div>
-                </div>
 
-                <div className="text-xs text-slate-500 space-y-1.5">
-                  <div>
-                    <span className="font-semibold text-slate-700 dark:text-slate-200">
-                      Recipient:
-                    </span>{" "}
-                    {p.recipient || "—"}
-                  </div>
-                  <div>
-                    <span className="font-semibold text-slate-700 dark:text-slate-200">
-                      Method:
-                    </span>{" "}
-                    {p.method || "—"}
-                  </div>
-                  {p.note && (
+                  <div className="text-xs text-slate-500 space-y-1.5">
                     <div>
                       <span className="font-semibold text-slate-700 dark:text-slate-200">
-                        Note:
+                        Recipient:
                       </span>{" "}
-                      {p.note}
+                      {p.recipient || "—"}
                     </div>
-                  )}
-                </div>
+                    <div>
+                      <span className="font-semibold text-slate-700 dark:text-slate-200">
+                        Method:
+                      </span>{" "}
+                      {p.method || "—"}
+                    </div>
+                    {p.note && (
+                      <div>
+                        <span className="font-semibold text-slate-700 dark:text-slate-200">
+                          Note:
+                        </span>{" "}
+                        {p.note}
+                      </div>
+                    )}
+                  </div>
 
-                <div className="flex gap-2 pt-3 mt-3 border-t border-slate-200 dark:border-slate-700">
-                  <button
-                    onClick={() => setPreviewPayment(p)}
-                    className="flex-1 h-9 rounded-xl inline-flex items-center justify-center gap-1.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-blue-500/10 hover:text-blue-600 transition-all text-xs font-semibold"
-                  >
-                    <Eye size={14} /> View
-                  </button>
-                  <button
-                    onClick={() => setDeleteModal(p)}
-                    className="h-9 w-9 rounded-xl inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-red-500/10 hover:text-red-500 transition-all"
-                  >
-                    <Trash2 size={14} />
-                  </button>
+                  <div className="flex gap-2 pt-3 mt-3 border-t border-slate-200 dark:border-slate-700">
+                    <button
+                      onClick={() => setPreviewPayment(p)}
+                      className="flex-1 h-9 rounded-xl inline-flex items-center justify-center gap-1.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-blue-500/10 hover:text-blue-600 transition-all text-xs font-semibold"
+                    >
+                      <Eye size={14} /> View
+                    </button>
+                    <button
+                      onClick={() => openEdit(p)}
+                      className="h-9 w-9 rounded-xl inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-blue-500/10 hover:text-blue-600 transition-all"
+                    >
+                      <Pencil size={14} />
+                    </button>
+                    <button
+                      onClick={() => setDeleteModal(p)}
+                      className="h-9 w-9 rounded-xl inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-red-500/10 hover:text-red-500 transition-all"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))
-          )}
+              ))
+            )}
+          </div>
         </div>
       </div>
+
+      <Modal
+        open={!!editPayment}
+        onClose={() => {
+          setEditPayment(null);
+          setEditFile(null);
+        }}
+        title={
+          editPayment
+            ? `Edit Payment - ${editPayment.dateText}`
+            : "Edit Payment"
+        }
+        wide
+        footer={
+          <>
+            <button
+              onClick={() => {
+                setEditPayment(null);
+                setEditFile(null);
+              }}
+              className="px-4 py-2.5 rounded-[14px] border border-slate-200 dark:border-slate-700 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-800"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleUpdate}
+              disabled={savingEdit}
+              className="px-6 py-2.5 rounded-[14px] bg-gradient-to-br from-blue-600 to-blue-700 text-white text-sm font-semibold shadow-[0_10px_20px_rgba(37,99,235,0.18)] disabled:opacity-50"
+            >
+              {savingEdit ? "Saving..." : "Update"}
+            </button>
+          </>
+        }
+      >
+        {editPayment && (
+          <div className="grid grid-cols-2 gap-4">
+            <div className="col-span-2">
+              <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 block">
+                Date
+              </label>
+              <DatePicker
+                selected={
+                  editDate ? new Date(`${editDate}T00:00:00`) : new Date()
+                }
+                onChange={(d: Date | null) => {
+                  if (d) setEditDate(toInputDate(d));
+                }}
+                dateFormat="MMM d, yyyy"
+                className={inputClass + " cursor-pointer"}
+                wrapperClassName="w-full"
+                showPopperArrow={false}
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1 block">
+                Category
+              </label>
+              <Select
+                options={CATEGORY_OPTIONS}
+                value={
+                  CATEGORY_OPTIONS.find((o) => o.value === editCategory) || null
+                }
+                onChange={(opt) =>
+                  setEditCategory(opt?.value || CATEGORY_OPTIONS[0].value)
+                }
+                styles={{
+                  ...selectStyles,
+                  menuPortal: (base: Record<string, unknown>) => ({
+                    ...base,
+                    zIndex: 9999,
+                  }),
+                }}
+                menuPortalTarget={document.body}
+                isSearchable={false}
+                classNamePrefix="nm-select"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1 block">
+                Method
+              </label>
+              <Select
+                options={METHOD_OPTIONS}
+                value={
+                  METHOD_OPTIONS.find((o) => o.value === editMethod) || null
+                }
+                onChange={(opt) =>
+                  setEditMethod(opt?.value || METHOD_OPTIONS[0].value)
+                }
+                styles={{
+                  ...selectStyles,
+                  menuPortal: (base: Record<string, unknown>) => ({
+                    ...base,
+                    zIndex: 9999,
+                  }),
+                }}
+                menuPortalTarget={document.body}
+                isSearchable={false}
+                classNamePrefix="nm-select"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1 block">
+                Recipient
+              </label>
+              <input
+                type="text"
+                value={editRecipient}
+                onChange={(e) => setEditRecipient(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1 block">
+                Amount
+              </label>
+              <input
+                type="number"
+                value={editAmount}
+                onChange={(e) => setEditAmount(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+
+            <div className="col-span-2">
+              <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1 block">
+                Note
+              </label>
+              <input
+                type="text"
+                value={editNote}
+                onChange={(e) => setEditNote(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+
+            <div className="col-span-2">
+              <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1 block">
+                Replace Proof Image (optional)
+              </label>
+              <label className="group flex cursor-pointer flex-col items-center justify-center rounded-[16px] border-2 border-dashed border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-5 text-center transition-colors hover:border-blue-400 hover:bg-blue-50/40 dark:hover:bg-slate-800/50">
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => setEditFile(e.target.files?.[0] || null)}
+                />
+                <Upload
+                  size={22}
+                  className="mb-2 text-slate-400 group-hover:text-blue-500"
+                />
+                {editFile ? (
+                  <div className="space-y-1">
+                    <div className="font-semibold text-slate-800 dark:text-slate-100">
+                      {editFile.name}
+                    </div>
+                    <div className="text-xs text-slate-500">
+                      {(editFile.size / 1024).toFixed(1)} KB
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    <div className="font-semibold text-slate-700 dark:text-slate-200">
+                      Keep current proof if blank
+                    </div>
+                    <div className="text-xs text-slate-500">
+                      PNG, JPG, WEBP, GIF
+                    </div>
+                  </div>
+                )}
+              </label>
+
+              {editFile && (
+                <div className="mt-3 rounded-[14px] border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 px-3 py-2 text-xs text-slate-600 dark:text-slate-300">
+                  Filename preview:{" "}
+                  <span className="font-semibold text-slate-900 dark:text-slate-100">
+                    {editFilePreviewLabel}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </Modal>
 
       <Modal
         open={!!previewPayment}

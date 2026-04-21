@@ -34,7 +34,9 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB
+  },
   fileFilter: (_req, file, cb) => {
     const allowed = ["image/jpeg", "image/png", "image/gif", "image/webp"];
     if (allowed.includes(file.mimetype)) {
@@ -50,13 +52,39 @@ const router = Router();
 // All payment routes require auth + admin
 router.use(requireAuth, requireAdmin);
 
+function toRow(p: any) {
+  return {
+    _id: p._id,
+    truck: p.truck,
+    truckName: p.truck?.truckName || "",
+    uploadedBy: p.uploadedBy?.displayName || "",
+    category: p.category,
+    recipient: p.recipient,
+    amount: p.amount,
+    method: p.method,
+    date: p.date,
+    dateText: p.date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }),
+    filename: p.filename,
+    originalFilename: p.originalFilename,
+    note: p.note,
+    fileSize: p.fileSize,
+    mimeType: p.mimeType,
+    createdAt: p.createdAt,
+  };
+}
+
 // GET /api/payments?truck=&month=
 router.get("/", async (req: AuthRequest, res: Response) => {
   try {
     const { truck, month } = req.query;
-    const filter: Record<string, unknown> = {};
 
+    const filter: Record<string, any> = {};
     if (truck) filter.truck = truck;
+
     if (month && month !== "ALL") {
       const year = new Date().getFullYear();
       const m = Number(month) - 1;
@@ -71,30 +99,7 @@ router.get("/", async (req: AuthRequest, res: Response) => {
       .populate("uploadedBy", "displayName")
       .sort({ date: -1, createdAt: -1 });
 
-    const rows = payments.map((p) => ({
-      _id: p._id,
-      truck: p.truck,
-      truckName: (p.truck as any)?.truckName || "",
-      uploadedBy: (p.uploadedBy as any)?.displayName || "",
-      category: p.category,
-      recipient: p.recipient,
-      amount: p.amount,
-      method: p.method,
-      date: p.date,
-      dateText: p.date.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      }),
-      filename: p.filename,
-      originalFilename: p.originalFilename,
-      note: p.note,
-      fileSize: p.fileSize,
-      mimeType: p.mimeType,
-      createdAt: p.createdAt,
-    }));
-
-    res.json({ rows });
+    res.json({ rows: payments.map(toRow) });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -114,10 +119,12 @@ router.post(
         res.status(400).json({ error: "File is required" });
         return;
       }
+
       if (!truckId) {
         res.status(400).json({ error: "Truck is required" });
         return;
       }
+
       if (!category) {
         res.status(400).json({ error: "Category is required" });
         return;
@@ -132,30 +139,140 @@ router.post(
       const parsedDate = date ? new Date(date) : new Date();
       parsedDate.setHours(12, 0, 0, 0);
 
-      // Build auto-generated filename
       const ext = path.extname(file.originalname);
-      const dateStr = `${parsedDate.getFullYear()}-${String(parsedDate.getMonth() + 1).padStart(2, "0")}-${String(parsedDate.getDate()).padStart(2, "0")}`;
+      const dateStr = `${parsedDate.getFullYear()}-${String(
+        parsedDate.getMonth() + 1,
+      ).padStart(2, "0")}-${String(parsedDate.getDate()).padStart(2, "0")}`;
+
       const displayFilename = `${category} - ${dateStr}${ext}`;
 
       const payment = await Payment.create({
         truck: truck._id,
         uploadedBy: req.user!._id,
-        category: category.trim(),
-        recipient: (recipient || "").trim(),
+        category: String(category).trim(),
+        recipient: String(recipient || "").trim(),
         amount: Number(amount || 0),
-        method: (method || "").trim(),
+        method: String(method || "").trim(),
         date: parsedDate,
         filename: displayFilename,
         originalFilename: file.originalname,
         filePath: file.path,
         fileSize: file.size,
         mimeType: file.mimetype,
-        note: (note || "").trim(),
+        note: String(note || "").trim(),
       });
 
-      res.status(201).json(payment);
+      const populated = await Payment.findById(payment._id)
+        .populate("truck", "truckName")
+        .populate("uploadedBy", "displayName");
+
+      if (!populated) {
+        res.status(500).json({ error: "Failed to reload payment" });
+        return;
+      }
+
+      res.status(201).json({ payment: toRow(populated) });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
+    }
+  },
+);
+
+// PUT /api/payments/:id
+router.put(
+  "/:id",
+  upload.single("file"),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { truckId, category, recipient, amount, method, date, note } =
+        req.body;
+      const file = req.file;
+
+      const payment = await Payment.findById(id);
+      if (!payment) {
+        res.status(404).json({ error: "Payment not found" });
+        return;
+      }
+
+      if (!truckId) {
+        res.status(400).json({ error: "Truck is required" });
+        return;
+      }
+
+      if (!category) {
+        res.status(400).json({ error: "Category is required" });
+        return;
+      }
+
+      const truck = await Truck.findById(truckId);
+      if (!truck) {
+        res.status(404).json({ error: "Truck not found" });
+        return;
+      }
+
+      const parsedDate = date ? new Date(date) : new Date();
+      if (Number.isNaN(parsedDate.getTime())) {
+        res.status(400).json({ error: "Invalid date" });
+        return;
+      }
+      parsedDate.setHours(12, 0, 0, 0);
+
+      let filename = payment.filename;
+      let originalFilename = payment.originalFilename;
+      let filePath = payment.filePath;
+      let fileSize = payment.fileSize;
+      let mimeType = payment.mimeType;
+
+      if (file) {
+        try {
+          if (payment.filePath && fs.existsSync(payment.filePath)) {
+            fs.unlinkSync(payment.filePath);
+          }
+        } catch {
+          // ignore old file deletion errors
+        }
+
+        const ext = path.extname(file.originalname);
+        const dateStr = `${parsedDate.getFullYear()}-${String(
+          parsedDate.getMonth() + 1,
+        ).padStart(2, "0")}-${String(parsedDate.getDate()).padStart(2, "0")}`;
+
+        filename = `${category} - ${dateStr}${ext}`;
+        originalFilename = file.originalname;
+        filePath = file.path;
+        fileSize = file.size;
+        mimeType = file.mimetype;
+      }
+
+      payment.truck = truck._id;
+      payment.category = String(category).trim();
+      payment.recipient = String(recipient || "").trim();
+      payment.amount = Number(amount || 0);
+      payment.method = String(method || "").trim();
+      payment.date = parsedDate;
+      payment.note = String(note || "").trim();
+      payment.filename = filename;
+      payment.originalFilename = originalFilename;
+      payment.filePath = filePath;
+      payment.fileSize = fileSize;
+      payment.mimeType = mimeType;
+
+      await payment.save();
+
+      const populated = await Payment.findById(payment._id)
+        .populate("truck", "truckName")
+        .populate("uploadedBy", "displayName");
+
+      if (!populated) {
+        res.status(500).json({ error: "Failed to reload payment" });
+        return;
+      }
+
+      res.json({ payment: toRow(populated) });
+    } catch (err: any) {
+      console.error("Error updating payment:", err);
+      res.status(500).json({ error: err.message || "Update failed" });
     }
   },
 );
@@ -164,6 +281,7 @@ router.post(
 router.get("/:id/file", async (req: AuthRequest, res: Response) => {
   try {
     const payment = await Payment.findById(req.params.id);
+
     if (!payment) {
       res.status(404).json({ error: "Payment not found" });
       return;
@@ -189,14 +307,18 @@ router.get("/:id/file", async (req: AuthRequest, res: Response) => {
 router.delete("/:id", async (req: AuthRequest, res: Response) => {
   try {
     const payment = await Payment.findById(req.params.id);
+
     if (!payment) {
       res.status(404).json({ error: "Payment not found" });
       return;
     }
 
-    // Delete the file from disk
-    if (fs.existsSync(payment.filePath)) {
-      fs.unlinkSync(payment.filePath);
+    try {
+      if (payment.filePath && fs.existsSync(payment.filePath)) {
+        fs.unlinkSync(payment.filePath);
+      }
+    } catch {
+      // ignore file deletion issues
     }
 
     await Payment.findByIdAndDelete(req.params.id);

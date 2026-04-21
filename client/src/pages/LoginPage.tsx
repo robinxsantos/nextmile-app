@@ -53,7 +53,7 @@ export default function LoginPage() {
                 Welcome back
               </h1>
               <p className="mt-2 text-sm text-slate-500">
-                Log in to access your NextMile account.
+                Log in to access your account.
               </p>
             </div>
 
