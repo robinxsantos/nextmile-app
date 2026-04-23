@@ -11,6 +11,11 @@ export function peso(n: number | undefined | null): string {
   }).format(Number(n || 0));
 }
 
+export function pesoOrDash(n: number | undefined | null): string {
+  const value = Number(n || 0);
+  return value === 0 ? "—" : peso(value); // em dash (mas maganda kaysa hyphen)
+}
+
 /** Full number with commas, no decimal cents — ideal for KPI cards */
 export function pesoCompact(n: number | undefined | null): string {
   return new Intl.NumberFormat("en-PH", {

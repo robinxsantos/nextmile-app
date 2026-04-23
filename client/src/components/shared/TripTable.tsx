@@ -7,7 +7,7 @@ import {
   type ReactNode,
 } from "react";
 import { type TripRow } from "../../store/useAppStore";
-import { peso, cn } from "../../lib/utils";
+import { peso, cn, pesoOrDash } from "../../lib/utils";
 import {
   Pencil,
   Trash2,
@@ -138,7 +138,7 @@ function EditableCell({
     try {
       await onSave(rowId, field, newVal);
     } catch {
-      // revert on error
+      // ignore
     } finally {
       setSaving(false);
       setEditing(false);
@@ -169,6 +169,7 @@ function EditableCell({
   if (editing) {
     const sharedClass =
       "w-full text-xs text-center bg-white dark:bg-slate-800 border border-blue-400 rounded-md px-1.5 py-1 focus:ring-2 focus:ring-blue-500/30 outline-none transition-all";
+
     return isNote ? (
       <textarea
         ref={inputRef as React.RefObject<HTMLTextAreaElement>}
@@ -192,7 +193,28 @@ function EditableCell({
     );
   }
 
-  const displayValue = isNote ? value || "—" : peso(Number(value));
+  // ✅ DISPLAY LOGIC (ITO YUNG FIX)
+  const numericValue = Number(value);
+
+  let display: React.ReactNode;
+
+  if (isNote) {
+    display = value || "—";
+  } else if (field === "trips") {
+    display =
+      numericValue === 0 ? (
+        <span className="text-slate-300 dark:text-slate-600">—</span>
+      ) : (
+        numericValue
+      );
+  } else {
+    display =
+      numericValue === 0 ? (
+        <span className="text-slate-300 dark:text-slate-600">—</span>
+      ) : (
+        peso(numericValue)
+      );
+  }
 
   return (
     <span
@@ -200,7 +222,7 @@ function EditableCell({
       className="cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded px-1 py-0.5 -mx-1 transition-colors"
       title="Double-click to edit"
     >
-      {field === "trips" ? value : displayValue}
+      {display}
     </span>
   );
 }
@@ -521,6 +543,24 @@ export default function TripTable({
   const displayPayableFor = (r: TripRow) =>
     !reportMode && r.paid ? "₱0.00" : peso(payableValueFor(r));
 
+  const renderMoneyCell = (value: number) => {
+    const v = Number(value || 0);
+    return v === 0 ? (
+      <span className="text-slate-300 dark:text-slate-600">—</span>
+    ) : (
+      peso(v)
+    );
+  };
+
+  const renderTripsCell = (value: number) => {
+    const v = Number(value || 0);
+    return v === 0 ? (
+      <span className="text-slate-300 dark:text-slate-600">—</span>
+    ) : (
+      v
+    );
+  };
+
   const columns: ColumnDef[] = [];
   if (show("week"))
     columns.push({
@@ -578,7 +618,7 @@ export default function TripTable({
             onSave={onQuickEdit}
           />
         ) : (
-          peso(r.rate)
+          renderMoneyCell(r.rate)
         ),
     });
   if (show("trips"))
@@ -586,17 +626,22 @@ export default function TripTable({
       key: "trips",
       label: "Trips",
       sortField: "trips",
-      render: (r) =>
-        onQuickEdit ? (
+      render: (r) => {
+        const tripsValue = Number(r.trips ?? 0);
+
+        return onQuickEdit ? (
           <EditableCell
             rowId={r._id}
             field="trips"
             value={r.trips}
             onSave={onQuickEdit}
           />
+        ) : tripsValue === 0 ? (
+          <span className="text-slate-300 dark:text-slate-600">—</span>
         ) : (
-          r.trips
-        ),
+          tripsValue
+        );
+      },
     });
   if (show("crewSalary"))
     columns.push({
@@ -612,26 +657,28 @@ export default function TripTable({
             onSave={onQuickEdit}
           />
         ) : (
-          peso(r.crewSalary)
+          renderMoneyCell(r.crewSalary)
         ),
     });
   if (show("cashAdvance"))
     columns.push({
       key: "cashAdvance",
       label: "Cash Adv.",
-      render: (r) => peso(r.cashAdvance),
+      render: (r) => renderMoneyCell(r.cashAdvance),
     });
+
   if (show("reimbursements"))
     columns.push({
       key: "reimbursements",
       label: "Cr. Reimb.",
-      render: (r) => peso(r.reimbursements),
+      render: (r) => renderMoneyCell(r.reimbursements),
     });
+
   if (show("expenses"))
     columns.push({
       key: "expenses",
       label: "Expenses",
-      render: (r) => peso(r.expenses),
+      render: (r) => renderMoneyCell(r.expenses),
     });
   if (show("note"))
     columns.push({
@@ -703,6 +750,7 @@ export default function TripTable({
         );
       },
     });
+
   if (show("payable"))
     columns.push({
       key: "payable",
