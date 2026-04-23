@@ -951,7 +951,9 @@ export default function TripTable({
                     idx === 0 && !selectable && "left-0 z-[31]",
                     idx === 0 && selectable && "left-[40px] z-[31]",
                     col.key === "netIncome" &&
-                      "text-green-700 dark:text-green-300",
+                      (totals.netIncome < 0
+                        ? "text-red-600 dark:text-red-400"
+                        : "text-green-700 dark:text-green-300"),
                     col.key === "payable" && "text-red-600 dark:text-red-400",
                   )}
                 >
