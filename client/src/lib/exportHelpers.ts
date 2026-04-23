@@ -118,13 +118,13 @@ export function exportPayslip(
     .filter((r) => r.status === "Working Day" && !r.paid)
     .map(
       (r) =>
-        `<tr><td>${escHtml(r.dateText)}</td><td>${escHtml(r.shipmentNumber)}</td><td>${r.trips}</td><td>${pesoOrBlank(r.crewSalary)}</td><td>${pesoOrBlank(r.cashAdvance)}</td><td>${pesoOrBlank(r.reimbursements)}</td><td>${pesoOrBlank(r.paid ? 0 : r.payable)}</td></tr>`,
+        `<tr><td>${escHtml(r.dateText)}</td><td>${escHtml(r.shipmentNumber)}</td><td>${pesoOrBlank(r.crewSalary)}</td><td>${pesoOrBlank(r.cashAdvance)}</td><td>${pesoOrBlank(r.reimbursements)}</td><td>${pesoOrBlank(r.paid ? 0 : r.payable)}</td></tr>`,
     )
     .join("");
 
   const html = `<!doctype html><html><head><meta charset="utf-8"><title>Payslip</title>
 <style>
-@page { size: A4; margin: 18mm; }
+@page { size: A4; }
 body { font-family: Arial, sans-serif; color: #111; margin: 0; padding: 0 24px; }
 .header { text-align: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #000; }
 .title { font-size: 24px; font-weight: 700; margin-bottom: 6px; letter-spacing: 0.05em; }
@@ -137,6 +137,7 @@ tbody tr:nth-child(even) td { background-color: #f9fafb; }
 .totals { margin-top: 28px; border-top: 2px solid #000; padding-top: 14px; width:100%; }
 .total-row { display: flex; justify-content: space-between; font-size: 16px; font-weight: 600; margin-bottom: 6px; max-width: 400px; margin-left: auto; }
 .label { letter-spacing: 0.05em; color: #333; }
+.date-col { white-space: nowrap; }
 </style></head><body>
 <div class="header">
   <div class="title">CREW SALARY</div>
@@ -147,8 +148,8 @@ tbody tr:nth-child(even) td { background-color: #f9fafb; }
   </div>
 </div>
 <table>
-  <thead><tr><th>Date</th><th>Shipment #</th><th>Trips</th><th>Crew Salary</th><th>Cash Advance</th><th>Reimbursements</th><th>Payable</th></tr></thead>
-  <tbody>${rowHtml || '<tr><td colspan="7" style="text-align:center;color:#999;padding:20px">No working days found</td></tr>'}</tbody>
+  <thead><tr><th class="date-col">Date</th><th>Shipment #</th><th>Crew Salary</th><th>Cash Advance</th><th>Reimbursements</th><th>Payable</th></tr></thead>
+  <tbody>${rowHtml || '<tr><td colspan="6" style="text-align:center;color:#999;padding:20px">No working days found</td></tr>'}</tbody>
 </table>
 <div class="totals">
   <div class="total-row"><span class="label">TOTAL TRIPS</span><span>${totalTrips.toLocaleString()}</span></div>
