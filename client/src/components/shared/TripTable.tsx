@@ -601,7 +601,14 @@ export default function TripTable({
     columns.push({
       key: "shipmentNumber",
       label: "Shipment #",
-      render: (r) => r.shipmentNumber,
+      render: (r) => {
+        const val = String(r.shipmentNumber || "").trim();
+        return val ? (
+          val
+        ) : (
+          <span className="text-slate-300 dark:text-slate-600">—</span>
+        );
+      },
       className: "font-semibold text-orange-500",
     });
   if (show("rate"))
