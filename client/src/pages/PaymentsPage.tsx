@@ -7,16 +7,21 @@ import {
   Upload,
   Image as ImageIcon,
   Trash2,
-  CreditCard,
   Eye,
   AlertTriangle,
   Pencil,
 } from "lucide-react";
 import Select from "react-select";
-import DatePicker from "react-datepicker";
-import "react-datepicker/dist/react-datepicker.css";
 import { getSelectStyles } from "../lib/selectStyles";
 import Modal from "../components/shared/Modal";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { format } from "date-fns";
+import { CalendarDays } from "lucide-react";
 
 type Option = {
   value: string;
@@ -71,6 +76,10 @@ export default function PaymentsPage() {
   const [previewPayment, setPreviewPayment] = useState<PaymentRow | null>(null);
   const [deleteModal, setDeleteModal] = useState<PaymentRow | null>(null);
   const [showTruckWarning, setShowTruckWarning] = useState(false);
+  const [openDate, setOpenDate] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(
+    date ? new Date(`${date}T00:00:00`) : new Date(),
+  );
 
   const [editPayment, setEditPayment] = useState<PaymentRow | null>(null);
   const [editFile, setEditFile] = useState<File | null>(null);
@@ -297,16 +306,32 @@ export default function PaymentsPage() {
               <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 block">
                 Date
               </label>
-              <DatePicker
-                selected={date ? new Date(`${date}T00:00:00`) : new Date()}
-                onChange={(d: Date | null) => {
-                  if (d) setDate(toInputDate(d));
-                }}
-                dateFormat="MMM d, yyyy"
-                className={inputClass + " cursor-pointer"}
-                wrapperClassName="w-full"
-                showPopperArrow={false}
-              />
+              <Popover open={openDate} onOpenChange={setOpenDate}>
+                <PopoverTrigger asChild>
+                  <button className="w-full h-11 px-3 flex items-center justify-between rounded-md border border-border bg-background text-sm">
+                    {selectedDate
+                      ? format(selectedDate, "MMM d, yyyy")
+                      : "Select date"}
+                    <CalendarDays className="h-4 w-4 opacity-50" />
+                  </button>
+                </PopoverTrigger>
+
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={(d) => {
+                      if (!d) return;
+
+                      setSelectedDate(d);
+                      setDate(toInputDate(d));
+
+                      setOpenDate(false);
+                    }}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div>

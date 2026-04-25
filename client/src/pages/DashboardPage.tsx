@@ -178,8 +178,8 @@ export default function DashboardPage() {
 
   const rangeLabels: Record<string, string> = {
     ALL: "Selected",
-    CC: "Current Cutoff's",
-    LC: "Last Cutoff's",
+    CC: "This Week's",
+    LC: "Previous Cutoff's",
     TM: "This Month's",
     LM: "Last Month's",
     MTD: "MTD",

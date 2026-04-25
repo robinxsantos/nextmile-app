@@ -1,10 +1,31 @@
 import { RotateCcw, CalendarDays } from "lucide-react";
 import { useAppStore } from "../../store/useAppStore";
 import type { RangePreset } from "../../lib/dateHelpers";
-import Select from "react-select";
-import DatePicker from "react-datepicker";
+import type { DateRange } from "react-day-picker";
 import { getSelectStyles } from "../../lib/selectStyles";
-import "react-datepicker/dist/react-datepicker.css";
+import { Check, ChevronsUpDown } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from "@/components/ui/command";
+import { useState, useEffect } from "react";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface FilterBarProps {
   showTruck?: boolean;
@@ -66,6 +87,28 @@ export default function FilterBar({
     fetchExpenses,
     theme,
   } = useAppStore();
+  const [openMonth, setOpenMonth] = useState(false);
+  const [openTruck, setOpenTruck] = useState(false);
+  const [openRange, setOpenRange] = useState(false);
+  const parsedStart = startDate ? new Date(startDate) : null;
+  const parsedEnd = endDate ? new Date(endDate) : null;
+  const [openRangePreset, setOpenRangePreset] = useState(false);
+
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: parsedStart || undefined,
+    to: parsedEnd || undefined,
+  });
+
+  useEffect(() => {
+    if (startDate && endDate) {
+      setDateRange({
+        from: new Date(startDate),
+        to: new Date(endDate),
+      });
+    } else {
+      setDateRange(undefined);
+    }
+  }, [startDate, endDate]);
 
   const isDark = theme === "dark";
   const styles = getSelectStyles(isDark);
@@ -93,36 +136,6 @@ export default function FilterBar({
     }, 0);
   };
 
-  const handleTruckChange = (option: { value: string } | null) => {
-    if (!option) return;
-    setSelectedTruck(option.value);
-    setTimeout(() => {
-      fetchDashboard();
-      fetchExpenses();
-    }, 0);
-  };
-
-  const handleDateRangeChange = (dates: [Date | null, Date | null]) => {
-    const [start, end] = dates;
-    setStartDate(
-      start
-        ? `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, "0")}-${String(start.getDate()).padStart(2, "0")}`
-        : "",
-    );
-    setEndDate(
-      end
-        ? `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, "0")}-${String(end.getDate()).padStart(2, "0")}`
-        : "",
-    );
-    setRangePreset("CUSTOM");
-    if (start && end) {
-      setTimeout(() => {
-        fetchDashboard();
-        fetchExpenses();
-      }, 0);
-    }
-  };
-
   const handleReset = () => {
     const resetPreset = rangeOptions.some((option) => option.value === "ALL")
       ? "ALL"
@@ -138,14 +151,6 @@ export default function FilterBar({
     }
   };
 
-  const handleMonthChange = (option: { value: string } | null) => {
-    if (!option) return;
-    onMonthChange?.(option.value);
-  };
-
-  const parsedStart = startDate ? new Date(`${startDate}T00:00:00`) : null;
-  const parsedEnd = endDate ? new Date(`${endDate}T00:00:00`) : null;
-
   return (
     <div className="border rounded-lg p-4 mb-4 bg-background">
       <div className="flex flex-wrap gap-3 items-end">
@@ -154,21 +159,54 @@ export default function FilterBar({
             <label className="text-[0.72rem] font-bold tracking-wider uppercase text-muted-foreground mb-1.5 block">
               Date Range
             </label>
-            <Select
-              options={rangeOptions}
-              value={currentRangeOption}
-              onChange={handleRangeChange}
-              styles={{
-                ...styles,
-                menuPortal: (base: Record<string, unknown>) => ({
-                  ...base,
-                  zIndex: 9999,
-                }),
-              }}
-              isSearchable={false}
-              menuPortalTarget={document.body}
-              classNamePrefix="nm-select"
-            />
+
+            <Popover open={openRangePreset} onOpenChange={setOpenRangePreset}>
+              <PopoverTrigger asChild>
+                <button
+                  role="combobox"
+                  className="w-full h-[44px] justify-between rounded-md border border-border bg-background px-3 text-sm flex items-center"
+                >
+                  {rangeOptions.find((o) => o.value === rangePreset)?.label ||
+                    "Select range"}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
+                </button>
+              </PopoverTrigger>
+
+              <PopoverContent className="w-full p-0">
+                <Command>
+                  <CommandInput placeholder="Search range..." />
+                  <CommandEmpty>No results found.</CommandEmpty>
+
+                  <CommandGroup>
+                    {rangeOptions.map((opt) => (
+                      <CommandItem
+                        key={opt.value}
+                        value={opt.label}
+                        onSelect={() => {
+                          setRangePreset(opt.value as RangePreset);
+
+                          setTimeout(() => {
+                            fetchDashboard();
+                            fetchExpenses();
+                          }, 0);
+
+                          setOpenRangePreset(false);
+                        }}
+                      >
+                        <Check
+                          className={`mr-2 h-4 w-4 ${
+                            rangePreset === opt.value
+                              ? "opacity-100"
+                              : "opacity-0"
+                          }`}
+                        />
+                        {opt.label}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
         )}
 
@@ -177,22 +215,51 @@ export default function FilterBar({
             <label className="text-[0.72rem] font-bold tracking-wider uppercase text-muted-foreground mb-1.5 block">
               Truck
             </label>
-            <Select
-              options={truckSelectOptions}
-              value={truckSelectOptions.find((o) => o.value === selectedTruck)}
-              onChange={handleTruckChange}
-              styles={{
-                ...styles,
-                menuPortal: (base: Record<string, unknown>) => ({
-                  ...base,
-                  zIndex: 9999,
-                }),
-              }}
-              isSearchable
-              menuPortalTarget={document.body}
-              classNamePrefix="nm-select"
-              placeholder="Select truck..."
-            />
+            <Popover open={openTruck} onOpenChange={setOpenTruck}>
+              <PopoverTrigger asChild>
+                <button
+                  role="combobox"
+                  className="w-full h-[44px] justify-between rounded-md border border-border bg-background px-3 text-sm flex items-center"
+                >
+                  {truckSelectOptions.find((o) => o.value === selectedTruck)
+                    ?.label || "Select truck"}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
+                </button>
+              </PopoverTrigger>
+
+              <PopoverContent className="w-full p-0">
+                <Command>
+                  <CommandInput placeholder="Search truck..." />
+                  <CommandEmpty>No truck found.</CommandEmpty>
+
+                  <CommandGroup>
+                    {truckSelectOptions.map((t) => (
+                      <CommandItem
+                        key={t.value}
+                        value={t.label}
+                        onSelect={() => {
+                          setSelectedTruck(t.value);
+                          setTimeout(() => {
+                            fetchDashboard();
+                            fetchExpenses();
+                          }, 0);
+                          setOpenTruck(false);
+                        }}
+                      >
+                        <Check
+                          className={`mr-2 h-4 w-4 ${
+                            selectedTruck === t.value
+                              ? "opacity-100"
+                              : "opacity-0"
+                          }`}
+                        />
+                        {t.label}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
         )}
 
@@ -202,19 +269,41 @@ export default function FilterBar({
               <CalendarDays size={12} />
               Period
             </label>
-            <DatePicker
-              selectsRange
-              startDate={parsedStart}
-              endDate={parsedEnd}
-              onChange={handleDateRangeChange}
-              dateFormat="MMM d, yyyy"
-              placeholderText="Select date range..."
-              className="w-full h-[44px] rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:border-ring cursor-pointer"
-              wrapperClassName="w-full"
-              isClearable
-              showPopperArrow={false}
-              monthsShown={2}
-            />
+
+            <Popover open={openRange} onOpenChange={setOpenRange}>
+              <PopoverTrigger asChild>
+                <button className="w-full h-[44px] justify-between rounded-md border border-border bg-background px-3 text-sm flex items-center">
+                  {dateRange?.from && dateRange?.to
+                    ? `${format(dateRange!.from, "MMM d, yyyy")} - ${format(dateRange!.to, "MMM d, yyyy")}`
+                    : "Select date range"}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
+                </button>
+              </PopoverTrigger>
+
+              <PopoverContent className="w-auto p-0">
+                <Calendar
+                  mode="range"
+                  selected={dateRange}
+                  onSelect={(range) => {
+                    setDateRange(range);
+
+                    if (range?.from && range?.to && range.from !== range.to) {
+                      setStartDate(format(range.from, "yyyy-MM-dd"));
+                      setEndDate(format(range.to, "yyyy-MM-dd"));
+                      setRangePreset("CUSTOM");
+
+                      setTimeout(() => {
+                        fetchDashboard();
+                        fetchExpenses();
+                      }, 0);
+                    }
+                  }}
+                  numberOfMonths={2}
+                  defaultMonth={dateRange?.from}
+                  showOutsideDays
+                />
+              </PopoverContent>
+            </Popover>
           </div>
         )}
 
@@ -223,21 +312,48 @@ export default function FilterBar({
             <label className="text-[0.72rem] font-bold tracking-wider uppercase text-muted-foreground mb-1.5 block">
               Range
             </label>
-            <Select
-              options={MONTHS}
-              value={MONTHS.find((m) => m.value === (monthValue || "ALL"))}
-              onChange={handleMonthChange}
-              styles={{
-                ...styles,
-                menuPortal: (base: Record<string, unknown>) => ({
-                  ...base,
-                  zIndex: 9999,
-                }),
-              }}
-              isSearchable={false}
-              menuPortalTarget={document.body}
-              classNamePrefix="nm-select"
-            />
+
+            <Popover open={openMonth} onOpenChange={setOpenMonth}>
+              <PopoverTrigger asChild>
+                <button
+                  role="combobox"
+                  className="w-full h-[44px] justify-between rounded-md border border-border bg-background px-3 text-sm flex items-center"
+                >
+                  {MONTHS.find((m) => m.value === (monthValue || "ALL"))
+                    ?.label || "Select month"}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
+                </button>
+              </PopoverTrigger>
+
+              <PopoverContent className="w-full p-0">
+                <Command>
+                  <CommandInput placeholder="Search month..." />
+                  <CommandEmpty>No results found.</CommandEmpty>
+
+                  <CommandGroup>
+                    {MONTHS.map((m) => (
+                      <CommandItem
+                        key={m.value}
+                        value={m.label}
+                        onSelect={() => {
+                          onMonthChange?.(m.value);
+                          setOpenMonth(false);
+                        }}
+                      >
+                        <Check
+                          className={`mr-2 h-4 w-4 ${
+                            (monthValue || "ALL") === m.value
+                              ? "opacity-100"
+                              : "opacity-0"
+                          }`}
+                        />
+                        {m.label}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
         )}
 
