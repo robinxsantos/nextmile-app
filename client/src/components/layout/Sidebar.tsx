@@ -233,6 +233,45 @@ export default function Sidebar({
                 </NavLink>
               ))}
             </nav>
+            <div className="mt-auto pt-4 border-t border-zinc-200 dark:border-zinc-800 space-y-2">
+              {/* USER */}
+              <div className="px-2">
+                <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100 truncate">
+                  {user?.displayName || "—"}
+                </div>
+                <div className="text-xs text-zinc-500 capitalize">
+                  {user?.role || "—"}
+                </div>
+              </div>
+
+              {/* DARK MODE */}
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={toggleTheme}
+                className="w-full justify-start"
+              >
+                {theme === "dark" ? (
+                  <Moon className="h-4 w-4" />
+                ) : (
+                  <Sun className="h-4 w-4" />
+                )}
+                <span className="ml-2">
+                  {theme === "dark" ? "Dark Mode" : "Light Mode"}
+                </span>
+              </Button>
+
+              {/* LOGOUT */}
+              <Button
+                variant="destructive"
+                size="lg"
+                onClick={() => setShowLogoutConfirm(true)}
+                className="w-full justify-start text-red-500"
+              >
+                <LogOut className="h-4 w-4" />
+                <span className="ml-2">Logout</span>
+              </Button>
+            </div>
           </div>
         </div>
       )}
