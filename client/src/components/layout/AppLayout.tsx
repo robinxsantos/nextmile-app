@@ -49,12 +49,12 @@ export default function AppLayout() {
           <Menu size={20} />
         </Button>
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg grid place-items-center font-black text-white bg-gradient-to-br from-blue-600 to-blue-700 text-sm">
+          <div className="w-8 h-8 rounded-lg grid place-items-center font-black bg-primary text-primary-foreground text-sm">
             N
           </div>
           <div className="flex flex-col">
             <span className="font-bold tracking-tight text-xs leading-none">
-              NEXTMILE
+              NextmileOS
             </span>
             <span className="text-[0.65rem] text-slate-500 dark:text-slate-400 leading-none mt-0.5">
               {currentPageName}
