@@ -11,8 +11,13 @@ import {
   Shield,
   Truck as TruckIcon,
 } from "lucide-react";
-import Select from "react-select";
-import { getSelectStyles } from "../lib/selectStyles";
+import {
+  Select as UiSelect,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface UserRow {
   _id: string;
@@ -26,8 +31,6 @@ interface UserRow {
 
 export default function UsersPage() {
   const { truckOptions, initApp, theme } = useAppStore();
-  const isDark = theme === "dark";
-  const selectStyles = getSelectStyles(isDark);
 
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -40,7 +43,7 @@ export default function UsersPage() {
     password: "",
     displayName: "",
     role: "employee",
-    truck: "",
+    truck: "none",
   });
 
   useEffect(() => {
@@ -79,7 +82,7 @@ export default function UsersPage() {
         ? u.truck._id
         : typeof u.truck === "string"
           ? u.truck
-          : "";
+          : "none";
     setForm({
       username: u.username,
       password: "",
@@ -149,7 +152,7 @@ export default function UsersPage() {
   };
 
   const inputClass =
-    "w-full min-h-[44px] rounded-[14px] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 px-3.5 text-sm focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10 outline-none transition-colors";
+    "w-full min-h-[44px] rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 px-3.5 text-sm focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10 outline-none transition-colors";
 
   const roleOptions = [
     { value: "admin", label: "🛡️ Admin" },
@@ -157,8 +160,11 @@ export default function UsersPage() {
   ];
 
   const truckSelectOptions = [
-    { value: "", label: "No assigned truck" },
-    ...truckOptions.map((t) => ({ value: t._id, label: t.truckName })),
+    { value: "none", label: "No assigned truck" },
+    ...truckOptions.map((t) => ({
+      value: t._id,
+      label: t.truckName,
+    })),
   ];
 
   return (
@@ -230,7 +236,7 @@ export default function UsersPage() {
                     </td>
                     <td className="text-center text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800">
                       <span
-                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[0.72rem] font-bold ${u.role === "admin" ? "bg-purple-500/10 text-purple-600 dark:text-purple-400" : "bg-blue-500/10 text-blue-600 dark:text-blue-400"}`}
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[0.72rem] font-bold ${u.role === "admin" ? "bg-purple-500/10 text-purple-600 dark:text-purple-400" : "bg-blue-500/10 text-blue-600 dark:text-blue-400"}`}
                       >
                         <Shield size={12} /> {u.role.toUpperCase()}
                       </span>
@@ -248,7 +254,7 @@ export default function UsersPage() {
                     </td>
                     <td className="text-center text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800">
                       <span
-                        className={`inline-block px-2 py-0.5 rounded-full text-[0.65rem] font-bold ${u.active ? "bg-green-500/10 text-green-600" : "bg-red-500/10 text-red-500"}`}
+                        className={`inline-block px-2 py-0.5 rounded-md text-[0.65rem] font-bold ${u.active ? "bg-green-500/10 text-green-600" : "bg-red-500/10 text-red-500"}`}
                       >
                         {u.active ? "ACTIVE" : "INACTIVE"}
                       </span>
@@ -257,13 +263,13 @@ export default function UsersPage() {
                       <div className="flex items-center justify-center gap-1">
                         <button
                           onClick={() => openEdit(u)}
-                          className="w-[34px] h-[34px] rounded-xl inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-blue-500/10 hover:text-blue-600 transition-all"
+                          className="w-[34px] h-[34px] rounded-md inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-blue-500/10 hover:text-blue-600 transition-all"
                         >
                           <Pencil size={14} />
                         </button>
                         <button
                           onClick={() => setDeleteModal(u)}
-                          className="w-[34px] h-[34px] rounded-xl inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-red-500/10 hover:text-red-500 transition-all"
+                          className="w-[34px] h-[34px] rounded-md inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-red-500/10 hover:text-red-500 transition-all"
                         >
                           <Trash2 size={14} />
                         </button>
@@ -337,14 +343,15 @@ export default function UsersPage() {
           <>
             <button
               onClick={() => setModal(false)}
-              className="px-4 py-2.5 rounded-[14px] border border-slate-200 dark:border-slate-700 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-800"
+              className="px-4 py-2.5 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors"
             >
               Cancel
             </button>
+
             <button
               onClick={handleSave}
               disabled={loading}
-              className="px-6 py-2.5 rounded-[14px] bg-gradient-to-br from-blue-600 to-blue-700 text-white text-sm font-semibold shadow-[0_10px_20px_rgba(37,99,235,0.18)] disabled:opacity-50"
+              className="px-6 py-2.5 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition disabled:opacity-50"
             >
               {loading ? "Saving..." : editUser ? "Update" : "Create"}
             </button>
@@ -400,42 +407,43 @@ export default function UsersPage() {
             <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
               Role
             </label>
-            <Select
-              options={roleOptions}
-              value={roleOptions.find((o) => o.value === form.role)}
-              onChange={(opt) => {
-                if (opt) setForm({ ...form, role: opt.value });
-              }}
-              styles={{
-                ...selectStyles,
-                menuPortal: (base: Record<string, unknown>) => ({
-                  ...base,
-                  zIndex: 9999,
-                }),
-              }}
-              isSearchable={false}
-              menuPortalTarget={document.body}
-            />
+            <UiSelect
+              value={form.role}
+              onValueChange={(val) => setForm({ ...form, role: val })}
+            >
+              <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
+                <SelectValue />
+              </SelectTrigger>
+
+              <SelectContent className="z-[9999]">
+                {roleOptions.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </UiSelect>
           </div>
           <div>
             <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
               Assigned Truck
             </label>
-            <Select
-              options={truckSelectOptions}
-              value={truckSelectOptions.find((o) => o.value === form.truck)}
-              onChange={(opt) => setForm({ ...form, truck: opt?.value || "" })}
-              styles={{
-                ...selectStyles,
-                menuPortal: (base: Record<string, unknown>) => ({
-                  ...base,
-                  zIndex: 9999,
-                }),
-              }}
-              isSearchable
-              menuPortalTarget={document.body}
-              placeholder="Select truck..."
-            />
+            <UiSelect
+              value={form.truck}
+              onValueChange={(val) => setForm({ ...form, truck: val })}
+            >
+              <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
+                <SelectValue placeholder="Select truck..." />
+              </SelectTrigger>
+
+              <SelectContent className="z-[9999]">
+                {truckSelectOptions.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </UiSelect>
           </div>
         </div>
       </Modal>
@@ -449,23 +457,25 @@ export default function UsersPage() {
           <>
             <button
               onClick={() => setDeleteModal(null)}
-              className="px-4 py-2.5 rounded-[14px] border border-slate-200 dark:border-slate-700 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-800"
+              className="px-6 py-2.5 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition"
             >
               Cancel
             </button>
+
             <button
               onClick={handleDelete}
-              className="px-6 py-2.5 rounded-[14px] bg-red-500 text-white text-sm font-semibold hover:bg-red-600"
+              className="px-6 py-2.5 rounded-md bg-red-500/10 text-red-500 text-sm font-medium hover:bg-red-500/20 transition"
             >
               Delete
             </button>
           </>
         }
       >
-        <p>
-          Are you sure you want to delete{" "}
-          <strong>{deleteModal?.displayName}</strong> (@{deleteModal?.username}
-          )?
+        <p className="text-sm text-muted-foreground">
+          Are you sure you want to delete
+        </p>
+        <p className="font-semibold mt-1">
+          {deleteModal?.displayName} (@{deleteModal?.username})?
         </p>
       </Modal>
     </div>

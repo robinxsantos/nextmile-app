@@ -67,7 +67,7 @@ export default function SettingsPage() {
   };
 
   const inputClass =
-    "w-full min-h-[44px] rounded-[14px] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 px-3.5 text-sm focus:border-blue-400 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 outline-none transition-colors";
+    "w-full h-11 rounded-md border border-border bg-background px-3 text-sm focus:ring-2 focus:ring-ring focus:border-ring outline-none transition-colors";
 
   return (
     <div>
@@ -94,7 +94,7 @@ export default function SettingsPage() {
         {/* Profile Section */}
         <div className="border rounded-lg bg-background p-5 flex flex-col h-full">
           <div className="flex items-center gap-2.5 mb-4">
-            <div className="w-9 h-9 rounded-xl bg-blue-600/10 dark:bg-blue-500/15 grid place-items-center text-blue-600 dark:text-blue-400">
+            <div className="w-9 h-9 rounded-md bg-blue-600/10 dark:bg-blue-500/15 grid place-items-center text-blue-600 dark:text-blue-400">
               <User size={18} />
             </div>
             <div>
@@ -148,7 +148,7 @@ export default function SettingsPage() {
             <button
               type="submit"
               disabled={savingProfile}
-              className="w-full min-h-[44px] rounded-[14px] bg-gradient-to-br from-blue-600 to-blue-700 text-white text-sm font-semibold shadow-[0_10px_20px_rgba(37,99,235,0.18)] hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+              className="w-full min-h-[44px] rounded-md bg-gradient-to-br from-blue-600 to-blue-700 text-white text-sm font-semibold shadow-[0_10px_20px_rgba(37,99,235,0.18)] hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
             >
               <Save size={16} />{" "}
               {savingProfile ? "Saving..." : "Update Profile"}
@@ -159,7 +159,7 @@ export default function SettingsPage() {
         {/* Password Section */}
         <div className="border rounded-lg bg-background p-5 flex flex-col h-full">
           <div className="flex items-center gap-2.5 mb-4">
-            <div className="w-9 h-9 rounded-xl bg-amber-500/10 grid place-items-center text-amber-600 dark:text-amber-400">
+            <div className="w-9 h-9 rounded-md bg-amber-500/10 grid place-items-center text-amber-600 dark:text-amber-400">
               <Lock size={18} />
             </div>
             <div>
@@ -216,7 +216,7 @@ export default function SettingsPage() {
             <button
               type="submit"
               disabled={savingPassword}
-              className="w-full min-h-[44px] rounded-[14px] bg-gradient-to-br from-amber-500 to-amber-600 text-white text-sm font-semibold shadow-[0_10px_20px_rgba(245,158,11,0.18)] hover:from-amber-600 hover:to-amber-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+              className="w-full min-h-[44px] rounded-md bg-gradient-to-br from-amber-500 to-amber-600 text-white text-sm font-semibold shadow-[0_10px_20px_rgba(245,158,11,0.18)] hover:from-amber-600 hover:to-amber-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
             >
               <Lock size={16} />{" "}
               {savingPassword ? "Changing..." : "Change Password"}

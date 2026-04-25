@@ -13,7 +13,13 @@ import {
   Trash2,
 } from "lucide-react";
 import { cn } from "../lib/utils";
-import Select from "react-select";
+import {
+  Select as UiSelect,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+  SelectValue,
+} from "@/components/ui/select";
 
 const formatNumberWithComma = (value: string) => {
   const num = value.replace(/,/g, "");
@@ -45,58 +51,6 @@ const MONTH_DAY_OPTIONS = Array.from({ length: 31 }, (_, i) => ({
   value: String(i + 1),
   label: String(i + 1),
 }));
-
-const formSelectStyles = {
-  control: (base: Record<string, unknown>, state: { isFocused: boolean }) => ({
-    ...base,
-    minHeight: "44px",
-    borderRadius: "14px",
-    borderColor: state.isFocused ? "#60a5fa" : "#e2e8f0",
-    backgroundColor: "white",
-    boxShadow: state.isFocused ? "0 0 0 3px rgba(37,99,235,0.1)" : "none",
-    fontSize: "0.875rem",
-    fontWeight: 500,
-    "&:hover": { borderColor: "#93c5fd" },
-    cursor: "pointer",
-  }),
-  menu: (base: Record<string, unknown>) => ({
-    ...base,
-    borderRadius: "14px",
-    overflow: "hidden",
-    boxShadow: "0 12px 40px rgba(15,23,42,0.12)",
-    border: "1px solid #e2e8f0",
-    zIndex: 100,
-  }),
-  menuList: (base: Record<string, unknown>) => ({ ...base, padding: "4px" }),
-  option: (
-    base: Record<string, unknown>,
-    state: { isSelected: boolean; isFocused: boolean },
-  ) => ({
-    ...base,
-    borderRadius: "10px",
-    padding: "10px 12px",
-    fontSize: "0.875rem",
-    fontWeight: state.isSelected ? 600 : 400,
-    backgroundColor: state.isSelected
-      ? "#2563eb"
-      : state.isFocused
-        ? "#eff6ff"
-        : "transparent",
-    color: state.isSelected ? "white" : "#334155",
-    cursor: "pointer",
-  }),
-  singleValue: (base: Record<string, unknown>) => ({
-    ...base,
-    color: "#0f172a",
-    fontWeight: 500,
-  }),
-  indicatorSeparator: () => ({ display: "none" }),
-  dropdownIndicator: (base: Record<string, unknown>) => ({
-    ...base,
-    color: "#94a3b8",
-  }),
-  menuPortal: (base: Record<string, unknown>) => ({ ...base, zIndex: 99999 }),
-};
 
 const kmDisplay = (value?: number | null) => {
   if (value === null || value === undefined || Number.isNaN(Number(value)))
@@ -220,7 +174,7 @@ export default function TrucksPage() {
   };
 
   const inputClass =
-    "w-full min-h-[44px] rounded-[14px] border border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-slate-900/95 text-slate-900 dark:text-slate-100 px-3.5 text-sm focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10 outline-none transition-colors";
+    "w-full h-11 rounded-md border border-border bg-background px-3 text-sm focus:ring-2 focus:ring-ring focus:border-ring outline-none transition-colors";
 
   return (
     <div>
@@ -375,13 +329,13 @@ export default function TrucksPage() {
                         <div className="flex items-center justify-center gap-1">
                           <button
                             onClick={() => openEdit(r)}
-                            className="w-[34px] h-[34px] rounded-xl inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-muted hover:text-foreground transition-all"
+                            className="w-[34px] h-[34px] rounded-md inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-muted hover:text-foreground transition-all"
                           >
                             <Pencil size={14} />
                           </button>
                           <button
                             onClick={() => setDeleteModal(r)}
-                            className="w-[34px] h-[34px] rounded-xl inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-500 transition-all"
+                            className="w-[34px] h-[34px] rounded-md inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-500 transition-all"
                           >
                             <Trash2 size={14} />
                           </button>
@@ -462,13 +416,13 @@ export default function TrucksPage() {
                   <div className="flex gap-2 pt-3 border-t border-slate-200 dark:border-slate-700">
                     <button
                       onClick={() => openEdit(r)}
-                      className="flex-1 h-9 rounded-xl inline-flex items-center justify-center gap-1.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-blue-500/10 hover:text-blue-600 transition-all text-xs font-semibold"
+                      className="flex-1 h-9 rounded-md inline-flex items-center justify-center gap-1.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-blue-500/10 hover:text-blue-600 transition-all text-xs font-semibold"
                     >
                       <Pencil size={14} /> Edit
                     </button>
                     <button
                       onClick={() => setDeleteModal(r)}
-                      className="h-9 w-9 rounded-xl inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-red-500/10 hover:text-red-500 transition-all"
+                      className="h-9 w-9 rounded-md inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-red-500/10 hover:text-red-500 transition-all"
                     >
                       <Trash2 size={14} />
                     </button>
@@ -490,14 +444,15 @@ export default function TrucksPage() {
           <>
             <button
               onClick={() => setTruckModal(false)}
-              className="px-4 py-2.5 rounded-[14px] border border-slate-200 dark:border-slate-700 text-sm font-semibold"
+              className="px-4 py-2.5 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors"
             >
               Cancel
             </button>
+
             <button
               onClick={handleSave}
               disabled={loading}
-              className="px-6 py-2.5 rounded-[14px] bg-gradient-to-br from-blue-600 to-blue-700 text-white text-sm font-semibold shadow-[0_10px_20px_rgba(37,99,235,0.18)] disabled:opacity-50"
+              className="px-6 py-2.5 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition disabled:opacity-50"
             >
               {loading ? "Saving..." : editRow ? "Update" : "Save"}
             </button>
@@ -522,35 +477,38 @@ export default function TrucksPage() {
             <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
               Status
             </label>
-            <Select
-              options={STATUS_OPTIONS}
-              value={STATUS_OPTIONS.find((o) => o.value === form.status)}
-              onChange={(opt) => {
-                if (opt) setForm({ ...form, status: opt.value });
-              }}
-              styles={formSelectStyles}
-              isSearchable={false}
-              menuPortalTarget={document.body}
-              classNamePrefix="nm-select"
-            />
+
+            <UiSelect
+              value={form.status}
+              onValueChange={(val) => setForm({ ...form, status: val })}
+            >
+              <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
+                <SelectValue />
+              </SelectTrigger>
+
+              <SelectContent className="z-[9999]">
+                {STATUS_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </UiSelect>
           </div>
 
           <div>
             <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
               Cutoff Type
             </label>
-            <Select
-              options={CUTOFF_TYPE_OPTIONS}
-              value={CUTOFF_TYPE_OPTIONS.find(
-                (o) => o.value === form.cutoffType,
-              )}
-              onChange={(opt) => {
-                if (!opt) return;
+
+            <UiSelect
+              value={form.cutoffType}
+              onValueChange={(val) => {
                 setForm((prev) =>
-                  opt.value === "monthly"
+                  val === "monthly"
                     ? {
                         ...prev,
-                        cutoffType: opt.value,
+                        cutoffType: val,
                         cutoffStart: "26",
                         cutoffEnd: "25",
                         payday: "26",
@@ -558,7 +516,7 @@ export default function TrucksPage() {
                       }
                     : {
                         ...prev,
-                        cutoffType: opt.value,
+                        cutoffType: val,
                         cutoffStart: "1",
                         cutoffEnd: "6",
                         payday: "6",
@@ -566,11 +524,19 @@ export default function TrucksPage() {
                       },
                 );
               }}
-              styles={formSelectStyles}
-              isSearchable={false}
-              menuPortalTarget={document.body}
-              classNamePrefix="nm-select"
-            />
+            >
+              <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
+                <SelectValue />
+              </SelectTrigger>
+
+              <SelectContent className="z-[9999]">
+                {CUTOFF_TYPE_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </UiSelect>
           </div>
 
           <div>
@@ -590,7 +556,7 @@ export default function TrucksPage() {
             <label className="text-xs font-semibold text-muted-foreground mb-1 block">
               Last Change Oil
             </label>
-            <div className="relative">
+            <div className="relative ">
               <input
                 type="text"
                 value={formatNumberWithComma(form.lastChangeOil)}
@@ -620,70 +586,96 @@ export default function TrucksPage() {
               </label>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs text-slate-500 mb-1.5 block">
+                  <label className="text-xs text-muted-foreground mb-1.5 block">
                     Cutoff Start
                   </label>
-                  <Select
-                    options={DAY_OPTIONS}
-                    value={DAY_OPTIONS.find(
-                      (o) => o.value === form.cutoffStart,
-                    )}
-                    onChange={(opt) => {
-                      if (opt) setForm({ ...form, cutoffStart: opt.value });
-                    }}
-                    styles={formSelectStyles}
-                    isSearchable={false}
-                    menuPortalTarget={document.body}
-                    classNamePrefix="nm-select"
-                  />
+
+                  <UiSelect
+                    value={form.cutoffStart}
+                    onValueChange={(val) =>
+                      setForm({ ...form, cutoffStart: val })
+                    }
+                  >
+                    <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+
+                    <SelectContent className="z-[9999]">
+                      {DAY_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </UiSelect>
                 </div>
                 <div>
-                  <label className="text-xs text-slate-500 mb-1.5 block">
+                  <label className="text-xs text-muted-foreground mb-1.5 block">
                     Cutoff End
                   </label>
-                  <Select
-                    options={DAY_OPTIONS}
-                    value={DAY_OPTIONS.find((o) => o.value === form.cutoffEnd)}
-                    onChange={(opt) => {
-                      if (opt) setForm({ ...form, cutoffEnd: opt.value });
-                    }}
-                    styles={formSelectStyles}
-                    isSearchable={false}
-                    menuPortalTarget={document.body}
-                    classNamePrefix="nm-select"
-                  />
+
+                  <UiSelect
+                    value={form.cutoffEnd}
+                    onValueChange={(val) =>
+                      setForm({ ...form, cutoffEnd: val })
+                    }
+                  >
+                    <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+
+                    <SelectContent className="z-[9999]">
+                      {DAY_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </UiSelect>
                 </div>
                 <div>
-                  <label className="text-xs text-slate-500 mb-1.5 block">
+                  <label className="text-xs text-muted-foreground mb-1.5 block">
                     Payday
                   </label>
-                  <Select
-                    options={DAY_OPTIONS}
-                    value={DAY_OPTIONS.find((o) => o.value === form.payday)}
-                    onChange={(opt) => {
-                      if (opt) setForm({ ...form, payday: opt.value });
-                    }}
-                    styles={formSelectStyles}
-                    isSearchable={false}
-                    menuPortalTarget={document.body}
-                    classNamePrefix="nm-select"
-                  />
+
+                  <UiSelect
+                    value={form.payday}
+                    onValueChange={(val) => setForm({ ...form, payday: val })}
+                  >
+                    <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+
+                    <SelectContent className="z-[9999]">
+                      {DAY_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </UiSelect>
                 </div>
                 <div>
-                  <label className="text-xs text-slate-500 mb-1.5 block">
+                  <label className="text-xs text-muted-foreground mb-1.5 block">
                     Day Off
                   </label>
-                  <Select
-                    options={DAY_OPTIONS}
-                    value={DAY_OPTIONS.find((o) => o.value === form.dayOff)}
-                    onChange={(opt) => {
-                      if (opt) setForm({ ...form, dayOff: opt.value });
-                    }}
-                    styles={formSelectStyles}
-                    isSearchable={false}
-                    menuPortalTarget={document.body}
-                    classNamePrefix="nm-select"
-                  />
+
+                  <UiSelect
+                    value={form.dayOff}
+                    onValueChange={(val) => setForm({ ...form, dayOff: val })}
+                  >
+                    <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+
+                    <SelectContent className="z-[9999]">
+                      {DAY_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </UiSelect>
                 </div>
               </div>
             </div>
@@ -692,63 +684,86 @@ export default function TrucksPage() {
               <label className="text-xs font-semibold text-muted-foreground mb-2 block">
                 Monthly Cutoff Settings
               </label>
+
               <div className="grid grid-cols-2 gap-3">
+                {/* START */}
                 <div>
-                  <label className="text-xs text-slate-500 mb-1.5 block">
+                  <label className="text-xs text-muted-foreground mb-1.5 block">
                     Cutoff Start Day
                   </label>
-                  <Select
-                    options={MONTH_DAY_OPTIONS}
-                    value={MONTH_DAY_OPTIONS.find(
-                      (o) => o.value === form.cutoffStart,
-                    )}
-                    onChange={(opt) => {
-                      if (opt) setForm({ ...form, cutoffStart: opt.value });
-                    }}
-                    styles={formSelectStyles}
-                    isSearchable={false}
-                    menuPortalTarget={document.body}
-                    classNamePrefix="nm-select"
-                  />
+
+                  <UiSelect
+                    value={form.cutoffStart}
+                    onValueChange={(val) =>
+                      setForm({ ...form, cutoffStart: val })
+                    }
+                  >
+                    <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+
+                    <SelectContent className="z-[9999]">
+                      {MONTH_DAY_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </UiSelect>
                 </div>
+
+                {/* END */}
                 <div>
-                  <label className="text-xs text-slate-500 mb-1.5 block">
+                  <label className="text-xs text-muted-foreground mb-1.5 block">
                     Cutoff End Day
                   </label>
-                  <Select
-                    options={MONTH_DAY_OPTIONS}
-                    value={MONTH_DAY_OPTIONS.find(
-                      (o) => o.value === form.cutoffEnd,
-                    )}
-                    onChange={(opt) => {
-                      if (opt) setForm({ ...form, cutoffEnd: opt.value });
-                    }}
-                    styles={formSelectStyles}
-                    isSearchable={false}
-                    menuPortalTarget={document.body}
-                    classNamePrefix="nm-select"
-                  />
+
+                  <UiSelect
+                    value={form.cutoffEnd}
+                    onValueChange={(val) =>
+                      setForm({ ...form, cutoffEnd: val })
+                    }
+                  >
+                    <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+
+                    <SelectContent className="z-[9999]">
+                      {MONTH_DAY_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </UiSelect>
                 </div>
+
+                {/* PAYDAY */}
                 <div>
-                  <label className="text-xs text-slate-500 mb-1.5 block">
+                  <label className="text-xs text-muted-foreground mb-1.5 block">
                     Salary Day
                   </label>
-                  <Select
-                    options={MONTH_DAY_OPTIONS}
-                    value={MONTH_DAY_OPTIONS.find(
-                      (o) => o.value === form.payday,
-                    )}
-                    onChange={(opt) => {
-                      if (opt) setForm({ ...form, payday: opt.value });
-                    }}
-                    styles={formSelectStyles}
-                    isSearchable={false}
-                    menuPortalTarget={document.body}
-                    classNamePrefix="nm-select"
-                  />
+
+                  <UiSelect
+                    value={form.payday}
+                    onValueChange={(val) => setForm({ ...form, payday: val })}
+                  >
+                    <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+
+                    <SelectContent className="z-[9999]">
+                      {MONTH_DAY_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </UiSelect>
                 </div>
               </div>
-              <div className="mt-2 text-xs text-slate-500">
+
+              <div className="mt-2 text-xs text-muted-foreground">
                 <strong>Monthly Cutoff</strong>
                 <br />
                 When the cutoff start date is set to the 1st day of the month
@@ -775,10 +790,11 @@ export default function TrucksPage() {
           <>
             <button
               onClick={() => setDeleteModal(null)}
-              className="px-4 py-2.5 rounded-[14px] border border-slate-200 dark:border-slate-700 text-sm font-semibold"
+              className="px-4 py-2.5 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors"
             >
               Cancel
             </button>
+
             <button
               onClick={async () => {
                 if (deleteModal) {
@@ -786,7 +802,7 @@ export default function TrucksPage() {
                   setDeleteModal(null);
                 }
               }}
-              className="px-6 py-2.5 rounded-[14px] bg-red-500 text-white text-sm font-semibold hover:bg-red-600"
+              className="px-6 py-2.5 rounded-md bg-red-500/10 text-red-500 text-sm font-medium hover:bg-red-500/20 transition"
             >
               Delete
             </button>
