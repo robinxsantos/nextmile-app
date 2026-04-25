@@ -534,15 +534,18 @@ export default function TripsPage() {
       <Modal
         open={!!deleteModal}
         onClose={() => setDeleteModal(null)}
-        title={`Delete Trip for - ${deleteModal?.truckName || selectedTruckName || "Selected Truck"}`}
+        title={`Delete Trip for - ${
+          deleteModal?.truckName || selectedTruckName || "Selected Truck"
+        }`}
         footer={
           <>
             <button
               onClick={() => setDeleteModal(null)}
-              className="px-4 py-2.5 rounded-[14px] border border-slate-200 dark:border-slate-700 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-800"
+              className="px-4 py-2.5 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors"
             >
               Cancel
             </button>
+
             <button
               onClick={async () => {
                 if (deleteModal) {
@@ -550,19 +553,16 @@ export default function TripsPage() {
                   setDeleteModal(null);
                 }
               }}
-              className="px-6 py-2.5 rounded-[14px] bg-red-500 text-white text-sm font-semibold hover:bg-red-600"
+              className="px-6 py-2.5 rounded-md bg-red-500/10 text-red-500 text-sm font-medium hover:bg-red-500/20 transition"
             >
               Delete
             </button>
           </>
         }
       >
-        <p>
-          Are you sure?
-          <br />
-          <strong>
-            {deleteModal?.dateText} / {deleteModal?.shipmentNumber}
-          </strong>
+        <p>Are you sure you want to delete</p>
+        <p className="font-bold mt-1">
+          {deleteModal?.dateText} / {deleteModal?.shipmentNumber}
         </p>
       </Modal>
 

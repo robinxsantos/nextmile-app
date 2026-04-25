@@ -12,7 +12,6 @@ import {
   Pencil,
 } from "lucide-react";
 import Select from "react-select";
-import { getSelectStyles } from "../lib/selectStyles";
 import Modal from "../components/shared/Modal";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -22,6 +21,13 @@ import {
 } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { CalendarDays } from "lucide-react";
+import {
+  Select as UiSelect,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+  SelectValue,
+} from "@/components/ui/select";
 
 type Option = {
   value: string;
@@ -59,10 +65,7 @@ const METHOD_OPTIONS: Option[] = [
 ];
 
 export default function PaymentsPage() {
-  const { truckOptions, selectedTruck, initApp, theme } = useAppStore();
-
-  const isDark = theme === "dark";
-  const selectStyles = getSelectStyles(isDark);
+  const { truckOptions, selectedTruck, initApp } = useAppStore();
 
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -265,7 +268,7 @@ export default function PaymentsPage() {
   };
 
   const inputClass =
-    "w-full min-h-[44px] rounded-[14px] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 px-3.5 text-sm focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10 outline-none transition-colors";
+    "w-full h-11 rounded-md border border-border bg-background px-3 text-sm focus:ring-2 focus:ring-ring focus:border-ring outline-none transition-colors";
 
   return (
     <div className="space-y-3.5">
@@ -296,9 +299,6 @@ export default function PaymentsPage() {
             <h2 className="text-base font-bold tracking-tight">
               Upload Payment Proof
             </h2>
-            <p className="text-sm text-muted-foreground">
-              Save screenshots sent via GCash, Cash, or Bank Transfer.
-            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -338,48 +338,41 @@ export default function PaymentsPage() {
               <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1 block">
                 Category
               </label>
-              <Select
-                options={CATEGORY_OPTIONS}
-                value={
-                  CATEGORY_OPTIONS.find((o) => o.value === category) || null
-                }
-                onChange={(opt) =>
-                  setCategory(opt?.value || CATEGORY_OPTIONS[0].value)
-                }
-                styles={{
-                  ...selectStyles,
-                  menuPortal: (base: Record<string, unknown>) => ({
-                    ...base,
-                    zIndex: 9999,
-                  }),
-                }}
-                menuPortalTarget={document.body}
-                isSearchable={false}
-                classNamePrefix="nm-select"
-              />
+              <UiSelect
+                value={category}
+                onValueChange={(val) => setCategory(val)}
+              >
+                <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+
+                <SelectContent>
+                  {CATEGORY_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </UiSelect>
             </div>
 
             <div>
               <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1 block">
                 Payment Method
               </label>
-              <Select
-                options={METHOD_OPTIONS}
-                value={METHOD_OPTIONS.find((o) => o.value === method) || null}
-                onChange={(opt) =>
-                  setMethod(opt?.value || METHOD_OPTIONS[0].value)
-                }
-                styles={{
-                  ...selectStyles,
-                  menuPortal: (base: Record<string, unknown>) => ({
-                    ...base,
-                    zIndex: 9999,
-                  }),
-                }}
-                menuPortalTarget={document.body}
-                isSearchable={false}
-                classNamePrefix="nm-select"
-              />
+              <UiSelect value={method} onValueChange={(val) => setMethod(val)}>
+                <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+
+                <SelectContent>
+                  {METHOD_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </UiSelect>
             </div>
 
             <div>
@@ -569,7 +562,7 @@ export default function PaymentsPage() {
                       <td className="text-center text-xs px-3 py-3 border-b border-slate-100 dark:border-slate-800">
                         <button
                           onClick={() => setPreviewPayment(p)}
-                          className="h-8 px-3 rounded-xl inline-flex items-center justify-center gap-1.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-muted hover:border-blue-500/20 hover:text-blue-600 transition-all text-xs font-semibold"
+                          className="h-8 px-3 rounded-md inline-flex items-center justify-center gap-1.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-muted hover:border-blue-500/20 hover:text-blue-600 transition-all text-xs font-semibold"
                         >
                           <Eye size={14} /> View
                         </button>
@@ -578,14 +571,14 @@ export default function PaymentsPage() {
                         <div className="flex items-center justify-center gap-1.5">
                           <button
                             onClick={() => openEdit(p)}
-                            className="w-8 h-8 rounded-xl inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-muted hover:border-blue-500/20 hover:text-blue-600 transition-all"
+                            className="w-8 h-8 rounded-md inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-muted hover:border-blue-500/20 hover:text-blue-600 transition-all"
                             title="Edit"
                           >
                             <Pencil size={14} />
                           </button>
                           <button
                             onClick={() => setDeleteModal(p)}
-                            className="w-8 h-8 rounded-xl inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-500 transition-all"
+                            className="w-8 h-8 rounded-md inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-500 transition-all"
                             title="Delete"
                           >
                             <Trash2 size={14} />
@@ -721,68 +714,75 @@ export default function PaymentsPage() {
               <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 block">
                 Date
               </label>
-              <DatePicker
-                selected={
-                  editDate ? new Date(`${editDate}T00:00:00`) : new Date()
-                }
-                onChange={(d: Date | null) => {
-                  if (d) setEditDate(toInputDate(d));
-                }}
-                dateFormat="MMM d, yyyy"
-                className={inputClass + " cursor-pointer"}
-                wrapperClassName="w-full"
-                showPopperArrow={false}
-              />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    className={
+                      inputClass + " flex items-center justify-between"
+                    }
+                  >
+                    {editDate
+                      ? format(new Date(`${editDate}T00:00:00`), "MMM d, yyyy")
+                      : "Select date"}
+                    <CalendarDays className="h-4 w-4 opacity-50" />
+                  </button>
+                </PopoverTrigger>
+
+                <PopoverContent className="w-auto p-0 z-[9999]">
+                  <Calendar
+                    mode="single"
+                    selected={
+                      editDate ? new Date(`${editDate}T00:00:00`) : undefined
+                    }
+                    onSelect={(d) => {
+                      if (!d) return;
+                      setEditDate(toInputDate(d));
+                    }}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div>
               <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1 block">
                 Category
               </label>
-              <Select
-                options={CATEGORY_OPTIONS}
-                value={
-                  CATEGORY_OPTIONS.find((o) => o.value === editCategory) || null
-                }
-                onChange={(opt) =>
-                  setEditCategory(opt?.value || CATEGORY_OPTIONS[0].value)
-                }
-                styles={{
-                  ...selectStyles,
-                  menuPortal: (base: Record<string, unknown>) => ({
-                    ...base,
-                    zIndex: 9999,
-                  }),
-                }}
-                menuPortalTarget={document.body}
-                isSearchable={false}
-                classNamePrefix="nm-select"
-              />
+              <UiSelect
+                value={category}
+                onValueChange={(val) => setCategory(val)}
+              >
+                <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+
+                <SelectContent>
+                  {CATEGORY_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </UiSelect>
             </div>
 
             <div>
               <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1 block">
                 Method
               </label>
-              <Select
-                options={METHOD_OPTIONS}
-                value={
-                  METHOD_OPTIONS.find((o) => o.value === editMethod) || null
-                }
-                onChange={(opt) =>
-                  setEditMethod(opt?.value || METHOD_OPTIONS[0].value)
-                }
-                styles={{
-                  ...selectStyles,
-                  menuPortal: (base: Record<string, unknown>) => ({
-                    ...base,
-                    zIndex: 9999,
-                  }),
-                }}
-                menuPortalTarget={document.body}
-                isSearchable={false}
-                classNamePrefix="nm-select"
-              />
+              <UiSelect value={method} onValueChange={(val) => setMethod(val)}>
+                <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+
+                <SelectContent>
+                  {METHOD_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </UiSelect>
             </div>
 
             <div>
@@ -976,13 +976,14 @@ export default function PaymentsPage() {
           <>
             <button
               onClick={() => setDeleteModal(null)}
-              className="px-4 py-2.5 rounded-[14px] border border-slate-200 dark:border-slate-700 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-800"
+              className="px-4 py-2.5 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors"
             >
               Cancel
             </button>
+
             <button
               onClick={confirmDelete}
-              className="px-6 py-2.5 rounded-[14px] bg-red-500 text-white text-sm font-semibold hover:bg-red-600"
+              className="px-6 py-2.5 rounded-md bg-red-500/10 text-red-500 text-sm font-medium hover:bg-red-500/20 transition"
             >
               Delete
             </button>
