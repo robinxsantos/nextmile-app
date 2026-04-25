@@ -24,6 +24,7 @@ import ExpenseBreakdownModal from "../components/shared/ExpenseBreakdownModal";
 import { AnimatePresence, motion } from "framer-motion";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 import EmptyState from "../components/shared/EmptyState";
+import { cn } from "@/lib/utils";
 
 const COLUMN_OPTIONS = [
   ["truck", "Truck"],
@@ -89,7 +90,7 @@ export default function TripsPage() {
     truck: true,
     week: true,
     date: true,
-    status: true,
+    status: false,
     shipmentNumber: true,
     rate: true,
     trips: true,
@@ -268,21 +269,15 @@ export default function TripsPage() {
 
   return (
     <div>
-      <div className="glass-card rounded-[28px] border border-slate-200/80 dark:border-slate-700/90 shadow-lg p-5 mb-3.5">
+      <div className="mb-4">
         <div className="flex flex-col md:flex-row justify-between md:items-end gap-3">
           <div>
-            <h1 className="text-[1.45rem] font-bold tracking-tight">
+            <h1 className="text-2xl font-semibold tracking-tight">
               {pageTitle}
             </h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+            <p className="text-sm text-muted-foreground mt-1">
               Manage trips, filter records, and add new entries.
             </p>
-          </div>
-          <div className="text-right">
-            <div className="text-[0.72rem] font-bold tracking-wider uppercase text-slate-500">
-              Trips view
-            </div>
-            <div className="font-bold text-sm">Live data from database</div>
           </div>
         </div>
       </div>
@@ -295,18 +290,18 @@ export default function TripsPage() {
         actions={
           <button
             onClick={handleAddTrip}
-            className="min-h-[44px] px-4 rounded-[14px] bg-gradient-to-br from-blue-600 to-blue-700 text-white text-sm font-semibold shadow-[0_10px_20px_rgba(37,99,235,0.18)] hover:from-blue-700 hover:to-blue-800 transition-all flex items-center gap-1.5"
+            className="h-10 px-4 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition flex items-center gap-2"
           >
             <Plus size={18} /> Add Trip
           </button>
         }
       />
 
-      <div className="glass-card rounded-[22px] border border-slate-200/90 dark:border-slate-700/90 shadow-sm p-3.5 overflow-visible">
+      <div className="border border-border rounded-lg bg-background p-3.5 overflow-visible">
         <div className="flex flex-col gap-3 mb-3">
           <div>
             <h2 className="text-base font-bold tracking-tight">Trip Records</h2>
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-muted-foreground">
               {admin
                 ? "Filter, edit, export, and generate payslips."
                 : "View trips and add new entries."}
@@ -324,7 +319,7 @@ export default function TripsPage() {
                 placeholder="Search Shipment Number... ( / )"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full min-h-[44px] rounded-[14px] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm pl-9 pr-3.5 focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10 outline-none transition-colors"
+                className="w-full min-h-[44px] rounded-md border border-border bg-background text-sm pl-9 pr-3.5 focus:outline-none focus:border-ring transition-colors"
               />
             </div>
             {!admin && (
@@ -348,13 +343,13 @@ export default function TripsPage() {
               <>
                 <button
                   onClick={handleExportCsv}
-                  className="min-h-[44px] px-3 rounded-[14px] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-semibold hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors flex items-center gap-1.5"
+                  className="h-10 px-3 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors flex items-center gap-2"
                 >
                   <Download size={16} /> CSV
                 </button>
                 <button
                   onClick={handleExportPayslip}
-                  className="min-h-[44px] px-3 rounded-[14px] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-semibold hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors flex items-center gap-1.5"
+                  className="h-10 px-3 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors flex items-center gap-2"
                 >
                   <FileText size={16} /> Payslip
                 </button>
@@ -363,18 +358,18 @@ export default function TripsPage() {
             <div ref={dropdownRef} className="relative">
               <button
                 onClick={() => setShowColumnsMenu((v) => !v)}
-                className={`min-h-[44px] w-[44px] rounded-[14px] border flex items-center justify-center transition-colors
-                  ${
-                    showColumnsMenu
-                      ? "bg-blue-50 dark:bg-blue-500/10 border-blue-400 text-blue-600"
-                      : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
-                  }`}
+                className={cn(
+                  "h-10 w-10 rounded-md border border-border flex items-center justify-center transition-colors",
+                  showColumnsMenu
+                    ? "bg-muted"
+                    : "bg-background hover:bg-muted text-muted-foreground",
+                )}
                 title="Show / Hide Columns"
               >
                 <Columns3 size={18} />
               </button>
               {showColumnsMenu && (
-                <div className="absolute right-0 mt-2 z-50 w-64 max-h-[320px] overflow-y-auto rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg p-2">
+                <div className="absolute right-0 mt-2 z-50 w-64 max-h-[320px] overflow-y-auto rounded-md border border-border bg-background p-2">
                   <div className="px-2 pb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                     Show Columns
                   </div>

@@ -260,18 +260,18 @@ export default function PaymentsPage() {
 
   return (
     <div className="space-y-3.5">
-      <div className="glass-card rounded-[28px] border border-slate-200/80 dark:border-slate-700/90 shadow-lg p-5">
+      <div className="mb-4">
         <div className="flex flex-col md:flex-row justify-between md:items-end gap-3">
           <div>
             <h1 className="text-[1.45rem] font-bold tracking-tight">
               {pageTitle}
             </h1>
-            <p className="text-sm text-slate-500 mt-1">
+            <p className="text-sm text-muted-foreground mt-1">
               Upload screenshots sent via GCash, Cash, or Bank Transfer.
             </p>
           </div>
           <div className="text-right">
-            <div className="text-[0.72rem] font-bold tracking-wider uppercase text-slate-500">
+            <div className="text-[0.72rem] font-bold tracking-wider uppercase text-muted-foreground">
               Records
             </div>
             <div className="font-bold text-sm">
@@ -282,12 +282,12 @@ export default function PaymentsPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[420px_minmax(0,1fr)] gap-3.5 items-start">
-        <div className="glass-card rounded-[22px] border border-slate-200/90 dark:border-slate-700/90 shadow-sm p-4">
+        <div className="border rounded-lg bg-background p-4">
           <div className="mb-4">
             <h2 className="text-base font-bold tracking-tight">
               Upload Payment Proof
             </h2>
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-muted-foreground">
               Save screenshots sent via GCash, Cash, or Bank Transfer.
             </p>
           </div>
@@ -453,7 +453,7 @@ export default function PaymentsPage() {
             <button
               onClick={handleUpload}
               disabled={uploading}
-              className="px-6 py-2.5 rounded-[14px] bg-gradient-to-br from-blue-600 to-blue-700 text-white text-sm font-semibold shadow-[0_10px_20px_rgba(37,99,235,0.18)] disabled:opacity-50 flex items-center gap-2"
+              className="px-6 py-2.5 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition flex items-center gap-2"
             >
               <Upload size={16} />
               {uploading ? "Uploading..." : "Upload"}
@@ -461,13 +461,13 @@ export default function PaymentsPage() {
           </div>
         </div>
 
-        <div className="glass-card rounded-[22px] border border-slate-200/90 dark:border-slate-700/90 shadow-sm overflow-hidden min-w-0">
+        <div className="border rounded-lg bg-background overflow-hidden min-w-0">
           <div className="p-3.5 pb-2 flex items-end justify-between gap-4">
             <div>
               <h2 className="text-base font-bold tracking-tight">
                 Uploaded Payment Proofs
               </h2>
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-muted-foreground">
                 Click View to open the image in a preview window.
               </p>
             </div>
@@ -522,13 +522,13 @@ export default function PaymentsPage() {
                   payments.map((p) => (
                     <tr
                       key={p._id}
-                      className="hover:bg-blue-50/50 dark:hover:bg-slate-800/50"
+                      className="hover:bg-muted dark:hover:bg-slate-800/50"
                     >
                       <td className="text-center text-xs px-3 py-3 border-b border-slate-100 dark:border-slate-800 whitespace-nowrap">
                         {p.dateText}
                       </td>
                       <td className="text-center text-xs px-3 py-3 border-b border-slate-100 dark:border-slate-800">
-                        <span className="inline-block px-2.5 py-1 rounded-full text-[0.72rem] font-bold bg-blue-600/10 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400">
+                        <span className="inline-block px-2.5 py-1 rounded-full text-[0.72rem] font-bold bg-muted text-foreground">
                           {p.category}
                         </span>
                       </td>
@@ -544,7 +544,7 @@ export default function PaymentsPage() {
                       <td className="text-center text-xs px-3 py-3 border-b border-slate-100 dark:border-slate-800">
                         <button
                           onClick={() => setPreviewPayment(p)}
-                          className="h-8 px-3 rounded-xl inline-flex items-center justify-center gap-1.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-blue-500/10 hover:border-blue-500/20 hover:text-blue-600 transition-all text-xs font-semibold"
+                          className="h-8 px-3 rounded-xl inline-flex items-center justify-center gap-1.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-muted hover:border-blue-500/20 hover:text-blue-600 transition-all text-xs font-semibold"
                         >
                           <Eye size={14} /> View
                         </button>
@@ -553,7 +553,7 @@ export default function PaymentsPage() {
                         <div className="flex items-center justify-center gap-1.5">
                           <button
                             onClick={() => openEdit(p)}
-                            className="w-8 h-8 rounded-xl inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-blue-500/10 hover:border-blue-500/20 hover:text-blue-600 transition-all"
+                            className="w-8 h-8 rounded-xl inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-muted hover:border-blue-500/20 hover:text-blue-600 transition-all"
                             title="Edit"
                           >
                             <Pencil size={14} />
@@ -591,13 +591,13 @@ export default function PaymentsPage() {
               payments.map((p) => (
                 <div
                   key={p._id}
-                  className="glass-card rounded-xl border border-slate-200 dark:border-slate-700 p-4"
+                  className="border rounded-md bg-background p-4"
                 >
                   <div className="flex justify-between items-start mb-2">
                     <div>
                       <div className="font-bold text-sm">{p.dateText}</div>
                       <div className="mt-1">
-                        <span className="inline-block px-2.5 py-1 rounded-full text-[0.72rem] font-bold bg-blue-600/10 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400">
+                        <span className="inline-block px-2.5 py-1 rounded-full text-[0.72rem] font-bold bg-muted text-foreground">
                           {p.category}
                         </span>
                       </div>
@@ -633,13 +633,13 @@ export default function PaymentsPage() {
                   <div className="flex gap-2 pt-3 mt-3 border-t border-slate-200 dark:border-slate-700">
                     <button
                       onClick={() => setPreviewPayment(p)}
-                      className="flex-1 h-9 rounded-xl inline-flex items-center justify-center gap-1.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-blue-500/10 hover:text-blue-600 transition-all text-xs font-semibold"
+                      className="flex-1 h-9 rounded-xl inline-flex items-center justify-center gap-1.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-muted hover:text-blue-600 transition-all text-xs font-semibold"
                     >
                       <Eye size={14} /> View
                     </button>
                     <button
                       onClick={() => openEdit(p)}
-                      className="h-9 w-9 rounded-xl inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-blue-500/10 hover:text-blue-600 transition-all"
+                      className="h-9 w-9 rounded-xl inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-muted hover:text-blue-600 transition-all"
                     >
                       <Pencil size={14} />
                     </button>

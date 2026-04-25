@@ -1,10 +1,10 @@
-import { RotateCcw, CalendarDays } from 'lucide-react';
-import { useAppStore } from '../../store/useAppStore';
-import type { RangePreset } from '../../lib/dateHelpers';
-import Select from 'react-select';
-import DatePicker from 'react-datepicker';
-import { getSelectStyles } from '../../lib/selectStyles';
-import 'react-datepicker/dist/react-datepicker.css';
+import { RotateCcw, CalendarDays } from "lucide-react";
+import { useAppStore } from "../../store/useAppStore";
+import type { RangePreset } from "../../lib/dateHelpers";
+import Select from "react-select";
+import DatePicker from "react-datepicker";
+import { getSelectStyles } from "../../lib/selectStyles";
+import "react-datepicker/dist/react-datepicker.css";
 
 interface FilterBarProps {
   showTruck?: boolean;
@@ -17,30 +17,30 @@ interface FilterBarProps {
 }
 
 const RANGE_OPTIONS = [
-  { value: 'ALL', label: 'All Time' },
-  { value: 'CC', label: 'Current Cutoff' },
-  { value: 'LC', label: 'Last Cutoff' },
-  { value: 'TM', label: 'This Month' },
-  { value: 'LM', label: 'Last Month' },
-  { value: 'MTD', label: 'Month to Date' },
-  { value: 'YTD', label: 'Year to Date' },
-  { value: 'CUSTOM', label: 'Custom Range' },
+  { value: "ALL", label: "All Time" },
+  { value: "CC", label: "This Cutoff" },
+  { value: "LC", label: "Previous Cutoff" },
+  { value: "TM", label: "This Month" },
+  { value: "LM", label: "Last Month" },
+  { value: "MTD", label: "Month to Date" },
+  { value: "YTD", label: "Year to Date" },
+  { value: "CUSTOM", label: "Custom Range" },
 ] as const;
 
 const MONTHS = [
-  { value: 'ALL', label: 'Whole Year' },
-  { value: '1', label: 'January' },
-  { value: '2', label: 'February' },
-  { value: '3', label: 'March' },
-  { value: '4', label: 'April' },
-  { value: '5', label: 'May' },
-  { value: '6', label: 'June' },
-  { value: '7', label: 'July' },
-  { value: '8', label: 'August' },
-  { value: '9', label: 'September' },
-  { value: '10', label: 'October' },
-  { value: '11', label: 'November' },
-  { value: '12', label: 'December' },
+  { value: "ALL", label: "Whole Year" },
+  { value: "1", label: "January" },
+  { value: "2", label: "February" },
+  { value: "3", label: "March" },
+  { value: "4", label: "April" },
+  { value: "5", label: "May" },
+  { value: "6", label: "June" },
+  { value: "7", label: "July" },
+  { value: "8", label: "August" },
+  { value: "9", label: "September" },
+  { value: "10", label: "October" },
+  { value: "11", label: "November" },
+  { value: "12", label: "December" },
 ];
 
 export default function FilterBar({
@@ -67,17 +67,20 @@ export default function FilterBar({
     theme,
   } = useAppStore();
 
-  const isDark = theme === 'dark';
+  const isDark = theme === "dark";
   const styles = getSelectStyles(isDark);
 
   const rangeOptions = allowedRangePresets
-    ? RANGE_OPTIONS.filter((option) => allowedRangePresets.includes(option.value as RangePreset))
+    ? RANGE_OPTIONS.filter((option) =>
+        allowedRangePresets.includes(option.value as RangePreset),
+      )
     : RANGE_OPTIONS;
 
-  const currentRangeOption = rangeOptions.find((o) => o.value === rangePreset) || rangeOptions[0];
+  const currentRangeOption =
+    rangeOptions.find((o) => o.value === rangePreset) || rangeOptions[0];
 
   const truckSelectOptions = [
-    { value: '', label: 'All Trucks' },
+    { value: "", label: "All Trucks" },
     ...truckOptions.map((t) => ({ value: t._id, label: t.truckName })),
   ];
 
@@ -103,15 +106,15 @@ export default function FilterBar({
     const [start, end] = dates;
     setStartDate(
       start
-        ? `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`
-        : '',
+        ? `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, "0")}-${String(start.getDate()).padStart(2, "0")}`
+        : "",
     );
     setEndDate(
       end
-        ? `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}-${String(end.getDate()).padStart(2, '0')}`
-        : '',
+        ? `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, "0")}-${String(end.getDate()).padStart(2, "0")}`
+        : "",
     );
-    setRangePreset('CUSTOM');
+    setRangePreset("CUSTOM");
     if (start && end) {
       setTimeout(() => {
         fetchDashboard();
@@ -121,12 +124,12 @@ export default function FilterBar({
   };
 
   const handleReset = () => {
-    const resetPreset = rangeOptions.some((option) => option.value === 'ALL')
-      ? 'ALL'
-      : rangeOptions[0]?.value || 'ALL';
+    const resetPreset = rangeOptions.some((option) => option.value === "ALL")
+      ? "ALL"
+      : rangeOptions[0]?.value || "ALL";
     setRangePreset(resetPreset as RangePreset);
-    setStartDate('');
-    setEndDate('');
+    setStartDate("");
+    setEndDate("");
     if (!showMonth) {
       setTimeout(() => {
         fetchDashboard();
@@ -144,11 +147,11 @@ export default function FilterBar({
   const parsedEnd = endDate ? new Date(`${endDate}T00:00:00`) : null;
 
   return (
-    <div className="glass-card rounded-[22px] border border-slate-200/90 dark:border-slate-700/90 shadow-sm p-4 mb-3.5 relative z-20">
+    <div className="border rounded-lg p-4 mb-4 bg-background">
       <div className="flex flex-wrap gap-3 items-end">
         {showRange && (
           <div className="min-w-[180px] flex-1 max-w-[220px]">
-            <label className="text-[0.72rem] font-bold tracking-wider uppercase text-slate-500 dark:text-slate-400 mb-1.5 block">
+            <label className="text-[0.72rem] font-bold tracking-wider uppercase text-muted-foreground mb-1.5 block">
               Date Range
             </label>
             <Select
@@ -171,7 +174,7 @@ export default function FilterBar({
 
         {showTruck && (
           <div className="min-w-[180px] flex-1 max-w-[220px]">
-            <label className="text-[0.72rem] font-bold tracking-wider uppercase text-slate-500 dark:text-slate-400 mb-1.5 block">
+            <label className="text-[0.72rem] font-bold tracking-wider uppercase text-muted-foreground mb-1.5 block">
               Truck
             </label>
             <Select
@@ -195,7 +198,7 @@ export default function FilterBar({
 
         {showRange && (
           <div className="min-w-[260px] flex-1 max-w-[320px]">
-            <label className="text-[0.72rem] font-bold tracking-wider uppercase text-slate-500 dark:text-slate-400 mb-1.5 flex items-center gap-1">
+            <label className="text-[0.72rem] font-bold tracking-wider uppercase text-muted-foreground mb-1.5 flex items-center gap-1">
               <CalendarDays size={12} />
               Period
             </label>
@@ -206,7 +209,7 @@ export default function FilterBar({
               onChange={handleDateRangeChange}
               dateFormat="MMM d, yyyy"
               placeholderText="Select date range..."
-              className="w-full min-h-[44px] rounded-[14px] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 px-3.5 text-sm focus:border-blue-400 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 outline-none transition-colors cursor-pointer"
+              className="w-full h-[44px] rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:border-ring cursor-pointer"
               wrapperClassName="w-full"
               isClearable
               showPopperArrow={false}
@@ -217,12 +220,12 @@ export default function FilterBar({
 
         {showMonth && (
           <div className="min-w-[180px] flex-1 max-w-[220px]">
-            <label className="text-[0.72rem] font-bold tracking-wider uppercase text-slate-500 dark:text-slate-400 mb-1.5 block">
+            <label className="text-[0.72rem] font-bold tracking-wider uppercase text-muted-foreground mb-1.5 block">
               Range
             </label>
             <Select
               options={MONTHS}
-              value={MONTHS.find((m) => m.value === (monthValue || 'ALL'))}
+              value={MONTHS.find((m) => m.value === (monthValue || "ALL"))}
               onChange={handleMonthChange}
               styles={{
                 ...styles,
@@ -241,7 +244,7 @@ export default function FilterBar({
         {showRange && (
           <button
             onClick={handleReset}
-            className="min-h-[44px] px-4 rounded-[14px] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-semibold text-sm hover:bg-blue-50 dark:hover:bg-blue-500/10 hover:border-blue-200 dark:hover:border-blue-500/30 transition-colors flex items-center gap-1.5"
+            className="h-[44px] px-4 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors flex items-center gap-2"
           >
             <RotateCcw size={16} />
             Reset

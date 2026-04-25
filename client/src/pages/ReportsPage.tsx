@@ -121,21 +121,15 @@ export default function ReportsPage() {
 
   return (
     <div>
-      <div className="glass-card rounded-[28px] border border-slate-200/80 dark:border-slate-700/90 shadow-lg p-5 mb-3.5">
+      <div className="mb-4">
         <div className="flex flex-col md:flex-row justify-between md:items-end gap-3">
           <div>
             <h1 className="text-[1.45rem] font-bold tracking-tight">
               {pageTitle}
             </h1>
-            <p className="text-sm text-slate-500 mt-1">
+            <p className="text-sm text-muted-foreground mt-1">
               Monthly report view using the same table columns.
             </p>
-          </div>
-          <div className="text-right">
-            <div className="text-[0.72rem] font-bold tracking-wider uppercase text-slate-500">
-              Reports view
-            </div>
-            <div className="font-bold text-sm">Monthly filtering</div>
           </div>
         </div>
       </div>
@@ -149,19 +143,19 @@ export default function ReportsPage() {
         actions={
           <button
             onClick={handleDownloadReport}
-            className="min-h-[44px] px-4 rounded-[14px] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-semibold hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors flex items-center gap-1.5"
+            className="h-10 px-4 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors flex items-center gap-2"
           >
             <Download size={16} /> Download Report
           </button>
         }
       />
 
-      <div className="glass-card rounded-[22px] border border-slate-200/90 dark:border-slate-700/90 shadow-sm p-3.5 flex flex-col">
+      <div className="border border-border rounded-lg bg-background p-3.5 flex flex-col">
         <div className="mb-3">
           <h2 className="text-base font-bold tracking-tight">
             MONTHLY REPORTS
           </h2>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-muted-foreground">
             Same columns as the trip table, filtered by month.
           </p>
         </div>

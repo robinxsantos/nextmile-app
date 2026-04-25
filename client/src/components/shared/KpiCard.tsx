@@ -59,10 +59,10 @@ export default function KpiCard({
     delta === null ? "" : delta > 0 ? "+" : delta < 0 ? "-" : "";
 
   return (
-    <div className="relative p-3 sm:p-[18px] min-h-[100px] sm:min-h-[122px] rounded-[18px] sm:rounded-[22px] bg-gradient-to-b from-white to-slate-50/95 dark:from-slate-900 dark:to-slate-800/90 border border-slate-200/90 dark:border-slate-700/90 shadow-sm hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200 flex flex-col justify-between gap-1.5 sm:gap-2.5 kpi-glow">
+    <div className="p-4 rounded-lg border border-border bg-background flex flex-col justify-between gap-2">
       <div className="flex items-start justify-between gap-2 sm:gap-3">
         <div className="min-w-0 flex-1">
-          <div className="text-[0.65rem] sm:text-[0.72rem] text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold mb-1 sm:mb-2 leading-none truncate">
+          <div className="text-[0.65rem] sm:text-[0.72rem] text-muted-foreground uppercase tracking-wider font-semibold mb-1 sm:mb-2 leading-none truncate">
             {label}
           </div>
 
@@ -80,7 +80,7 @@ export default function KpiCard({
 
         <div
           className={cn(
-            "w-8 h-8 sm:w-[42px] sm:h-[42px] rounded-[10px] sm:rounded-[14px] grid place-items-center flex-shrink-0 [&>svg]:w-4 [&>svg]:h-4 sm:[&>svg]:w-[22px] sm:[&>svg]:h-[22px]",
+            "w-8 h-8 sm:w-[42px] sm:h-[42px] w-8 h-8 rounded-md grid place-items-center flex-shrink-0 [&>svg]:w-4 [&>svg]:h-4 sm:[&>svg]:w-[22px] sm:[&>svg]:h-[22px]",
             colorClass,
           )}
         >
@@ -89,7 +89,7 @@ export default function KpiCard({
       </div>
 
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2">
-        <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-tight truncate">
+        <p className="text-xs sm:text-sm text-muted-foreground leading-tight truncate">
           {subtitle}
         </p>
 
@@ -126,7 +126,7 @@ export default function KpiCard({
         )}
 
         {isNeutral && previousValue !== undefined && previousValue > 0 && (
-          <div className="flex items-center gap-0.5 text-[0.65rem] sm:text-[0.68rem] font-semibold text-slate-400 dark:text-slate-500 whitespace-nowrap flex-shrink-0 px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 w-fit">
+          <div className="flex items-center gap-0.5 text-[0.65rem] sm:text-[0.68rem] font-semibold text-muted-foreground whitespace-nowrap flex-shrink-0 px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 w-fit">
             <Minus size={11} />
             <span>0%</span>
           </div>

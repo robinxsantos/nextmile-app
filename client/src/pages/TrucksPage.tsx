@@ -224,28 +224,24 @@ export default function TrucksPage() {
 
   return (
     <div>
-      <div className="glass-card rounded-[28px] border border-white/50 dark:border-slate-700/90 shadow-lg p-5 mb-3.5">
+      <div className="mb-4">
         <div className="flex flex-col md:flex-row justify-between md:items-end gap-3">
           <div>
-            <h1 className="text-[1.45rem] font-bold tracking-tight">Trucks</h1>
-            <p className="text-sm text-slate-500 mt-1">
+            <h1 className="text-[1.45rem] font-bold tracking-tight">
+              Truck Management
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">
               Manage fleet records and dedicated data sheets per truck.
             </p>
-          </div>
-          <div className="text-right">
-            <div className="text-[0.72rem] font-bold tracking-wider uppercase text-slate-500">
-              Fleet module
-            </div>
-            <div className="font-bold text-sm">Connected to TRUCKS</div>
           </div>
         </div>
       </div>
 
-      <div className="glass-card rounded-[22px] border border-slate-200/90 dark:border-slate-700/90 shadow-sm p-3.5 mb-3.5">
+      <div className="border rounded-lg bg-background p-3.5 mb-3.5">
         <div className="flex justify-end">
           <button
             onClick={openAdd}
-            className="min-h-[44px] px-4 rounded-[14px] bg-gradient-to-br from-blue-600 to-blue-700 text-white text-sm font-semibold shadow-[0_10px_20px_rgba(37,99,235,0.18)] hover:from-blue-700 hover:to-blue-800 transition-all flex items-center gap-1.5"
+            className="h-10 px-4 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition flex items-center gap-2"
           >
             <Plus size={18} /> Add Truck
           </button>
@@ -258,45 +254,45 @@ export default function TrucksPage() {
           value={truckStats.total.toLocaleString()}
           subtitle="Registered fleet entries"
           icon={<Truck size={22} />}
-          colorClass="bg-amber-500/10 text-amber-500"
+          colorClass="bg-muted text-foreground"
         />
         <KpiCard
           label="Active"
           value={truckStats.active.toLocaleString()}
           subtitle="Available and active"
           icon={<CheckCircle2 size={22} />}
-          colorClass="bg-blue-600/10 text-blue-600"
+          colorClass="bg-muted text-foreground"
         />
         <KpiCard
           label="Inactive"
           value={truckStats.inactive.toLocaleString()}
           subtitle="Paused or archived"
           icon={<ArrowUpDown size={22} />}
-          colorClass="bg-pink-500/10 text-pink-500"
+          colorClass="bg-muted text-foreground"
         />
         <KpiCard
           label="Data Sheets"
           value={truckStats.sheets.toLocaleString()}
           subtitle="Auto-created truck sheets"
           icon={<BarChart3 size={22} />}
-          colorClass="bg-cyan-500/10 text-cyan-500"
+          colorClass="bg-muted text-foreground"
         />
       </div>
 
-      <div className="glass-card rounded-[22px] border border-slate-200/90 dark:border-slate-700/90 shadow-sm p-3.5 overflow-hidden">
+      <div className="border rounded-lg bg-background p-3.5 overflow-hidden">
         <div className="mb-3">
           <h2 className="text-base font-bold tracking-tight">Fleet Records</h2>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-muted-foreground">
             Truck registry and linked data.
           </p>
         </div>
 
         {/* Desktop Table */}
-        <div className="rounded-[18px] overflow-auto border border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-900/95 hidden md:block">
+        <div className="rounded-[18px] overflow-auto border border-slate-200/60 dark:border-slate-700/60 bg-background hidden md:block">
           <table className="w-full border-separate border-spacing-0">
             <thead>
               <tr>
-                <th className="sticky top-0 left-0 z-20 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-slate-600 dark:text-slate-300 px-3 py-3 whitespace-nowrap shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                <th className="sticky top-0 left-0 z-20 bg-muted/40 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-muted-foreground px-3 py-3 whitespace-nowrap shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
                   Truck Name
                 </th>
                 {[
@@ -311,12 +307,12 @@ export default function TrucksPage() {
                 ].map((h) => (
                   <th
                     key={h}
-                    className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-slate-600 dark:text-slate-300 px-3 py-3 whitespace-nowrap"
+                    className="sticky top-0 z-10 bg-muted/40 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-muted-foreground px-3 py-3 whitespace-nowrap"
                   >
                     {h}
                   </th>
                 ))}
-                <th className="sticky top-0 right-0 z-20 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-slate-600 dark:text-slate-300 px-3 py-3 whitespace-nowrap shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                <th className="sticky top-0 right-0 z-20 bg-muted/40 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-muted-foreground px-3 py-3 whitespace-nowrap shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)]">
                   Actions
                 </th>
               </tr>
@@ -332,10 +328,7 @@ export default function TrucksPage() {
                 truckRows.map((r) => {
                   const client = r.client ?? r.notes ?? "";
                   return (
-                    <tr
-                      key={r._id}
-                      className="hover:bg-blue-50/50 dark:hover:bg-slate-800/50"
-                    >
+                    <tr key={r._id} className="hover:bg-muted/50">
                       <td className="sticky left-0 z-[5] bg-white dark:bg-slate-900 text-center text-sm px-3 py-2.5 border-b border-slate-100 dark:border-slate-800 font-bold shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
                         {r.truckName}
                       </td>
@@ -382,7 +375,7 @@ export default function TrucksPage() {
                         <div className="flex items-center justify-center gap-1">
                           <button
                             onClick={() => openEdit(r)}
-                            className="w-[34px] h-[34px] rounded-xl inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-blue-500/10 hover:border-blue-500/20 hover:text-blue-600 transition-all"
+                            className="w-[34px] h-[34px] rounded-xl inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-muted hover:text-foreground transition-all"
                           >
                             <Pencil size={14} />
                           </button>
@@ -414,7 +407,7 @@ export default function TrucksPage() {
               return (
                 <div
                   key={r._id}
-                  className="glass-card rounded-xl border border-slate-200 dark:border-slate-700 p-4"
+                  className="border rounded-md bg-background p-4"
                 >
                   <div className="flex justify-between items-start mb-3">
                     <div>
@@ -513,7 +506,7 @@ export default function TrucksPage() {
       >
         <div className="grid grid-cols-2 gap-4">
           <div className="col-span-2">
-            <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1 block">
+            <label className="text-xs font-semibold text-muted-foreground mb-1 block">
               Truck Name
             </label>
             <input
@@ -526,7 +519,7 @@ export default function TrucksPage() {
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 block">
+            <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
               Status
             </label>
             <Select
@@ -543,7 +536,7 @@ export default function TrucksPage() {
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 block">
+            <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
               Cutoff Type
             </label>
             <Select
@@ -581,7 +574,7 @@ export default function TrucksPage() {
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1 block">
+            <label className="text-xs font-semibold text-muted-foreground mb-1 block">
               Client
             </label>
             <input
@@ -594,7 +587,7 @@ export default function TrucksPage() {
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1 block">
+            <label className="text-xs font-semibold text-muted-foreground mb-1 block">
               Last Change Oil
             </label>
             <div className="relative">
@@ -622,7 +615,7 @@ export default function TrucksPage() {
 
           {form.cutoffType === "weekly" ? (
             <div className="col-span-2">
-              <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2 block">
+              <label className="text-xs font-semibold text-muted-foreground mb-2 block">
                 Cutoff Settings
               </label>
               <div className="grid grid-cols-2 gap-3">
@@ -696,7 +689,7 @@ export default function TrucksPage() {
             </div>
           ) : (
             <div className="col-span-2">
-              <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2 block">
+              <label className="text-xs font-semibold text-muted-foreground mb-2 block">
                 Monthly Cutoff Settings
               </label>
               <div className="grid grid-cols-2 gap-3">

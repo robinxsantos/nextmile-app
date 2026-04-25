@@ -21,6 +21,14 @@ import {
 } from "lucide-react";
 import EmptyState from "./EmptyState";
 import { Skeleton, SkeletonTableRow } from "./Skeleton";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
 
 type ColumnKey =
   | "truck"
@@ -219,7 +227,7 @@ function EditableCell({
   return (
     <span
       onDoubleClick={startEdit}
-      className="cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded px-1 py-0.5 -mx-1 transition-colors"
+      className="cursor-pointer hover:bg-muted rounded px-1 py-0.5 -mx-1 transition-colors"
       title="Double-click to edit"
     >
       {display}
@@ -249,14 +257,14 @@ function SortHeader({
   return (
     <button
       onClick={() => onSort(fieldKey)}
-      className="inline-flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors group"
+      className="inline-flex items-center gap-1 hover:text-foreground transition-colors group"
     >
       {label}
       {isActive ? (
         sortDirection === "asc" ? (
-          <ArrowUp size={12} className="text-blue-500" />
+          <ArrowUp size={12} className="text-foreground" />
         ) : (
-          <ArrowDown size={12} className="text-blue-500" />
+          <ArrowDown size={12} className="text-foreground" />
         )
       ) : (
         <ArrowUpDown
@@ -310,7 +318,7 @@ function TripCard({
   return (
     <div
       className={cn(
-        "glass-card rounded-xl border border-slate-200 dark:border-slate-700 p-4",
+        "glass-card rounded-md border border-slate-200 dark:border-slate-700 p-4",
         selectable && selected && "ring-2 ring-blue-500/30 border-blue-400",
       )}
     >
@@ -321,7 +329,7 @@ function TripCard({
               type="checkbox"
               checked={selected}
               onChange={() => onSelectToggle(r._id)}
-              className="w-4 h-4 mt-0.5 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500/20 cursor-pointer"
+              className="w-4 h-4 mt-0.5 rounded border-border text-blue-600 focus:ring-blue-500/20 cursor-pointer"
             />
           )}
           <div>
@@ -431,10 +439,10 @@ function TripCard({
             <button
               onClick={() => onTogglePaid(r._id)}
               className={cn(
-                "flex-1 h-9 rounded-xl inline-flex items-center justify-center gap-1.5 border text-xs font-semibold transition-all",
+                "flex-1 h-9 rounded-md inline-flex items-center justify-center gap-1.5 border text-xs font-semibold transition-all",
                 r.paid
                   ? "bg-green-500/10 border-green-500/25 text-green-500"
-                  : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600",
+                  : "bg-background border-slate-200 dark:border-slate-700 text-slate-600",
               )}
             >
               <Check size={14} /> {r.paid ? "Paid" : "Unpaid"}
@@ -443,7 +451,7 @@ function TripCard({
           {onDuplicate && (
             <button
               onClick={() => onDuplicate(r)}
-              className="h-9 w-9 rounded-xl inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-purple-500/10 hover:text-purple-600 transition-all"
+              className="h-9 w-9 rounded-md inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-background text-slate-600 hover:bg-purple-500/10 hover:text-purple-600 transition-all"
               title="Duplicate"
             >
               <Copy size={14} />
@@ -452,7 +460,7 @@ function TripCard({
           {onEdit && (
             <button
               onClick={() => onEdit(r)}
-              className="h-9 w-9 rounded-xl inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-blue-500/10 hover:text-blue-600 transition-all"
+              className="h-9 w-9 rounded-md inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-background text-slate-600 hover:bg-muted hover:text-blue-600 transition-all"
               title="Edit"
             >
               <Pencil size={14} />
@@ -461,7 +469,7 @@ function TripCard({
           {onDelete && (
             <button
               onClick={() => onDelete(r)}
-              className="h-9 w-9 rounded-xl inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-red-500/10 hover:text-red-500 transition-all"
+              className="h-9 w-9 rounded-md inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-background text-slate-600 hover:bg-red-500/10 hover:text-red-500 transition-all"
               title="Delete"
             >
               <Trash2 size={14} />
@@ -800,17 +808,17 @@ export default function TripTable({
   };
 
   return (
-    <div className="rounded-[18px] border border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-900 flex flex-col">
+    <div className="border rounded-lg bg-background">
       <table
         className={cn(
-          "w-full trip-table hidden md:table border-separate border-spacing-0",
+          "w-full text-sm hidden md:table",
           !showActions && "report-table",
         )}
       >
         <thead>
           <tr>
             {selectable && (
-              <th className="sticky top-0 left-0 z-20 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-center px-2.5 py-3 w-[40px] min-w-[40px] max-w-[40px]">
+              <th className="sticky top-0 left-0 z-20 bg-muted/40 border-b border-slate-200 dark:border-slate-700 text-center px-2.5 py-3 w-[40px] min-w-[40px] max-w-[40px]">
                 <input
                   type="checkbox"
                   checked={allSelected}
@@ -818,7 +826,7 @@ export default function TripTable({
                     if (el) el.indeterminate = someSelected && !allSelected;
                   }}
                   onChange={handleSelectAll}
-                  className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500/20 cursor-pointer"
+                  className="w-4 h-4 rounded border-border text-blue-600 focus:ring-blue-500/20 cursor-pointer"
                 />
               </th>
             )}
@@ -826,13 +834,9 @@ export default function TripTable({
               <th
                 key={col.key}
                 className={cn(
-                  "sticky top-0 z-10 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-slate-600 dark:text-slate-300 px-2.5 py-3 whitespace-nowrap",
-                  idx === 0 &&
-                    !selectable &&
-                    "left-0 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]",
-                  idx === 0 &&
-                    selectable &&
-                    "left-[40px] z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]",
+                  "sticky top-0 z-10 bg-muted/40 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-muted-foreground px-2.5 py-3 whitespace-nowrap",
+                  idx === 0 && !selectable && "left-0 z-20",
+                  idx === 0 && selectable && "left-[40px] z-20",
                 )}
               >
                 {sortable ? (
@@ -849,7 +853,7 @@ export default function TripTable({
               </th>
             ))}
             {showActions && (
-              <th className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-slate-600 dark:text-slate-300 px-2.5 py-3 whitespace-nowrap">
+              <th className="sticky top-0 z-10 bg-muted/40 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-muted-foreground px-2.5 py-3 whitespace-nowrap">
                 Action
               </th>
             )}
@@ -878,23 +882,20 @@ export default function TripTable({
                 <tr
                   key={r._id}
                   className={cn(
-                    "hover:bg-blue-50/50 dark:hover:bg-slate-800/50",
-                    r.status === "Holiday" &&
-                      "bg-amber-50/50 dark:bg-amber-500/5",
+                    "hover:bg-muted/50",
+                    r.status === "Holiday" && "bg-muted/30",
                     r.status === "Day Off" &&
                       "bg-slate-50/80 dark:bg-slate-800/30 text-slate-400",
-                    selectable &&
-                      selectedIds.includes(r._id) &&
-                      "bg-blue-50/70 dark:bg-blue-500/10",
+                    selectable && selectedIds.includes(r._id) && "bg-muted",
                   )}
                 >
                   {selectable && (
-                    <td className="sticky left-0 z-[5] bg-white dark:bg-slate-900 text-center px-2.5 py-2.5 border-b border-slate-100 dark:border-slate-800 w-[40px] min-w-[40px] max-w-[40px]">
+                    <td className="sticky left-0 z-[5] bg-background text-center px-2.5 py-2.5 border-b border-border w-[40px] min-w-[40px] max-w-[40px]">
                       <input
                         type="checkbox"
                         checked={selectedIds.includes(r._id)}
                         onChange={() => handleSelectRow(r._id)}
-                        className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500/20 cursor-pointer"
+                        className="w-4 h-4 rounded border-border text-blue-600 focus:ring-blue-500/20 cursor-pointer"
                       />
                     </td>
                   )}
@@ -902,13 +903,13 @@ export default function TripTable({
                     <td
                       key={col.key}
                       className={cn(
-                        "text-center text-xs px-2.5 py-2.5 border-b border-slate-100 dark:border-slate-800",
+                        "text-center text-xs px-2.5 py-2.5 border-b border-border",
                         idx === 0 &&
                           !selectable &&
-                          "sticky left-0 z-[5] bg-white dark:bg-slate-900 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]",
+                          "sticky left-0 z-[5] bg-background",
                         idx === 0 &&
                           selectable &&
-                          "sticky left-[40px] z-[5] bg-white dark:bg-slate-900 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]",
+                          "sticky left-[40px] z-[5] bg-background",
                         col.className,
                       )}
                     >
@@ -916,16 +917,16 @@ export default function TripTable({
                     </td>
                   ))}
                   {showActions && (
-                    <td className="text-center text-xs px-2.5 py-2.5 border-b border-slate-100 dark:border-slate-800">
+                    <td className="text-center text-xs px-2.5 py-2.5 border-b border-border">
                       <div className="flex items-center justify-center gap-1">
                         {onTogglePaid && (
                           <button
                             onClick={() => onTogglePaid(r._id)}
                             className={cn(
-                              "w-[34px] h-[34px] rounded-xl inline-flex items-center justify-center border transition-all",
+                              "w-[34px] h-[34px] rounded-md inline-flex items-center justify-center border transition-all",
                               r.paid
                                 ? "bg-green-500/10 border-green-500/25 text-green-500 hover:bg-red-500/10 hover:border-red-500/25 hover:text-red-500"
-                                : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600 hover:bg-green-500/10 hover:border-green-500/25 hover:text-green-500",
+                                : "bg-background border-slate-200 dark:border-slate-700 text-slate-600 hover:bg-green-500/10 hover:border-green-500/25 hover:text-green-500",
                             )}
                             title="Toggle paid"
                           >
@@ -935,7 +936,7 @@ export default function TripTable({
                         {onDuplicate && (
                           <button
                             onClick={() => onDuplicate(r)}
-                            className="w-[34px] h-[34px] rounded-xl inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-purple-500/10 hover:border-purple-500/20 hover:text-purple-600 transition-all"
+                            className="w-[34px] h-[34px] rounded-md inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-background text-slate-600 hover:bg-purple-500/10 hover:border-purple-500/20 hover:text-purple-600 transition-all"
                             title="Duplicate"
                           >
                             <Copy size={14} />
@@ -944,7 +945,7 @@ export default function TripTable({
                         {onEdit && (!canEditRow || canEditRow(r)) && (
                           <button
                             onClick={() => onEdit(r)}
-                            className="w-[34px] h-[34px] rounded-xl inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-blue-500/10 hover:border-blue-500/20 hover:text-blue-600 transition-all"
+                            className="w-[34px] h-[34px] rounded-md inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 hover:bg-muted text-slate-600 hover:bg-blue-500/10 hover:border-blue-500/20 hover:text-blue-600 transition-all"
                             title="Edit"
                           >
                             <Pencil size={14} />
@@ -953,7 +954,7 @@ export default function TripTable({
                         {onDelete && (!canDeleteRow || canDeleteRow(r)) && (
                           <button
                             onClick={() => onDelete(r)}
-                            className="w-[34px] h-[34px] rounded-xl inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-500 transition-all"
+                            className="w-[34px] h-[34px] rounded-md inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-background text-slate-600 hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-500 transition-all"
                             title="Delete"
                           >
                             <Trash2 size={14} />
@@ -970,7 +971,7 @@ export default function TripTable({
         <tfoot>
           <tr>
             {selectable && (
-              <td className="sticky bottom-0 z-30 bg-slate-100 dark:bg-slate-800 border-t-2 border-slate-300 dark:border-slate-600 px-2.5 py-3" />
+              <td className="sticky bottom-0 z-30 bg-muted border-t-2 border-border px-2.5 py-3" />
             )}
 
             {columns.map((col, idx) => {
@@ -1002,7 +1003,7 @@ export default function TripTable({
                 <td
                   key={`total-${col.key}`}
                   className={cn(
-                    "sticky bottom-0 z-30 bg-slate-100 dark:bg-slate-800 border-t-2 border-slate-300 dark:border-slate-600 text-center text-xs px-2.5 py-3 font-bold",
+                    "sticky bottom-0 z-30 bg-muted border-t-2 border-border text-center text-xs px-2.5 py-3 font-bold",
                     idx === 0 && !selectable && "left-0 z-[31]",
                     idx === 0 && selectable && "left-[40px] z-[31]",
                     col.key === "netIncome" &&
@@ -1018,7 +1019,7 @@ export default function TripTable({
             })}
 
             {showActions && (
-              <td className="sticky bottom-0 z-30 bg-slate-100 dark:bg-slate-800 border-t-2 border-slate-300 dark:border-slate-600 px-2.5 py-3" />
+              <td className="sticky bottom-0 z-30 bg-muted border-t-2 border-border px-2.5 py-3" />
             )}
           </tr>
         </tfoot>
@@ -1034,9 +1035,9 @@ export default function TripTable({
                 if (el) el.indeterminate = someSelected && !allSelected;
               }}
               onChange={handleSelectAll}
-              className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500/20 cursor-pointer"
+              className="w-4 h-4 rounded border-border text-blue-600 focus:ring-blue-500/20 cursor-pointer"
             />
-            <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+            <span className="text-xs font-semibold text-muted-foreground">
               {allSelected ? "Deselect All" : "Select All"}
             </span>
           </div>
@@ -1045,7 +1046,7 @@ export default function TripTable({
           Array.from({ length: 3 }).map((_, i) => (
             <div
               key={`skel-card-${i}`}
-              className="glass-card rounded-xl border border-slate-200 dark:border-slate-700 p-4 animate-pulse"
+              className="glass-card rounded-md border border-slate-200 dark:border-slate-700 p-4 animate-pulse"
             >
               <div className="flex justify-between items-start mb-3">
                 <div>

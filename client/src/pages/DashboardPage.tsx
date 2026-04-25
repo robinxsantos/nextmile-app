@@ -21,6 +21,8 @@ import {
   XCircle,
   Trash2,
   Columns3,
+  TrendingUp,
+  TrendingDown,
 } from "lucide-react";
 import {
   XAxis,
@@ -40,6 +42,8 @@ import { usePagination } from "../hooks/usePagination";
 import ExpenseBreakdownModal from "../components/shared/ExpenseBreakdownModal";
 import { AnimatePresence, motion } from "framer-motion";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 const COLUMN_OPTIONS = [
   ["truck", "Truck"],
@@ -107,7 +111,7 @@ export default function DashboardPage() {
     truck: true,
     week: true,
     date: true,
-    status: true,
+    status: false,
     shipmentNumber: true,
     rate: true,
     trips: true,
@@ -226,6 +230,18 @@ export default function DashboardPage() {
     maximumFractionDigits: 2,
   });
 
+  const getChange = (current: number, previous: number) => {
+    if (!previous) return { percent: 0, isUp: true };
+
+    const diff = current - previous;
+    const percent = (diff / previous) * 100;
+
+    return {
+      percent: Math.abs(percent),
+      isUp: diff >= 0,
+    };
+  };
+
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const {
@@ -278,22 +294,16 @@ export default function DashboardPage() {
         <ErrorState message={error} onRetry={() => fetchDashboard()} />
       )}
 
-      <div className="glass-card rounded-[22px] sm:rounded-[28px] border border-slate-200/80 dark:border-slate-700/90 shadow-lg p-3.5 sm:p-5 mb-3">
+      <div className="mb-4">
         <div className="flex flex-col md:flex-row justify-between md:items-end gap-3">
           <div>
-            <h1 className="text-[1.45rem] font-bold tracking-tight leading-tight">
+            <h1 className="text-2xl font-semibold tracking-tight">
               {pageTitle}
             </h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+            <p className="text-sm text-muted-foreground mt-1">
               Track revenue, costs, and payout summary across selected periods
               and trucks.
             </p>
-          </div>
-          <div className="text-right">
-            <div className="text-[0.72rem] font-bold tracking-wider uppercase text-slate-500 dark:text-slate-400">
-              Last updated
-            </div>
-            <div className="font-bold text-sm">Live data from database</div>
           </div>
         </div>
       </div>
@@ -304,143 +314,369 @@ export default function DashboardPage() {
         actions={
           <button
             onClick={handleAddTrip}
-            className="min-h-[44px] px-4 rounded-[14px] bg-gradient-to-br from-blue-600 to-blue-700 text-white text-sm font-semibold shadow-[0_10px_20px_rgba(37,99,235,0.18)] hover:from-blue-700 hover:to-blue-800 transition-all flex items-center gap-1.5"
+            className="h-10 px-4 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition flex items-center gap-2"
           >
-            <Plus size={18} /> Add Trip
+            <Plus className="h-4 w-4" />
+            Add Trip
           </button>
         }
       />
 
-      <div className="grid grid-cols-1 min-[480px]:grid-cols-2 xl:grid-cols-4 gap-2.5 sm:gap-3 mb-3">
-        <KpiCard
-          label={`${kpiPrefix} Gross`}
-          value={kpis.gross}
-          currentValue={kpis.gross}
-          previousValue={previousKpis.gross}
-          subtitle="Total gross income"
-          icon={<DollarSign size={22} />}
-          colorClass="bg-blue-600/10 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400"
-        />
-        <KpiCard
-          label={`${kpiPrefix} Net`}
-          value={kpis.net}
-          currentValue={kpis.net}
-          previousValue={previousKpis.net}
-          subtitle="After salary and expenses"
-          icon={<CheckCircle2 size={22} />}
-          colorClass="bg-teal-500/10 text-teal-500 dark:bg-teal-500/15 dark:text-teal-400"
-        />
-        <KpiCard
-          label={`${kpiPrefix} Payable`}
-          value={kpis.payable}
-          currentValue={kpis.payable}
-          previousValue={previousKpis.payable}
-          subtitle="Crew payable total"
-          icon={<BarChart3 size={22} />}
-          colorClass="bg-cyan-500/10 text-cyan-500 dark:bg-cyan-500/15 dark:text-cyan-400"
-          invertTrend
-        />
-        <KpiCard
-          label={`${kpiPrefix} Cash Outflow`}
-          value={kpis.cashOutflow}
-          currentValue={kpis.cashOutflow}
-          previousValue={previousKpis.cashOutflow}
-          subtitle="Actual cash paid to crew"
-          icon={<ArrowUpDown size={22} />}
-          colorClass="bg-pink-500/10 text-pink-500 dark:bg-pink-500/15 dark:text-pink-400"
-          invertTrend
-        />
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 mb-4">
+        {/* GROSS */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm text-muted-foreground">
+              {kpiPrefix} Gross
+            </CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold">
+              {moneyFormat.format(kpis.gross)}
+            </div>
+
+            {(() => {
+              const current = kpis.gross;
+              const previous = previousKpis.gross;
+
+              if (!previous || previous === 0) return null;
+
+              const diff = current - previous;
+              const percent = (diff / previous) * 100;
+              const isUp = diff >= 0;
+
+              return (
+                <div className="flex items-center gap-2 mt-1">
+                  <span
+                    className={cn(
+                      "inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium",
+                      isUp
+                        ? "bg-green-500/10 text-green-600"
+                        : "bg-red-500/10 text-red-500",
+                    )}
+                  >
+                    {isUp ? (
+                      <TrendingUp className="h-3 w-3" />
+                    ) : (
+                      <TrendingDown className="h-3 w-3" />
+                    )}
+                    {isUp ? "+" : "-"}
+                    {Math.abs(percent).toFixed(1)}%
+                    <span className="opacity-70">
+                      ({isUp ? "+" : "-"}
+                      {moneyFormat.format(Math.abs(diff))})
+                    </span>
+                  </span>
+
+                  <span className="text-[11px] text-muted-foreground">
+                    vs last period
+                  </span>
+                </div>
+              );
+            })()}
+          </CardContent>
+        </Card>
+
+        {/* NET */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm text-muted-foreground">
+              {kpiPrefix} Net
+            </CardTitle>
+            <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold">
+              {moneyFormat.format(kpis.net)}
+            </div>
+
+            {(() => {
+              const current = kpis.net;
+              const previous = previousKpis.net;
+
+              if (!previous || previous === 0) return null;
+
+              const diff = current - previous;
+              const percent = (diff / previous) * 100;
+              const isUp = diff >= 0;
+
+              return (
+                <div className="flex items-center gap-2 mt-1">
+                  <span
+                    className={cn(
+                      "inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium",
+                      isUp
+                        ? "bg-green-500/10 text-green-600"
+                        : "bg-red-500/10 text-red-500",
+                    )}
+                  >
+                    {isUp ? (
+                      <TrendingUp className="h-3 w-3" />
+                    ) : (
+                      <TrendingDown className="h-3 w-3" />
+                    )}
+                    {isUp ? "+" : "-"}
+                    {Math.abs(percent).toFixed(1)}%
+                    <span className="opacity-70">
+                      ({isUp ? "+" : "-"}
+                      {moneyFormat.format(Math.abs(diff))})
+                    </span>
+                  </span>
+
+                  <span className="text-[11px] text-muted-foreground">
+                    vs last period
+                  </span>
+                </div>
+              );
+            })()}
+          </CardContent>
+        </Card>
+
+        {/* PAYABLE */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm text-muted-foreground">
+              {kpiPrefix} Payable
+            </CardTitle>
+            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold">
+              {moneyFormat.format(kpis.payable)}
+            </div>
+
+            {(() => {
+              const current = kpis.payable;
+              const previous = previousKpis.payable;
+
+              if (!previous || previous === 0) return null;
+
+              const diff = current - previous;
+              const percent = (diff / previous) * 100;
+              const isUp = diff >= 0;
+
+              return (
+                <div className="flex items-center gap-2 mt-1">
+                  <span
+                    className={cn(
+                      "inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium",
+                      isUp
+                        ? "bg-green-500/10 text-green-600"
+                        : "bg-red-500/10 text-red-500",
+                    )}
+                  >
+                    {isUp ? (
+                      <TrendingUp className="h-3 w-3" />
+                    ) : (
+                      <TrendingDown className="h-3 w-3" />
+                    )}
+                    {isUp ? "+" : "-"}
+                    {Math.abs(percent).toFixed(1)}%
+                    <span className="opacity-70">
+                      ({isUp ? "+" : "-"}
+                      {moneyFormat.format(Math.abs(diff))})
+                    </span>
+                  </span>
+
+                  <span className="text-[11px] text-muted-foreground">
+                    vs last period
+                  </span>
+                </div>
+              );
+            })()}
+          </CardContent>
+        </Card>
+
+        {/* CASH OUTFLOW */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm text-muted-foreground">
+              {kpiPrefix} Cash Outflow
+            </CardTitle>
+            <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+
+          <CardContent>
+            <div className="text-3xl font-bold">
+              {moneyFormat.format(kpis.cashOutflow)}
+            </div>
+
+            {(() => {
+              const current = kpis.cashOutflow;
+              const previous = previousKpis.cashOutflow;
+
+              if (!previous || previous === 0) return null;
+
+              const diff = current - previous;
+              const percent = (diff / previous) * 100;
+
+              // ✅ SIGN = based on actual math
+              const sign = diff > 0 ? "+" : "-";
+
+              // ✅ COLOR LOGIC (INVERTED for expenses)
+              const isGood = diff <= 0;
+
+              return (
+                <div className="flex items-center gap-2 mt-1">
+                  <span
+                    className={cn(
+                      "inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium",
+                      isGood
+                        ? "bg-green-500/10 text-green-600"
+                        : "bg-red-500/10 text-red-500",
+                    )}
+                  >
+                    {diff > 0 ? (
+                      <TrendingUp className="h-3 w-3" />
+                    ) : (
+                      <TrendingDown className="h-3 w-3" />
+                    )}
+                    {sign}
+                    {Math.abs(percent).toFixed(1)}%
+                    <span className="opacity-70">
+                      ({sign}
+                      {moneyFormat.format(Math.abs(diff))})
+                    </span>
+                  </span>
+
+                  <span className="text-[11px] text-muted-foreground">
+                    vs last period
+                  </span>
+                </div>
+              );
+            })()}
+          </CardContent>
+        </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-3">
-        <div className="glass-card rounded-[22px] border border-slate-200/90 dark:border-slate-700/90 shadow-sm p-4 hover:-translate-y-0.5 hover:shadow-lg transition-all">
-          <div className="flex items-center justify-between mb-3">
-            <span className="font-semibold text-sm tracking-tight">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+        {/* AREA CHART */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">
               Monthly Gross vs Net Income
-            </span>
-            <span className="text-xs text-slate-500 font-semibold">Trend</span>
-          </div>
-          <div className="h-[260px]">
+            </CardTitle>
+            <span className="text-xs text-muted-foreground">Trend</span>
+          </CardHeader>
+
+          <CardContent className="h-[260px]">
             <ResponsiveContainer width="100%" height={260}>
               <AreaChart data={chartData}>
-                <defs>
-                  <linearGradient id="grossGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#2563eb" stopOpacity={0.18} />
-                    <stop offset="100%" stopColor="#2563eb" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="netGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#14b8a6" stopOpacity={0.18} />
-                    <stop offset="100%" stopColor="#14b8a6" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="label" fontSize={12} stroke="#94a3b8" />
-                <YAxis fontSize={12} stroke="#94a3b8" />
+                <CartesianGrid
+                  stroke="hsl(var(--border))"
+                  strokeDasharray="3 3"
+                />
+
+                <XAxis
+                  dataKey="label"
+                  fontSize={12}
+                  stroke="#9ca3af"
+                  tick={{ fill: "#9ca3af" }}
+                />
+
+                <YAxis
+                  fontSize={12}
+                  stroke="#9ca3af"
+                  tick={{ fill: "#9ca3af" }}
+                />
+
                 <Tooltip
                   contentStyle={{
-                    background: "#111827",
-                    border: "none",
-                    borderRadius: 12,
-                    color: "#fff",
-                    fontSize: 13,
+                    background: "white",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: 8,
+                    fontSize: 12,
                   }}
                   formatter={(value: unknown, name: string) => {
                     if (typeof value !== "number") return [value ?? "", name];
+
                     const label =
                       name === "gross"
                         ? "Gross Income"
                         : name === "net"
                           ? "Net Income"
                           : name;
+
                     return [moneyFormat.format(value), label];
                   }}
                 />
-                <Legend />
+
+                <Legend
+                  wrapperStyle={{
+                    color: "hsl(var(--foreground))",
+                    fontSize: "12px",
+                  }}
+                />
+
                 <Area
-                  type="monotone"
+                  type="linear"
                   dataKey="gross"
                   name="Gross Income"
                   stroke="#2563eb"
-                  strokeWidth={2.5}
-                  fill="url(#grossGrad)"
+                  strokeWidth={3}
+                  fill="#2563eb22"
                   dot={{ r: 3 }}
                   activeDot={{ r: 6 }}
+                  connectNulls
+                  isAnimationActive
+                  animationDuration={800}
+                  animationEasing="ease-out"
                 />
+
                 <Area
-                  type="monotone"
+                  type="linear"
                   dataKey="net"
                   name="Net Income"
                   stroke="#14b8a6"
-                  strokeWidth={2.5}
-                  fill="url(#netGrad)"
+                  strokeWidth={3}
+                  fill="#14b8a622"
                   dot={{ r: 3 }}
                   activeDot={{ r: 6 }}
+                  connectNulls
+                  isAnimationActive
+                  animationDuration={800}
+                  animationEasing="ease-out"
                 />
               </AreaChart>
             </ResponsiveContainer>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
-        <div className="glass-card rounded-[22px] border border-slate-200/90 dark:border-slate-700/90 shadow-sm p-4 hover:-translate-y-0.5 hover:shadow-lg transition-all">
-          <div className="flex items-center justify-between mb-3">
-            <span className="font-semibold text-sm tracking-tight">
-              Monthly Trips
-            </span>
-            <span className="text-xs text-slate-500 font-semibold">Volume</span>
-          </div>
-          <div className="h-[260px]">
+        {/* BAR CHART */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Monthly Trips</CardTitle>
+            <span className="text-xs text-muted-foreground">Volume</span>
+          </CardHeader>
+
+          <CardContent className="h-[260px]">
             <ResponsiveContainer width="100%" height={260}>
               <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="label" fontSize={12} stroke="#94a3b8" />
-                <YAxis fontSize={12} stroke="#94a3b8" />
+                <CartesianGrid
+                  stroke="hsl(var(--border))"
+                  strokeDasharray="3 3"
+                />
+
+                <XAxis
+                  dataKey="label"
+                  fontSize={12}
+                  stroke="#9ca3af"
+                  tick={{ fill: "#9ca3af" }}
+                />
+
+                <YAxis
+                  fontSize={12}
+                  stroke="#9ca3af"
+                  tick={{ fill: "#9ca3af" }}
+                />
+
                 <Tooltip
                   contentStyle={{
-                    background: "#111827",
-                    border: "none",
-                    borderRadius: 12,
-                    color: "#fff",
-                    fontSize: 13,
+                    background: "white",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: 8,
+                    fontSize: 12,
                   }}
                   formatter={(value: unknown) =>
                     typeof value === "number"
@@ -448,23 +684,25 @@ export default function DashboardPage() {
                       : (value ?? "")
                   }
                 />
+
                 <Bar
                   dataKey="trips"
                   name="Trips"
-                  fill="#f59e0b"
-                  radius={[10, 10, 0, 0]}
+                  fill="#6c6050"
+                  radius={6}
+                  activeBar={{ fill: "hsl(var(--foreground))" }}
                 />
               </BarChart>
             </ResponsiveContainer>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
 
-      <div className="glass-card rounded-[22px] border border-slate-200/90 dark:border-slate-700/90 shadow-sm p-3.5 overflow-visible">
+      <div className="border rounded-lg bg-background p-3.5 overflow-visible">
         <div className="flex flex-col gap-3 mb-3">
           <div>
             <h2 className="text-base font-bold tracking-tight">Trip Records</h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
+            <p className="text-sm text-muted-foreground">
               Filter, edit, export, and generate payslips from the selected set.
             </p>
           </div>
@@ -480,18 +718,18 @@ export default function DashboardPage() {
                 placeholder="Search Shipment Number... ( / )"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full min-h-[44px] rounded-[14px] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm pl-9 pr-3.5 focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10 outline-none transition-colors"
+                className="w-full min-h-[44px] rounded-md border border-border bg-background text-sm pl-9 pr-3.5 focus:outline-none focus:border-ring transition-colors"
               />
             </div>
             <button
               onClick={handleExportCsv}
-              className="min-h-[44px] px-3 rounded-[14px] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-semibold hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors flex items-center gap-1.5"
+              className="h-10 px-3 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors flex items-center gap-2"
             >
               <Download size={16} /> CSV
             </button>
             <button
               onClick={handleExportPayslip}
-              className="min-h-[44px] px-3 rounded-[14px] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-semibold hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors flex items-center gap-1.5"
+              className="h-10 px-3 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors flex items-center gap-2"
             >
               <FileText size={16} /> Payslip
             </button>
@@ -501,15 +739,15 @@ export default function DashboardPage() {
                 className={`min-h-[44px] w-[44px] rounded-[14px] border flex items-center justify-center transition-colors
                   ${
                     showColumnsMenu
-                      ? "bg-blue-50 dark:bg-blue-500/10 border-blue-400 text-blue-600"
-                      : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
+                      ? "bg-muted"
+                      : "bg-background hover:bg-muted text-muted-foreground"
                   }`}
                 title="Show / Hide Columns"
               >
                 <Columns3 size={18} />
               </button>
               {showColumnsMenu && (
-                <div className="absolute right-0 mt-2 z-50 w-64 max-h-[320px] overflow-y-auto rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg p-2">
+                <div className="absolute right-0 mt-2 z-50 w-64 max-h-[320px] overflow-y-auto rounded-md border border-border bg-background p-2">
                   <div className="px-2 pb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                     Show Columns
                   </div>
@@ -533,9 +771,7 @@ export default function DashboardPage() {
 
                           <span
                             className={`relative inline-flex h-4 w-7 items-center rounded-full ${
-                              checked
-                                ? "bg-blue-600"
-                                : "bg-slate-300 dark:bg-slate-600"
+                              checked ? "bg-foreground" : "bg-muted"
                             }`}
                           >
                             <span

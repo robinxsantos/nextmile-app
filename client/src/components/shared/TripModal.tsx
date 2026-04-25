@@ -313,7 +313,7 @@ export default function TripModal({
     truckOptions.find((t) => t._id === selectedTruck)?.truckName ||
     "Selected Truck";
   const inputClass =
-    "w-full min-h-[44px] rounded-[14px] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 px-3.5 text-sm focus:border-blue-400 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 outline-none transition-colors";
+    "w-full min-h-[44px] rounded-[14px] border border-border bg-background hover:bg-muted text-slate-900 dark:text-slate-100 px-3.5 text-sm focus:border-blue-400 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 outline-none transition-colors";
 
   const modalTitle = editRow
     ? `Edit Trip - ${selectedTruckName} - ${editRow.dateText}`
@@ -340,7 +340,7 @@ export default function TripModal({
           <button
             onClick={handleSubmit}
             disabled={loading}
-            className="px-6 py-2.5 rounded-[14px] bg-gradient-to-br from-blue-600 to-blue-700 text-white text-sm font-semibold shadow-[0_10px_20px_rgba(37,99,235,0.18)] hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 transition-all"
+            className="px-6 py-2.5 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition"
           >
             {loading ? "Saving..." : editRow ? "Update" : "Save"}
           </button>
@@ -349,7 +349,7 @@ export default function TripModal({
     >
       <div className="grid grid-cols-2 gap-4">
         <div className="col-span-2">
-          <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 block">
+          <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
             Date
           </label>
           <DatePicker
@@ -376,7 +376,7 @@ export default function TripModal({
         </div>
 
         <div>
-          <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 block">
+          <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
             Status
           </label>
           <Select
@@ -399,7 +399,7 @@ export default function TripModal({
         </div>
 
         <div>
-          <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 block">
+          <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
             Shipment Number
           </label>
           <input
@@ -414,7 +414,7 @@ export default function TripModal({
         </div>
 
         <div>
-          <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 block">
+          <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
             Rate (₱)
             {!readOnlyForDriver && form.status === "Working Day" && (
               <span className="text-red-500 ml-0.5">*</span>
@@ -438,7 +438,7 @@ export default function TripModal({
         </div>
 
         <div>
-          <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 block">
+          <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
             Number of Trips
           </label>
           <input
@@ -455,7 +455,7 @@ export default function TripModal({
         </div>
 
         <div>
-          <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 block">
+          <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
             Crew Salary (₱)
             {!readOnlyForDriver && form.status === "Working Day" && (
               <span className="text-red-500 ml-0.5">*</span>
@@ -479,7 +479,7 @@ export default function TripModal({
         </div>
 
         <div>
-          <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 block">
+          <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
             Cash Advance (₱)
           </label>
           <input
@@ -500,7 +500,7 @@ export default function TripModal({
         </div>
 
         <div className="col-span-2">
-          <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 block">
+          <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
             Reimbursements (₱)
           </label>
           <input
@@ -521,7 +521,7 @@ export default function TripModal({
         </div>
 
         <div className="col-span-2">
-          <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 block">
+          <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
             Expense Note
           </label>
 

@@ -212,21 +212,15 @@ export default function ExpensesPage() {
 
   return (
     <div>
-      <div className="glass-card rounded-[28px] border border-slate-200/80 dark:border-slate-700/90 shadow-lg p-5 mb-3.5">
+      <div className="mb-4">
         <div className="flex flex-col md:flex-row justify-between md:items-end gap-3">
           <div>
-            <h1 className="text-[1.45rem] font-bold tracking-tight">
+            <h1 className="text-2xl font-semibold tracking-tight">
               {pageTitle}
             </h1>
-            <p className="text-sm text-slate-500 mt-1">
+            <p className="text-sm text-muted-foreground mt-1">
               Track company expenses by category, month, and total distribution.
             </p>
-          </div>
-          <div className="text-right">
-            <div className="text-[0.72rem] font-bold tracking-wider uppercase text-slate-500">
-              Expenses view
-            </div>
-            <div className="font-bold text-sm">Connected to EXPENSES</div>
           </div>
         </div>
       </div>
@@ -240,7 +234,7 @@ export default function ExpensesPage() {
         actions={
           <button
             onClick={openAdd}
-            className="min-h-[44px] px-4 rounded-[14px] bg-gradient-to-br from-blue-600 to-blue-700 text-white text-sm font-semibold shadow-[0_10px_20px_rgba(37,99,235,0.18)] hover:from-blue-700 hover:to-blue-800 transition-all flex items-center gap-1.5"
+            className="h-10 px-4 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition flex items-center gap-2"
           >
             <Plus size={18} /> Add Expense
           </button>
@@ -249,17 +243,17 @@ export default function ExpensesPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-3">
         {/* Table */}
-        <div className="glass-card rounded-[22px] border border-slate-200/90 dark:border-slate-700/90 shadow-sm overflow-hidden">
+        <div className="border rounded-lg bg-background overflow-hidden">
           <div className="p-3.5 pb-2">
             <h2 className="text-base font-bold tracking-tight">
               Expense Records
             </h2>
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-muted-foreground">
               Operational costs and maintenance logs
             </p>
           </div>
           {/* Desktop Table */}
-          <div className="overflow-auto border-t border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-900 hidden md:block">
+          <div className="overflow-auto border-t border-slate-200/60 dark:border-slate-700/60 bg-background hidden md:block">
             <table className="w-full border-separate border-spacing-0">
               <thead>
                 <tr>
@@ -276,7 +270,7 @@ export default function ExpensesPage() {
                   ).map((h) => (
                     <th
                       key={h}
-                      className="sticky top-0 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-slate-600 dark:text-slate-300 px-3 py-3 whitespace-nowrap"
+                      className="sticky top-0 bg-muted/40 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-muted-foreground px-3 py-3 whitespace-nowrap"
                     >
                       {h}
                     </th>
@@ -314,15 +308,12 @@ export default function ExpensesPage() {
                     const today = new Date().toISOString().slice(0, 10);
                     const canModify = admin || r.dateIso >= today;
                     return (
-                      <tr
-                        key={r._id}
-                        className="hover:bg-blue-50/50 dark:hover:bg-slate-800/50"
-                      >
+                      <tr key={r._id} className="hover:bg-muted/50">
                         <td className="text-center text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800 whitespace-nowrap">
                           {r.dateText}
                         </td>
                         <td className="text-center text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800">
-                          <span className="inline-block px-2.5 py-1 rounded-full text-[0.72rem] font-bold bg-blue-600/10 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400">
+                          <span className="inline-block px-2.5 py-1 rounded-full text-[0.72rem] font-bold bg-muted text-foreground dark:bg-blue-500/15 dark:text-blue-400">
                             {r.category}
                           </span>
                         </td>
@@ -339,10 +330,10 @@ export default function ExpensesPage() {
                             {isReimbursableCategory(r.category) ? (
                               <button
                                 onClick={() => toggleExpenseReimbursed(r._id)}
-                                className={`w-[34px] h-[34px] rounded-xl inline-flex items-center justify-center border transition-all ${
+                                className={`w-[34px] h-[34px] rounded-md inline-flex items-center justify-center border transition-all ${
                                   r.reimbursed
                                     ? "bg-green-500/10 border-green-500/25 text-green-500 hover:bg-red-500/10 hover:border-red-500/25 hover:text-red-500"
-                                    : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-400 hover:bg-green-500/10 hover:border-green-500/25 hover:text-green-500"
+                                    : "bg-background border-slate-200 dark:border-slate-700 text-slate-400 hover:bg-green-500/10 hover:border-green-500/25 hover:text-green-500"
                                 }`}
                                 title={
                                   r.reimbursed
@@ -364,13 +355,13 @@ export default function ExpensesPage() {
                             <div className="flex items-center justify-center gap-1">
                               <button
                                 onClick={() => openEdit(r)}
-                                className="w-[34px] h-[34px] rounded-xl inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-blue-500/10 hover:border-blue-500/20 hover:text-blue-600 transition-all"
+                                className="w-[34px] h-[34px] rounded-md inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 hover:bg-muted text-slate-600 hover:bg-blue-500/10 hover:border-blue-500/20 hover:text-blue-600 transition-all"
                               >
                                 <Pencil size={14} />
                               </button>
                               <button
                                 onClick={() => setDeleteModal(r)}
-                                className="w-[34px] h-[34px] rounded-xl inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-500 transition-all"
+                                className="w-[34px] h-[34px] rounded-md inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 hover:bg-muted text-slate-600 hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-500 transition-all"
                               >
                                 <Trash2 size={14} />
                               </button>
@@ -404,7 +395,7 @@ export default function ExpensesPage() {
                   selectedTruck ? (
                     <button
                       onClick={openAdd}
-                      className="px-4 py-2.5 rounded-[14px] bg-gradient-to-br from-blue-600 to-blue-700 text-white text-sm font-semibold flex items-center gap-1.5"
+                      className="px-4 py-2.5 rounded-[14px] bg-foreground text-background hover:opacity-90 text-white text-sm font-semibold flex items-center gap-1.5"
                     >
                       <Plus size={16} /> Add Expense
                     </button>
@@ -415,7 +406,7 @@ export default function ExpensesPage() {
               paginatedExpenses.map((r) => (
                 <div
                   key={r._id}
-                  className="glass-card rounded-xl border border-slate-200 dark:border-slate-700 p-4"
+                  className="border rounded-md bg-background p-4"
                 >
                   <div className="flex justify-between items-start mb-2">
                     <div>
@@ -487,7 +478,7 @@ export default function ExpensesPage() {
 
         {/* Sidebar */}
         <div className="flex flex-col gap-3">
-          <div className="glass-card rounded-[22px] border border-slate-200/90 dark:border-slate-700/90 shadow-sm p-4">
+          <div className="border rounded-lg bg-background p-4">
             <h2 className="text-base font-bold tracking-tight mb-1">
               Expense Breakdown
             </h2>
@@ -508,7 +499,7 @@ export default function ExpensesPage() {
                       </div>
                       <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
                         <div
-                          className="h-full rounded-full bg-gradient-to-r from-blue-600 to-blue-500 transition-all"
+                          className="h-full rounded-full bg-foreground transition-all"
                           style={{ width: `${pct}%` }}
                         />
                       </div>
@@ -519,7 +510,7 @@ export default function ExpensesPage() {
             </div>
           </div>
 
-          <div className="glass-card rounded-[22px] border border-slate-200/90 dark:border-slate-700/90 shadow-sm p-5 flex flex-col justify-center min-h-[110px]">
+          <div className="border rounded-lg bg-background p-4">
             <div className="text-[0.72rem] text-slate-500 uppercase tracking-wider font-semibold">
               Total Expenses
             </div>
@@ -528,7 +519,7 @@ export default function ExpensesPage() {
             </div>
           </div>
 
-          <div className="glass-card rounded-[22px] border border-slate-200/90 dark:border-slate-700/90 shadow-sm p-4">
+          <div className="border rounded-lg bg-background p-4">
             <h2 className="text-base font-bold tracking-tight mb-1">
               Categories
             </h2>
@@ -539,7 +530,7 @@ export default function ExpensesPage() {
               {categoryOptions.map((c) => (
                 <span
                   key={c.value}
-                  className="inline-block px-2.5 py-1 rounded-full text-[0.72rem] font-bold bg-blue-600/10 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400"
+                  className="inline-block px-2.5 py-1 rounded-full text-xs font-bold bg-muted text-foreground"
                 >
                   {c.label}
                 </span>
