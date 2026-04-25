@@ -363,7 +363,7 @@ export default function DashboardPage() {
                     )}
                     {isUp ? "+" : "-"}
                     {Math.abs(percent).toFixed(1)}%
-                    <span className="opacity-70">
+                    <span>
                       ({isUp ? "+" : "-"}
                       {moneyFormat.format(Math.abs(diff))})
                     </span>
@@ -418,7 +418,7 @@ export default function DashboardPage() {
                     )}
                     {isUp ? "+" : "-"}
                     {Math.abs(percent).toFixed(1)}%
-                    <span className="opacity-70">
+                    <span>
                       ({isUp ? "+" : "-"}
                       {moneyFormat.format(Math.abs(diff))})
                     </span>
@@ -473,7 +473,7 @@ export default function DashboardPage() {
                     )}
                     {isUp ? "+" : "-"}
                     {Math.abs(percent).toFixed(1)}%
-                    <span className="opacity-70">
+                    <span>
                       ({isUp ? "+" : "-"}
                       {moneyFormat.format(Math.abs(diff))})
                     </span>
@@ -534,7 +534,7 @@ export default function DashboardPage() {
                     )}
                     {sign}
                     {Math.abs(percent).toFixed(1)}%
-                    <span className="opacity-70">
+                    <span>
                       ({sign}
                       {moneyFormat.format(Math.abs(diff))})
                     </span>
