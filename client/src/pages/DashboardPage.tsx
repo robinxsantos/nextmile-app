@@ -295,10 +295,6 @@ export default function DashboardPage() {
       )}
 
       <div className="mb-4">
-        <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-semibold tracking-tight">{pageTitle}</h1>
-        </div>
-
         <div className="flex flex-col md:flex-row justify-between md:items-end gap-3">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">
