@@ -289,7 +289,6 @@ function TripCard({
   r,
   showActions,
   reportMode,
-  onTogglePaid,
   onEdit,
   onDelete,
   onDuplicate,
@@ -781,9 +780,9 @@ export default function TripTable({
       <button
         onClick={() => onTogglePaid?.(r._id)}
         className={cn(
-          "px-2 py-0.5 rounded-md inline-flex items-center gap-1 text-[11px] border transition-all",
+          "px-3 py-1.5 rounded-md inline-flex items-center gap-1.5 text-xs border transition-all",
           r.paid
-            ? "bg-green-500/10 border-green-500/20 text-green-500"
+            ? "bg-green-500/10 border-green-500/20 text-green-600"
             : "bg-muted border-border text-slate-400 hover:bg-green-500/10 hover:text-green-500",
         )}
       >
