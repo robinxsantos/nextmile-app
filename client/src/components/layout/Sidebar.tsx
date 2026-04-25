@@ -64,7 +64,7 @@ export default function Sidebar() {
       <aside
         className={cn(
           "fixed top-0 left-0 h-screen z-50 flex flex-col",
-          "bg-white dark:bg-zinc-900",
+          "bg-[#fcfcfc] dark:bg-zinc-900",
           "border-r border-zinc-200 dark:border-zinc-800",
           "hidden lg:flex",
           sidebarCollapsed ? "w-[64px]" : "w-[240px]",
