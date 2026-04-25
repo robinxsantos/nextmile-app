@@ -1,5 +1,5 @@
 import { Outlet, useLocation } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import Sidebar from "./Sidebar";
 import { useAppStore } from "../../store/useAppStore";
@@ -20,6 +20,7 @@ export default function AppLayout() {
   const { sidebarCollapsed, theme, toggleSidebar } = useAppStore();
   const location = useLocation();
   const currentPageName = pageNames[location.pathname] || "Dashboard";
+  const [openMobile, setOpenMobile] = useState(false);
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
@@ -31,18 +32,18 @@ export default function AppLayout() {
       {!sidebarCollapsed && (
         <div
           className="fixed inset-0 bg-black/40 z-40 lg:hidden"
-          onClick={toggleSidebar}
+          onClick={() => setOpenMobile(true)}
         />
       )}
 
-      <Sidebar />
+      <Sidebar openMobile={openMobile} setOpenMobile={setOpenMobile} />
 
       {/* Mobile top bar */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-30 flex items-center gap-3 px-4 py-3 bg-background border-b border-slate-200/80 dark:border-slate-700/90">
         <Button
           variant="ghost"
           size="icon"
-          onClick={toggleSidebar}
+          onClick={() => setOpenMobile(true)}
           className="rounded-xl bg-blue-50 dark:bg-slate-800 text-blue-700 dark:text-slate-200"
         >
           <Menu size={20} />

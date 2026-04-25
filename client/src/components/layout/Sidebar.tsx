@@ -40,7 +40,13 @@ const allNavItems = [
   { to: "/settings", icon: Settings, label: "Settings", adminOnly: false },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({
+  openMobile,
+  setOpenMobile,
+}: {
+  openMobile: boolean;
+  setOpenMobile: (val: boolean) => void;
+}) {
   const { sidebarCollapsed, toggleSidebar, theme, toggleTheme } = useAppStore();
   const { user, logout, isAdmin } = useAuthStore();
   const location = useLocation();
@@ -198,6 +204,38 @@ export default function Sidebar() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* MOBILE SIDEBAR */}
+      {openMobile && (
+        <div className="fixed inset-0 z-[9999] flex lg:hidden">
+          {/* Overlay */}
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setOpenMobile(false)}
+          />
+
+          {/* Drawer */}
+          <div className="relative w-[240px] h-full bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 p-4">
+            <button onClick={() => setOpenMobile(false)} className="mb-4">
+              ✕
+            </button>
+
+            {/* NAV ITEMS */}
+            <nav className="flex flex-col gap-2">
+              {navItems.map(({ to, icon: Icon, label }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  onClick={() => setOpenMobile(false)}
+                  className="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-muted"
+                >
+                  <Icon className="h-4 w-4" />
+                  {label}
+                </NavLink>
+              ))}
+            </nav>
+          </div>
+        </div>
+      )}
     </>
   );
 }
