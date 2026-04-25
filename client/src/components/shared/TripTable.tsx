@@ -877,7 +877,7 @@ export default function TripTable({
             ))}
             {showActions && (
               <th className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-muted-foreground px-2.5 py-3 whitespace-nowrap">
-                Action
+                Actions
               </th>
             )}
           </tr>
@@ -968,9 +968,10 @@ export default function TripTable({
                             {onDelete && (!canDeleteRow || canDeleteRow(r)) && (
                               <DropdownMenuItem
                                 onClick={() => onDelete(r)}
-                                className="text-red-500 focus:text-red-500"
+                                variant="destructive"
                               >
-                                <Trash2 size={14} className="mr-2" /> Delete
+                                <Trash2 size={14} className="mr-2" />
+                                Delete
                               </DropdownMenuItem>
                             )}
                           </DropdownMenuContent>
