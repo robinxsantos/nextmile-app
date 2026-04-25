@@ -3,10 +3,22 @@ import { toast } from "sonner";
 import Modal from "./Modal";
 import { useAppStore, type TripRow } from "../../store/useAppStore";
 import { useAuthStore } from "../../store/useAuthStore";
-import Select from "react-select";
-import DatePicker from "react-datepicker";
-import "react-datepicker/dist/react-datepicker.css";
 import { ClipboardCopy } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from "@/components/ui/popover";
+import { CalendarDays } from "lucide-react";
+import { format } from "date-fns";
+import {
+  Select as UiSelect,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface TripModalProps {
   open: boolean;
@@ -157,18 +169,10 @@ export default function TripModal({
   editRow,
   duplicateFrom,
 }: TripModalProps) {
-  const {
-    selectedTruck,
-    truckOptions,
-    addTrip,
-    updateTrip,
-    getLastTrip,
-    theme,
-  } = useAppStore();
+  const { selectedTruck, truckOptions, addTrip, updateTrip, getLastTrip } =
+    useAppStore();
   const { isAdmin } = useAuthStore();
   const admin = isAdmin();
-  const isDark = theme === "dark";
-  const styles = isDark ? selectStylesDark : selectStyles;
 
   const [loading, setLoading] = useState(false);
   const [copyingLast, setCopyingLast] = useState(false);
@@ -183,6 +187,9 @@ export default function TripModal({
     reimbursements: "",
     note: "",
   });
+
+  const [openDate, setOpenDate] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date>(form.date);
 
   const prefillFromTrip = (src: TripRow, useToday = true) => {
     setForm({
@@ -224,7 +231,7 @@ export default function TripModal({
 
   const handleCopyFromLast = async () => {
     if (!selectedTruck) {
-      toast.error("Please select a truck first!", { duration: 6000 });
+      toast.error("Please select a truck first!");
       return;
     }
     setCopyingLast(true);
@@ -232,14 +239,14 @@ export default function TripModal({
       const lastTrip = await getLastTrip(selectedTruck);
       if (lastTrip) {
         prefillFromTrip(lastTrip, true);
-        toast.success("Copied from last trip!", { duration: 3000 });
+        toast.success("Copied from last trip!");
       } else {
         toast.info("No previous trips found for this truck.", {
           duration: 4000,
         });
       }
     } catch {
-      toast.error("Failed to fetch last trip.", { duration: 5000 });
+      toast.error("Failed to fetch last trip.");
     } finally {
       setCopyingLast(false);
     }
@@ -257,24 +264,22 @@ export default function TripModal({
 
   const handleSubmit = async () => {
     if (!selectedTruck) {
-      toast.error("Please select a truck first!", { duration: 6000 });
+      toast.error("Please select a truck first!");
       return;
     }
 
     if (!admin) {
       if (!form.shipmentNumber.trim()) {
-        toast.error("Shipment Number is required.", { duration: 6000 });
+        toast.error("Shipment Number is required.");
         return;
       }
     } else {
       if (form.status === "Working Day" && !form.rate) {
-        toast.error("Rate is required for Working Day.", { duration: 6000 });
+        toast.error("Rate is required for Working Day.");
         return;
       }
       if (form.status === "Working Day" && !form.crewSalary) {
-        toast.error("Crew Salary is required for Working Day.", {
-          duration: 6000,
-        });
+        toast.error("Crew Salary is required for Working Day.");
         return;
       }
     }
@@ -301,9 +306,7 @@ export default function TripModal({
       }
       onClose();
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Failed to save trip", {
-        duration: 7000,
-      });
+      toast.error(err instanceof Error ? err.message : "Failed to save trip");
     } finally {
       setLoading(false);
     }
@@ -313,7 +316,7 @@ export default function TripModal({
     truckOptions.find((t) => t._id === selectedTruck)?.truckName ||
     "Selected Truck";
   const inputClass =
-    "w-full min-h-[44px] rounded-[14px] border border-border bg-background hover:bg-muted text-slate-900 dark:text-slate-100 px-3.5 text-sm focus:border-blue-400 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 outline-none transition-colors";
+    "w-full h-11 rounded-md border border-border bg-background px-3 text-sm focus:ring-2 focus:ring-ring focus:border-ring outline-none transition-colors";
 
   const modalTitle = editRow
     ? `Edit Trip - ${selectedTruckName} - ${editRow.dateText}`
@@ -352,16 +355,34 @@ export default function TripModal({
           <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
             Date
           </label>
-          <DatePicker
-            selected={form.date}
-            onChange={(d: Date | null) =>
-              setForm({ ...form, date: d || new Date() })
-            }
-            dateFormat="MMM d, yyyy"
-            className={inputClass + " cursor-pointer"}
-            wrapperClassName="w-full"
-            showPopperArrow={false}
-          />
+          <Popover open={openDate} onOpenChange={setOpenDate}>
+            <PopoverTrigger asChild>
+              <button
+                className={inputClass + " flex items-center justify-between"}
+              >
+                {selectedDate
+                  ? format(selectedDate, "MMM d, yyyy")
+                  : "Select date"}
+                <CalendarDays className="h-4 w-4 opacity-50" />
+              </button>
+            </PopoverTrigger>
+
+            <PopoverContent className="w-auto p-0 z-[9999]">
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={(d) => {
+                  if (!d) return;
+
+                  setSelectedDate(d);
+                  setForm({ ...form, date: d });
+
+                  setOpenDate(false);
+                }}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
           {!editRow && (
             <button
               type="button"
@@ -379,23 +400,22 @@ export default function TripModal({
           <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
             Status
           </label>
-          <Select
-            options={STATUS_OPTIONS}
-            value={STATUS_OPTIONS.find((o) => o.value === form.status)}
-            onChange={(opt) => {
-              if (opt) setForm({ ...form, status: opt.value });
-            }}
-            styles={{
-              ...styles,
-              menuPortal: (base: Record<string, unknown>) => ({
-                ...base,
-                zIndex: 9999,
-              }),
-            }}
-            isSearchable={false}
-            menuPortalTarget={document.body}
-            classNamePrefix="nm-select"
-          />
+          <UiSelect
+            value={form.status}
+            onValueChange={(val) => setForm({ ...form, status: val })}
+          >
+            <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+
+            <SelectContent className="z-[9999]">
+              {STATUS_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </UiSelect>
         </div>
 
         <div>

@@ -18,6 +18,7 @@ import {
   ArrowUpDown,
   Loader2,
   Route,
+  X,
 } from "lucide-react";
 import EmptyState from "./EmptyState";
 import { Skeleton, SkeletonTableRow } from "./Skeleton";
@@ -29,6 +30,14 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+
+import { MoreVertical } from "lucide-react";
 
 type ColumnKey =
   | "truck"
@@ -435,19 +444,6 @@ function TripCard({
 
       {showActions && (
         <div className="flex gap-2 pt-3 border-t border-slate-200 dark:border-slate-700">
-          {onTogglePaid && (
-            <button
-              onClick={() => onTogglePaid(r._id)}
-              className={cn(
-                "flex-1 h-9 rounded-md inline-flex items-center justify-center gap-1.5 border text-xs font-semibold transition-all",
-                r.paid
-                  ? "bg-green-500/10 border-green-500/25 text-green-500"
-                  : "bg-background border-slate-200 dark:border-slate-700 text-slate-600",
-              )}
-            >
-              <Check size={14} /> {r.paid ? "Paid" : "Unpaid"}
-            </button>
-          )}
           {onDuplicate && (
             <button
               onClick={() => onDuplicate(r)}
@@ -778,6 +774,34 @@ export default function TripTable({
       ),
     });
 
+  columns.push({
+    key: "paid" as ColumnKey,
+    label: "Paid",
+    render: (r) => (
+      <button
+        onClick={() => onTogglePaid?.(r._id)}
+        className={cn(
+          "px-2 py-0.5 rounded-md inline-flex items-center gap-1 text-[11px] border transition-all",
+          r.paid
+            ? "bg-green-500/10 border-green-500/20 text-green-500"
+            : "bg-muted border-border text-slate-400 hover:bg-green-500/10 hover:text-green-500",
+        )}
+      >
+        {r.paid ? (
+          <>
+            <Check size={12} />
+            Paid
+          </>
+        ) : (
+          <>
+            <X size={12} />
+            Unpaid
+          </>
+        )}
+      </button>
+    ),
+  });
+
   const colCount =
     (selectable ? 1 : 0) + columns.length + (showActions ? 1 : 0);
 
@@ -818,7 +842,7 @@ export default function TripTable({
         <thead>
           <tr>
             {selectable && (
-              <th className="sticky top-0 left-0 z-20 bg-muted/40 border-b border-slate-200 dark:border-slate-700 text-center px-2.5 py-3 w-[40px] min-w-[40px] max-w-[40px]">
+              <th className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-muted-foreground px-2.5 py-3 whitespace-nowrap">
                 <input
                   type="checkbox"
                   checked={allSelected}
@@ -834,7 +858,7 @@ export default function TripTable({
               <th
                 key={col.key}
                 className={cn(
-                  "sticky top-0 z-10 bg-muted/40 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-muted-foreground px-2.5 py-3 whitespace-nowrap",
+                  "sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-muted-foreground px-2.5 py-3 whitespace-nowrap",
                   idx === 0 && !selectable && "left-0 z-20",
                   idx === 0 && selectable && "left-[40px] z-20",
                 )}
@@ -853,7 +877,7 @@ export default function TripTable({
               </th>
             ))}
             {showActions && (
-              <th className="sticky top-0 z-10 bg-muted/40 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-muted-foreground px-2.5 py-3 whitespace-nowrap">
+              <th className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-muted-foreground px-2.5 py-3 whitespace-nowrap">
                 Action
               </th>
             )}
@@ -918,48 +942,40 @@ export default function TripTable({
                   ))}
                   {showActions && (
                     <td className="text-center text-xs px-2.5 py-2.5 border-b border-border">
-                      <div className="flex items-center justify-center gap-1">
-                        {onTogglePaid && (
-                          <button
-                            onClick={() => onTogglePaid(r._id)}
-                            className={cn(
-                              "w-[34px] h-[34px] rounded-md inline-flex items-center justify-center border transition-all",
-                              r.paid
-                                ? "bg-green-500/10 border-green-500/25 text-green-500 hover:bg-red-500/10 hover:border-red-500/25 hover:text-red-500"
-                                : "bg-background border-slate-200 dark:border-slate-700 text-slate-600 hover:bg-green-500/10 hover:border-green-500/25 hover:text-green-500",
+                      <div className="flex items-center justify-center">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button className="w-[34px] h-[34px] rounded-md inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-background text-slate-600 hover:bg-muted transition-all">
+                              <MoreVertical size={16} />
+                            </button>
+                          </DropdownMenuTrigger>
+
+                          <DropdownMenuContent
+                            align="end"
+                            className="w-[160px]"
+                          >
+                            {onEdit && (!canEditRow || canEditRow(r)) && (
+                              <DropdownMenuItem onClick={() => onEdit(r)}>
+                                <Pencil size={14} className="mr-2" /> Edit
+                              </DropdownMenuItem>
                             )}
-                            title="Toggle paid"
-                          >
-                            <Check size={14} />
-                          </button>
-                        )}
-                        {onDuplicate && (
-                          <button
-                            onClick={() => onDuplicate(r)}
-                            className="w-[34px] h-[34px] rounded-md inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-background text-slate-600 hover:bg-purple-500/10 hover:border-purple-500/20 hover:text-purple-600 transition-all"
-                            title="Duplicate"
-                          >
-                            <Copy size={14} />
-                          </button>
-                        )}
-                        {onEdit && (!canEditRow || canEditRow(r)) && (
-                          <button
-                            onClick={() => onEdit(r)}
-                            className="w-[34px] h-[34px] rounded-md inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 hover:bg-muted text-slate-600 hover:bg-blue-500/10 hover:border-blue-500/20 hover:text-blue-600 transition-all"
-                            title="Edit"
-                          >
-                            <Pencil size={14} />
-                          </button>
-                        )}
-                        {onDelete && (!canDeleteRow || canDeleteRow(r)) && (
-                          <button
-                            onClick={() => onDelete(r)}
-                            className="w-[34px] h-[34px] rounded-md inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-background text-slate-600 hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-500 transition-all"
-                            title="Delete"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        )}
+
+                            {onDuplicate && (
+                              <DropdownMenuItem onClick={() => onDuplicate(r)}>
+                                <Copy size={14} className="mr-2" /> Duplicate
+                              </DropdownMenuItem>
+                            )}
+
+                            {onDelete && (!canDeleteRow || canDeleteRow(r)) && (
+                              <DropdownMenuItem
+                                onClick={() => onDelete(r)}
+                                className="text-red-500 focus:text-red-500"
+                              >
+                                <Trash2 size={14} className="mr-2" /> Delete
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </td>
                   )}

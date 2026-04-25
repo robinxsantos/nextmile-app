@@ -652,7 +652,7 @@ export default function DashboardPage() {
 
           <CardContent className="h-[260px]">
             <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={chartData}>
+              <BarChart data={chartData} margin={{ top: 20 }}>
                 <CartesianGrid
                   stroke="hsl(var(--border))"
                   strokeDasharray="3 3"
@@ -688,9 +688,14 @@ export default function DashboardPage() {
                 <Bar
                   dataKey="trips"
                   name="Trips"
-                  fill="#6c6050"
+                  fill="#ff9319"
                   radius={6}
                   activeBar={{ fill: "hsl(var(--foreground))" }}
+                  label={{
+                    position: "top",
+                    fontSize: 12,
+                    fill: "#9ca3af",
+                  }}
                 />
               </BarChart>
             </ResponsiveContainer>
