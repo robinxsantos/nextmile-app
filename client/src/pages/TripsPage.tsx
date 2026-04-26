@@ -485,7 +485,6 @@ export default function TripsPage() {
           onVerificationChange={
             admin
               ? async (id, status) => {
-                  console.log("VERIFY CHANGE:", id, status);
                   await quickEditTrip(id, "verificationStatus", status);
                 }
               : undefined
