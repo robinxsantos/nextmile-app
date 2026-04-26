@@ -41,6 +41,12 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 type ColumnKey =
   | "truck"
@@ -611,20 +617,87 @@ export default function TripTable({
       key: "shipmentNumber",
       label: "Shipment #",
       render: (r) => {
-        const val = String(r.shipmentNumber || "").trim();
-        return val ? (
-          val
-        ) : (
-          <span className="text-slate-300 dark:text-slate-600">—</span>
+        const status = r.verificationStatus || "For Confirmation";
+
+        const getIcon = () => {
+          switch (status) {
+            case "Verified":
+              return <CheckCircle size={14} className="text-green-500" />;
+            case "Pending":
+              return <AlertCircle size={14} className="text-orange-500" />;
+            default:
+              return <HelpCircle size={14} className="text-gray-400" />;
+          }
+        };
+
+        return (
+          <DropdownMenu>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuTrigger asChild>
+                    <div
+                      className={cn(
+                        "flex items-center justify-start gap-1.5 w-full cursor-pointer rounded px-1 py-0.5 transition hover:brightness-50",
+                        r.verificationStatus === "Verified" && "text-green-500",
+                        r.verificationStatus === "Pending" && "text-orange-500",
+                        (!r.verificationStatus ||
+                          r.verificationStatus === "For Confirmation") &&
+                          "text-gray-400",
+                      )}
+                    >
+                      {r.shipmentNumber ? (
+                        <>
+                          {getIcon()}
+                          {r.shipmentNumber}
+                        </>
+                      ) : (
+                        <span className="text-slate-300 dark:text-slate-600">
+                          —
+                        </span>
+                      )}
+                    </div>
+                  </DropdownMenuTrigger>
+                </TooltipTrigger>
+
+                <TooltipContent className="bg-neutral-200 text-neutral-950 dark:bg-neutral-50 [&_svg]:bg-neutral-200 [&_svg]:fill-neutral-200 dark:[&_svg]:bg-neutral-50 dark:[&_svg]:fill-neutral-50">
+                  {r.verificationStatus === "Verified"
+                    ? "Shipment Number is verified"
+                    : r.verificationStatus === "Pending"
+                      ? "Shipment Number is pending"
+                      : "Shipment Number needs confirmation"}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+            <DropdownMenuContent align="center" className="min-w-[180px]">
+              <DropdownMenuItem
+                onClick={() => onVerificationChange?.(r._id, "Verified")}
+              >
+                <CheckCircle size={14} className="mr-2 text-green-500" />
+                Verified
+              </DropdownMenuItem>
+
+              <DropdownMenuItem
+                onClick={() => onVerificationChange?.(r._id, "Pending")}
+              >
+                <AlertCircle size={14} className="mr-2 text-orange-500" />
+                Pending
+              </DropdownMenuItem>
+
+              <DropdownMenuItem
+                onClick={() =>
+                  onVerificationChange?.(r._id, "For Confirmation")
+                }
+              >
+                <HelpCircle size={14} className="mr-2 text-gray-500" />
+                For Confirmation
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         );
       },
-      className: "font-semibold text-orange-500",
-    });
-  if (show("verification"))
-    columns.push({
-      key: "verification",
-      label: "Verification",
-      render: (r) => renderVerificationBadge(r, onVerificationChange),
+      className: "font-semibold",
     });
   if (show("rate"))
     columns.push({
@@ -792,7 +865,7 @@ export default function TripTable({
       <button
         onClick={() => onTogglePaid?.(r._id)}
         className={cn(
-          "px-3 py-1.5 rounded-md inline-flex items-center gap-1.5 text-xs border transition-all",
+          "px-3 py-1.5 rounded-md inline-flex cursor-pointer hover:bg-muted/50 items-center gap-1.5 text-xs border transition-all",
           r.paid
             ? "bg-green-500/10 border-green-500/20 text-green-600"
             : "bg-muted border-border text-slate-400 hover:bg-green-500/10 hover:text-green-500",
