@@ -93,6 +93,7 @@ export async function syncTripsForDate(
       grossIncome: computed.grossIncome,
       netIncome: computed.netIncome,
       payable: computed.payable,
+      verificationStatus: trip.verificationStatus, // 🔥 PRESERVE
     });
   }
 }
