@@ -725,37 +725,59 @@ export const useAppStore = create<AppState>((set, get) => ({
     const totalPayable =
       trip.crewSalary - trip.cashAdvance + trip.reimbursements;
 
-    // Optimistic update
-    set({
+    // 🔥 optimistic update (SAFE)
+    set((state) => ({
       tripRows: state.tripRows.map((t) =>
         t._id === id
-          ? { ...t, paid: !wasPaid, payable: wasPaid ? totalPayable : 0 }
+          ? {
+              ...t,
+              paid: !wasPaid,
+              payable: wasPaid ? totalPayable : 0,
+            }
           : t,
       ),
-    });
+    }));
 
     try {
       await api.patch(`/trips/${id}/toggle-paid`);
-      await get().fetchDashboard();
 
       toast.success(wasPaid ? "Marked as unpaid" : "Marked as paid", {
         duration: 5000,
         action: {
           label: "Undo",
           onClick: async () => {
+            // 🔥 optimistic undo (SAFE)
+            set((state) => ({
+              tripRows: state.tripRows.map((t) =>
+                t._id === id
+                  ? {
+                      ...t,
+                      paid: wasPaid,
+                      payable: originalPayable,
+                    }
+                  : t,
+              ),
+            }));
+
             await api.patch(`/trips/${id}/toggle-paid`);
-            await get().fetchDashboard();
             toast.success("Undone", { duration: 2000 });
           },
         },
       });
     } catch (err: unknown) {
-      // Revert on error
-      set({
-        tripRows: get().tripRows.map((t) =>
-          t._id === id ? { ...t, paid: wasPaid, payable: originalPayable } : t,
+      // 🔥 revert on error
+      set((state) => ({
+        tripRows: state.tripRows.map((t) =>
+          t._id === id
+            ? {
+                ...t,
+                paid: wasPaid,
+                payable: originalPayable,
+              }
+            : t,
         ),
-      });
+      }));
+
       toast.error(getErrorMessage(err, "Failed to update paid status"));
     }
   },
