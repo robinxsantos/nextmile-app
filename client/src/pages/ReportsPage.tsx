@@ -1,10 +1,10 @@
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { useAppStore } from "../store/useAppStore";
 import FilterBar from "../components/shared/FilterBar";
 import TripTable from "../components/shared/TripTable";
 import ExpenseBreakdownModal from "../components/shared/ExpenseBreakdownModal";
 import { exportMonthlyReport } from "../lib/exportHelpers";
-import { Download, BarChart3 } from "lucide-react";
+import { Download, BarChart3, Columns3 } from "lucide-react";
 import Pagination from "../components/shared/Pagination";
 import { usePagination } from "../hooks/usePagination";
 import EmptyState from "../components/shared/EmptyState";
@@ -28,6 +28,62 @@ export default function ReportsPage() {
     dateText: string;
   } | null>(null);
 
+  const COLUMN_OPTIONS = [
+    ["truck", "Truck"],
+    ["week", "Week"],
+    ["date", "Date"],
+    ["status", "Status"],
+    ["shipmentNumber", "Shipment #"],
+    ["rate", "Rate"],
+    ["trips", "Trips"],
+    ["crewSalary", "Crew Salary"],
+    ["cashAdvance", "Cash Adv."],
+    ["reimbursements", "Cr. Reimb."],
+    ["expenses", "Expenses"],
+    ["note", "Note"],
+    ["grossIncome", "Gross"],
+    ["netIncome", "Net"],
+    ["payable", "Payable"],
+  ] as const;
+
+  type ColumnKey = (typeof COLUMN_OPTIONS)[number][0];
+
+  const COLUMN_STORAGE_KEY = "reports-columns";
+
+  const defaultVisibleColumns: Record<ColumnKey, boolean> = {
+    truck: true,
+    week: false,
+    date: true,
+    status: false,
+    shipmentNumber: true,
+    rate: true,
+    trips: true,
+    crewSalary: true,
+    cashAdvance: true,
+    reimbursements: true,
+    expenses: true,
+    note: true,
+    grossIncome: true,
+    netIncome: true,
+    payable: true,
+  };
+
+  const [visibleColumns, setVisibleColumns] = useState<
+    Record<ColumnKey, boolean>
+  >(() => {
+    const saved = localStorage.getItem(COLUMN_STORAGE_KEY);
+    if (!saved) return defaultVisibleColumns;
+
+    try {
+      return {
+        ...defaultVisibleColumns,
+        ...JSON.parse(saved),
+      };
+    } catch {
+      return defaultVisibleColumns;
+    }
+  });
+
   useEffect(() => {
     initApp();
   }, [initApp]);
@@ -49,6 +105,26 @@ export default function ReportsPage() {
     if (selectedTruck) fetchExpenses();
   }, [fetchExpenses, selectedTruck, reportsMonth]);
 
+  useEffect(() => {
+    localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(visibleColumns));
+  }, [visibleColumns]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setShowColumnsMenu(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   const selectedTruckName = truckOptions.find(
     (t) => t._id === selectedTruck,
   )?.truckName;
@@ -56,6 +132,8 @@ export default function ReportsPage() {
   // Sorting state
   const [sortField, setSortField] = useState("");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [showColumnsMenu, setShowColumnsMenu] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const handleSort = useCallback(
     (field: string) => {
@@ -151,13 +229,70 @@ export default function ReportsPage() {
       />
 
       <div className="border border-border rounded-lg bg-background p-3.5 flex flex-col">
-        <div className="mb-3">
-          <h2 className="text-base font-bold tracking-tight">
-            MONTHLY REPORTS
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Same columns as the trip table, filtered by month.
-          </p>
+        <div className="flex justify-between items-center mb-3 w-full">
+          {/* LEFT SIDE */}
+          <div>
+            <h2 className="text-base font-bold tracking-tight">
+              MONTHLY REPORTS
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Same columns as the trip table, filtered by month.
+            </p>
+          </div>
+
+          {/* RIGHT SIDE */}
+          <div className="flex items-center gap-2 ml-auto">
+            <div ref={dropdownRef} className="relative">
+              <button
+                onClick={() => setShowColumnsMenu((v) => !v)}
+                className="h-10 px-3 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors flex items-center gap-2"
+              >
+                <span>Columns</span>
+                <Columns3 size={18} />
+              </button>
+
+              {showColumnsMenu && (
+                <div className="absolute right-0 mt-2 z-50 w-64 max-h-[320px] overflow-y-auto rounded-md border border-border bg-background p-2">
+                  <div className="px-2 pb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                    Show Columns
+                  </div>
+
+                  <div className="flex flex-col">
+                    {COLUMN_OPTIONS.map(([key, label]) => {
+                      const checked = visibleColumns[key as ColumnKey];
+
+                      return (
+                        <button
+                          key={key}
+                          onClick={() =>
+                            setVisibleColumns((prev) => ({
+                              ...prev,
+                              [key]: !prev[key as ColumnKey],
+                            }))
+                          }
+                          className="flex items-center px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-xs"
+                        >
+                          <span className="flex-1 pr-4 text-left">{label}</span>
+
+                          <span
+                            className={`relative inline-flex h-4 w-7 items-center rounded-full ${
+                              checked ? "bg-foreground" : "bg-muted"
+                            }`}
+                          >
+                            <span
+                              className={`h-3 w-3 rounded-full bg-white transition-transform ${
+                                checked ? "translate-x-3.5" : "translate-x-0.5"
+                              }`}
+                            />
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
         <TripTable
           rows={paginatedReports}
@@ -166,6 +301,7 @@ export default function ReportsPage() {
           showActions={false}
           reportMode
           showTruckColumn={!selectedTruck}
+          visibleColumns={visibleColumns}
           sortable
           sortField={sortField}
           sortDirection={sortDirection}
