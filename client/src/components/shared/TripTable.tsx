@@ -643,7 +643,7 @@ export default function TripTable({
                         r.verificationStatus === "Pending" && "text-orange-500",
                         (!r.verificationStatus ||
                           r.verificationStatus === "For Confirmation") &&
-                          "text-gray-400",
+                          "text-gray-500",
                       )}
                     >
                       {r.shipmentNumber ? (
