@@ -94,6 +94,7 @@ export interface TripRow {
   week: string;
   status: string;
   shipmentNumber: string;
+  verificationStatus?: "Verified" | "Pending" | "For Confirmation";
   rate: number;
   trips: number;
   crewSalary: number;
@@ -654,8 +655,20 @@ export const useAppStore = create<AppState>((set, get) => ({
   // Quick Edit
   quickEditTrip: async (id, field, value) => {
     try {
+      // 🔥 optimistic update FIRST
+      set((state) => ({
+        tripRows: state.tripRows.map((trip) =>
+          trip._id === id ? { ...trip, [field]: value } : trip,
+        ),
+        rawTripRows: state.rawTripRows.map((trip) =>
+          trip._id === id ? { ...trip, [field]: value } : trip,
+        ),
+      }));
+
+      // ✅ API call
       await api.patch(`/trips/${id}/quick-edit`, { field, value });
-      await get().fetchDashboard();
+
+      // ✅ re-fetch (important para sync with backend)
     } catch (err: unknown) {
       toast.error(getErrorMessage(err, "Failed to update field"));
       throw err;

@@ -106,10 +106,13 @@ export default function DashboardPage() {
   } | null>(null);
   const [showColumnsMenu, setShowColumnsMenu] = useState(false);
   const COLUMN_STORAGE_KEY = "dashboard-columns";
+  const [verificationFilter, setVerificationFilter] = useState<
+    "ALL" | "Verified" | "Pending" | "For Confirmation"
+  >("ALL");
 
   const defaultVisibleColumns: Record<ColumnKey, boolean> = {
     truck: true,
-    week: true,
+    week: false,
     date: true,
     status: false,
     shipmentNumber: true,
@@ -212,6 +215,12 @@ export default function DashboardPage() {
       const q = searchQuery.toLowerCase();
       rows = rows.filter((r) => r.shipmentNumber.toLowerCase().includes(q));
     }
+    if (verificationFilter !== "ALL") {
+      rows = rows.filter(
+        (r) =>
+          (r.verificationStatus || "For Confirmation") === verificationFilter,
+      );
+    }
     if (sortField) {
       rows = [...rows].sort((a, b) => {
         const aVal =
@@ -223,7 +232,7 @@ export default function DashboardPage() {
       });
     }
     return rows;
-  }, [tripRows, searchQuery, sortField, sortDirection]);
+  }, [tripRows, searchQuery, verificationFilter, sortField, sortDirection]);
 
   const moneyFormat = new Intl.NumberFormat("en-PH", {
     minimumFractionDigits: 2,
@@ -712,6 +721,40 @@ export default function DashboardPage() {
             </p>
           </div>
           <div className="flex gap-2 flex-wrap items-center">
+            <div className="flex items-center gap-1 border border-border rounded-md p-1 h-[44px]">
+              {["ALL", "Verified", "Pending", "For Confirmation"].map(
+                (status) => (
+                  <button
+                    key={status}
+                    onClick={() => setVerificationFilter(status as any)}
+                    className={cn(
+                      "px-3 py-1.5 text-xs rounded-md transition-colors",
+
+                      verificationFilter === status &&
+                        status === "Verified" &&
+                        "bg-green-500/80 text-white",
+
+                      verificationFilter === status &&
+                        status === "Pending" &&
+                        "bg-orange-500 text-white",
+
+                      verificationFilter === status &&
+                        status === "For Confirmation" &&
+                        "bg-gray-500 text-white",
+
+                      verificationFilter === status &&
+                        status === "ALL" &&
+                        "bg-foreground text-background",
+
+                      verificationFilter !== status &&
+                        "text-muted-foreground hover:bg-muted",
+                    )}
+                  >
+                    {status === "ALL" ? "All" : status}
+                  </button>
+                ),
+              )}
+            </div>
             <div className="flex-grow min-w-[240px] relative">
               <Search
                 size={16}
@@ -816,6 +859,9 @@ export default function DashboardPage() {
           showTruckColumn={showTruckColumn}
           visibleColumns={visibleColumns}
           onQuickEdit={quickEditTrip}
+          onVerificationChange={async (id, status) => {
+            await quickEditTrip(id, "verificationStatus", status);
+          }}
           sortable
           sortField={sortField}
           sortDirection={sortDirection}

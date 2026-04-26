@@ -1,12 +1,13 @@
-import mongoose, { Schema, Document, Types } from 'mongoose';
+import mongoose, { Schema, Document, Types } from "mongoose";
 
 export interface ITrip extends Document {
   truck: Types.ObjectId;
   createdBy?: Types.ObjectId;
   date: Date;
   week: string;
-  status: 'Working Day' | 'Day Off' | 'Holiday';
+  status: "Working Day" | "Day Off" | "Holiday";
   shipmentNumber: string;
+  verificationStatus?: "Verified" | "Pending" | "For Confirmation";
   rate: number;
   trips: number;
   crewSalary: number;
@@ -26,13 +27,13 @@ const TripSchema = new Schema<ITrip>(
   {
     truck: {
       type: Schema.Types.ObjectId,
-      ref: 'Truck',
+      ref: "Truck",
       required: true,
       index: true,
     },
     createdBy: {
       type: Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       default: null,
     },
     date: {
@@ -42,17 +43,22 @@ const TripSchema = new Schema<ITrip>(
     },
     week: {
       type: String,
-      default: '',
+      default: "",
     },
     status: {
       type: String,
-      enum: ['Working Day', 'Day Off', 'Holiday'],
-      default: 'Working Day',
+      enum: ["Working Day", "Day Off", "Holiday"],
+      default: "Working Day",
     },
     shipmentNumber: {
       type: String,
-      default: '',
+      default: "",
       trim: true,
+    },
+    verificationStatus: {
+      type: String,
+      enum: ["Verified", "Pending", "For Confirmation"],
+      default: "Pending",
     },
     rate: {
       type: Number,
@@ -80,7 +86,7 @@ const TripSchema = new Schema<ITrip>(
     },
     note: {
       type: String,
-      default: '',
+      default: "",
     },
     grossIncome: {
       type: Number,
@@ -101,10 +107,10 @@ const TripSchema = new Schema<ITrip>(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 // Compound index for efficient queries
 TripSchema.index({ truck: 1, date: 1 });
 
-export const Trip = mongoose.model<ITrip>('Trip', TripSchema);
+export const Trip = mongoose.model<ITrip>("Trip", TripSchema);

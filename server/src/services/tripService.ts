@@ -171,6 +171,7 @@ export function formatTripResponse(trip: ITrip & { truck?: any }) {
     week: trip.week,
     status: trip.status,
     shipmentNumber: trip.shipmentNumber,
+    verificationStatus: trip.verificationStatus,
     rate: trip.rate,
     trips: trip.trips,
     crewSalary: trip.crewSalary,

@@ -85,10 +85,13 @@ export default function TripsPage() {
   } | null>(null);
   const [showColumnsMenu, setShowColumnsMenu] = useState(false);
   const COLUMN_STORAGE_KEY = "trips-columns";
+  const [verificationFilter, setVerificationFilter] = useState<
+    "ALL" | "Verified" | "Pending" | "For Confirmation"
+  >("ALL");
 
   const defaultVisibleColumns: Record<ColumnKey, boolean> = {
     truck: true,
-    week: true,
+    week: false,
     date: true,
     status: false,
     shipmentNumber: true,
@@ -176,6 +179,12 @@ export default function TripsPage() {
     if (!admin && driverStatus !== "ALL") {
       rows = rows.filter((r) => (driverStatus === "PAID" ? r.paid : !r.paid));
     }
+    if (verificationFilter !== "ALL") {
+      rows = rows.filter(
+        (r) =>
+          (r.verificationStatus || "For Confirmation") === verificationFilter,
+      );
+    }
     if (searchQuery) {
       rows = rows.filter((r) =>
         r.shipmentNumber.toLowerCase().includes(searchQuery.toLowerCase()),
@@ -192,7 +201,15 @@ export default function TripsPage() {
       });
     }
     return rows;
-  }, [tripRows, searchQuery, sortField, sortDirection, admin, driverStatus]);
+  }, [
+    tripRows,
+    searchQuery,
+    verificationFilter,
+    sortField,
+    sortDirection,
+    admin,
+    driverStatus,
+  ]);
 
   const {
     paginatedItems: paginatedRows,
@@ -308,6 +325,33 @@ export default function TripsPage() {
             </p>
           </div>
           <div className="flex gap-2 flex-wrap items-center">
+            <div className="flex items-center gap-1 border border-border rounded-md p-1 h-[44px]">
+              {["ALL", "Verified", "Pending", "For Confirmation"].map(
+                (status) => (
+                  <button
+                    key={status}
+                    onClick={() => setVerificationFilter(status as any)}
+                    className={cn(
+                      "h-full px-3 text-xs rounded-md flex items-center transition-colors",
+
+                      verificationFilter === status &&
+                        (status === "Verified"
+                          ? "bg-green-500/80 text-white"
+                          : status === "Pending"
+                            ? "bg-orange-500 text-white"
+                            : status === "For Confirmation"
+                              ? "bg-gray-500 text-white"
+                              : "bg-foreground text-background"),
+
+                      verificationFilter !== status &&
+                        "text-muted-foreground hover:bg-muted",
+                    )}
+                  >
+                    {status === "ALL" ? "All" : status}
+                  </button>
+                ),
+              )}
+            </div>
             <div className="flex-grow min-w-[240px] relative">
               <Search
                 size={16}
@@ -437,6 +481,15 @@ export default function TripsPage() {
           showTruckColumn={showTruckColumn}
           visibleColumns={visibleColumns}
           onQuickEdit={admin ? quickEditTrip : undefined}
+          // ✅ ADD THIS
+          onVerificationChange={
+            admin
+              ? async (id, status) => {
+                  console.log("VERIFY CHANGE:", id, status);
+                  await quickEditTrip(id, "verificationStatus", status);
+                }
+              : undefined
+          }
           sortable
           sortField={sortField}
           sortDirection={sortDirection}

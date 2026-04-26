@@ -19,6 +19,10 @@ import {
   Loader2,
   Route,
   X,
+  MoreVertical,
+  CheckCircle,
+  AlertCircle,
+  HelpCircle,
 } from "lucide-react";
 import EmptyState from "./EmptyState";
 import { Skeleton, SkeletonTableRow } from "./Skeleton";
@@ -36,8 +40,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
-
-import { MoreVertical } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 type ColumnKey =
   | "truck"
@@ -45,6 +48,7 @@ type ColumnKey =
   | "date"
   | "status"
   | "shipmentNumber"
+  | "verification"
   | "rate"
   | "trips"
   | "crewSalary"
@@ -89,6 +93,7 @@ export interface TripTableProps {
     field: string,
     value: number | string,
   ) => Promise<void>;
+  onVerificationChange?: (id: string, status: string) => Promise<void>;
   sortable?: boolean;
   sortField?: string;
   sortDirection?: "asc" | "desc";
@@ -501,6 +506,7 @@ export default function TripTable({
   visibleColumns = {},
   canEditRow,
   canDeleteRow,
+  onVerificationChange,
 }: TripTableProps) {
   const totalsSource = totalsRows ?? rows;
 
@@ -613,6 +619,12 @@ export default function TripTable({
         );
       },
       className: "font-semibold text-orange-500",
+    });
+  if (show("verification"))
+    columns.push({
+      key: "verification",
+      label: "Verification",
+      render: (r) => renderVerificationBadge(r, onVerificationChange),
     });
   if (show("rate"))
     columns.push({
@@ -828,6 +840,70 @@ export default function TripTable({
     } else {
       onSelectionChange([...selectedIds, id]);
     }
+  };
+
+  const renderVerificationBadge = (
+    r: TripRow,
+    onChange?: (id: string, value: string) => void,
+  ) => {
+    const status = r.verificationStatus || "Pending";
+
+    const getBadge = () => {
+      switch (status) {
+        case "Verified":
+          return (
+            <Badge
+              variant="outline"
+              className="rounded-sm border-green-600 text-green-600 dark:border-green-400 dark:text-green-400 [a&]:hover:bg-green-600/10 [a&]:hover:text-green-600/90 dark:[a&]:hover:bg-green-400/10 dark:[a&]:hover:text-green-400/90"
+            >
+              <CheckCircle size={14} /> Verified
+            </Badge>
+          );
+        case "Pending":
+          return (
+            <Badge
+              variant="outline"
+              className="rounded-sm border-amber-600 text-amber-600 dark:border-amber-400 dark:text-amber-400 [a&]:hover:bg-amber-600/10 [a&]:hover:text-amber-600/90 dark:[a&]:hover:bg-amber-400/10 dark:[a&]:hover:text-amber-400/90"
+            >
+              <AlertCircle size={14} /> Pending
+            </Badge>
+          );
+        default:
+          return (
+            <Badge
+              variant="outline"
+              className="rounded-sm border-gray-600 text-gray-600 dark:border-gray-400 dark:text-gray-400 [a&]:hover:bg-gray-600/10 [a&]:hover:text-gray-600/90 dark:[a&]:hover:bg-gray-400/10 dark:[a&]:hover:text-gray-400/90"
+            >
+              <HelpCircle size={14} /> For Confirmation
+            </Badge>
+          );
+      }
+    };
+
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>{getBadge()}</DropdownMenuTrigger>
+
+        <DropdownMenuContent align="center" className="w-[180px]">
+          <DropdownMenuItem onClick={() => onChange?.(r._id, "Verified")}>
+            <CheckCircle size={14} className="mr-2 text-green-500" />
+            Verified
+          </DropdownMenuItem>
+
+          <DropdownMenuItem onClick={() => onChange?.(r._id, "Pending")}>
+            <AlertCircle size={14} className="mr-2 text-orange-500" />
+            Pending
+          </DropdownMenuItem>
+
+          <DropdownMenuItem
+            onClick={() => onChange?.(r._id, "For Confirmation")}
+          >
+            <HelpCircle size={14} className="mr-2 text-gray-500" />
+            For Confirmation
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
   };
 
   return (
