@@ -414,7 +414,7 @@ export default function DashboardPage() {
                       {/* RIGHT */}
                       <div className="flex items-center gap-2">
                         <span className="font-semibold">
-                          {moneyFormat.format(item.value)}
+                          ₱{moneyFormat.format(item.value)}
                         </span>
 
                         {item.prev !== undefined ? (
@@ -435,9 +435,7 @@ export default function DashboardPage() {
                               ) : (
                                 <TrendingDown className="h-3 w-3" />
                               )}
-
-                              {sign}
-                              {moneyFormat.format(Math.abs(diff))}
+                              {sign}₱{moneyFormat.format(Math.abs(diff))}
                             </span>
                           ) : (
                             // 🔥 OTHERS = % + ABSOLUTE
@@ -459,8 +457,7 @@ export default function DashboardPage() {
                               {sign}
                               {Math.abs(percent).toFixed(1)}%
                               <span>
-                                ({sign}
-                                {moneyFormat.format(Math.abs(diff))})
+                                ({sign}₱{moneyFormat.format(Math.abs(diff))})
                               </span>
                             </span>
                           )
