@@ -888,7 +888,12 @@ export default function TripTable({
           </span>
 
           {/* HOVER */}
-          <span className="absolute inset-0 flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          <span
+            className={cn(
+              "absolute inset-0 flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity",
+              r.paid ? "text-red-500" : "text-green-500",
+            )}
+          >
             {r.paid ? (
               <>
                 <X size={12} />
