@@ -990,7 +990,7 @@ export default function TripTable({
         <thead>
           <tr>
             {selectable && (
-              <th className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-muted-foreground px-2.5 py-3 whitespace-nowrap">
+              <th className="sticky top-[101px] z-50 bg-muted/60 backdrop-blur border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-muted-foreground px-2.5 py-3 whitespace-nowrap">
                 <input
                   type="checkbox"
                   checked={allSelected}
@@ -1006,7 +1006,7 @@ export default function TripTable({
               <th
                 key={col.key}
                 className={cn(
-                  "sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-muted-foreground px-2.5 py-3 whitespace-nowrap",
+                  "sticky top-[101px] z-50 bg-muted/60 backdrop-blur border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-muted-foreground px-2.5 py-3 whitespace-nowrap",
                   idx === 0 && !selectable && "left-0 z-20",
                   idx === 0 && selectable && "left-[40px] z-20",
                 )}
@@ -1025,7 +1025,7 @@ export default function TripTable({
               </th>
             ))}
             {showActions && (
-              <th className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-muted-foreground px-2.5 py-3 whitespace-nowrap">
+              <th className="sticky top-[101px] z-50 bg-muted/60 backdrop-blur border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-muted-foreground px-2.5 py-3 whitespace-nowrap">
                 Actions
               </th>
             )}
