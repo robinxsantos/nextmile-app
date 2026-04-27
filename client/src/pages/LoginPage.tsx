@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Eye, EyeOff, LogIn, Truck } from "lucide-react";
+import { Eye, EyeOff, LogIn } from "lucide-react";
 import { toast } from "sonner";
+import Logo from "../assets/logo.png";
 
 import { useAuthStore } from "../store/useAuthStore";
 
@@ -34,15 +35,15 @@ export default function LoginPage() {
     <div className="min-h-screen bg-slate-100 text-slate-900">
       <div className="grid min-h-screen lg:grid-cols-2">
         {/* LEFT: Login */}
-        <section className="flex items-center justify-center bg-white px-6 py-10 sm:px-10">
+        <section className="flex items-center justify-center bg-white px-6 py-8 sm:px-10">
           <div className="w-full max-w-md">
             <div className="mb-10 flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-500 text-white shadow-lg shadow-blue-500/20">
-                <Truck size={20} />
+              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-muted">
+                <img src={Logo} alt="Nextmile Logo" className="h-5 w-auto" />
               </div>
               <div>
-                <p className="text-sm font-semibold tracking-[0.18em] text-slate-900">
-                  NEXTMILE
+                <p className="text-sm font-semibold text-slate-900">
+                  Nextmile OS
                 </p>
                 <p className="text-xs text-slate-500">Fleet Management App</p>
               </div>
@@ -73,7 +74,7 @@ export default function LoginPage() {
                   onChange={(e) => setUsername(e.target.value)}
                   autoComplete="username"
                   autoFocus
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                  className="w-full h-[44px] rounded-md border border-border bg-background px-3 py-2 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20"
                 />
               </div>
 
@@ -92,7 +93,7 @@ export default function LoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     autoComplete="current-password"
-                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 pr-12 text-sm outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                    className="w-full h-[44px] rounded-md border border-border bg-background px-3 py-2 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20"
                   />
                   <button
                     type="button"
@@ -110,7 +111,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-600/20 transition hover:from-blue-500 hover:to-indigo-500 disabled:cursor-not-allowed disabled:opacity-60"
+                className="h-10 w-full rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition flex items-center justify-center gap-2 disabled:opacity-60"
               >
                 {loading ? (
                   <>
@@ -133,24 +134,24 @@ export default function LoginPage() {
         </section>
 
         {/* RIGHT: Brand / visual panel */}
-        <section className="hidden items-center justify-center bg-gradient-to-br from-indigo-600 via-blue-600 to-cyan-500 px-8 py-10 text-white lg:flex">
-          <div className="w-full max-w-xl">
-            <div className="mb-10 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-medium text-white/90 backdrop-blur">
-              <span className="h-2 w-2 rounded-full bg-white" />
-              NEXTMILE
+        <section className="hidden items-center justify-center bg-white p-6 lg:flex">
+          <div className="w-full h-full rounded-xl border border-border bg-muted/40 shadow-sm p-10 flex flex-col justify-center">
+            <div className="mb-10 inline-flex w-fit items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-medium text-muted-foreground backdrop-blur">
+              <span className="h-2 w-2 rounded-full bg-green-500" />
+              Online
             </div>
 
             <h2 className="max-w-lg text-4xl font-semibold tracking-tight leading-tight xl:text-4xl">
-              Make smarter decisions.
-              <br />
               Stay ahead.
+              <br />
+              Make smarter decisions.
             </h2>
-            <p className="mt-5 max-w-md text-base leading-7 text-white/85">
+            <p className="mt-5 max-w-md text-base leading-7 text-foreground">
               Stay ahead with real-time insights and analytics. <br />
               Track your trips, expenses, and generate detailed reports.
             </p>
 
-            <div className="mt-10 rounded-[28px] border border-white/20 bg-white/12 p-5 shadow-2xl shadow-indigo-950/20 backdrop-blur-md">
+            <div className="mt-10 rounded-[28px] bg-background p-5 backdrop-blur-md">
               <div className="rounded-[22px] bg-white p-4 text-slate-900 shadow-xl shadow-slate-900/10">
                 <div className="mb-4 flex items-center justify-between">
                   <div>

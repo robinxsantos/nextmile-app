@@ -28,6 +28,8 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import LogoLight from "../../assets/logo-light.png";
+import LogoDark from "../../assets/logo-dark.png";
 
 const allNavItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard", adminOnly: true },
@@ -79,9 +81,21 @@ export default function Sidebar({
         {/* HEADER */}
         <div className="flex items-center justify-between px-4 h-14 border-b border-zinc-200 dark:border-zinc-800">
           {!sidebarCollapsed && (
-            <div className="font-semibold text-sm text-zinc-900 dark:text-zinc-100">
-              NextmileOS
-            </div>
+            <>
+              {/* LIGHT MODE */}
+              <img
+                src={LogoLight}
+                alt="Nextmile"
+                className="h-5 w-auto block dark:hidden"
+              />
+
+              {/* DARK MODE */}
+              <img
+                src={LogoDark}
+                alt="Nextmile"
+                className="h-5 w-auto hidden dark:block"
+              />
+            </>
           )}
 
           <Button
