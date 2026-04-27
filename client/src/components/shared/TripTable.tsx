@@ -865,15 +865,15 @@ export default function TripTable({
       <button
         onClick={() => onTogglePaid?.(r._id)}
         className={cn(
-          "group px-3 py-1.5 rounded-md inline-flex cursor-pointer hover:bg-muted/50 items-center gap-1.5 text-xs border transition-all",
+          "group px-3 py-1.5 rounded-md inline-flex cursor-pointer items-center gap-1.5 text-xs border transition-all",
           r.paid
-            ? "bg-green-500/10 border-green-500/20 text-green-600"
-            : "bg-muted border-border text-slate-400 hover:bg-green-500/10 hover:text-green-500",
+            ? "bg-green-500/10 border-green-500/20 text-green-600 hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-500"
+            : "bg-muted border-border text-slate-400 hover:bg-green-500/10 hover:border-green-500/20 hover:text-green-500",
         )}
       >
         <span className="relative flex items-center justify-center w-[110px] min-h-[16px]">
           {/* DEFAULT */}
-          <span className="absolute inset-0 flex items-center justify-center gap-1.5 group-hover:opacity-0 transition-opacity">
+          <span className="absolute inset-0 flex items-center justify-center gap-1.5 group-hover:opacity-0 group-hover:invisible transition-all">
             {r.paid ? (
               <>
                 <Check size={12} />
@@ -890,7 +890,7 @@ export default function TripTable({
           {/* HOVER */}
           <span
             className={cn(
-              "absolute inset-0 flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity",
+              "absolute inset-0 flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 group-hover:visible transition-all",
               r.paid ? "text-red-500" : "text-green-500",
             )}
           >
