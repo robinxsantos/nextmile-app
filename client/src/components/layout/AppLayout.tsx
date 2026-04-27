@@ -29,10 +29,11 @@ export default function AppLayout() {
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-200">
       {/* Mobile overlay */}
-      {!sidebarCollapsed && (
+      {/* Mobile overlay */}
+      {openMobile && (
         <div
           className="fixed inset-0 bg-black/40 z-40 lg:hidden"
-          onClick={() => setOpenMobile(true)}
+          onClick={() => setOpenMobile(false)}
         />
       )}
 

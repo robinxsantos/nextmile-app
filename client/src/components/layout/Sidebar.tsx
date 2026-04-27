@@ -220,15 +220,15 @@ export default function Sidebar({
       </Dialog>
       {/* MOBILE SIDEBAR */}
       {openMobile && (
-        <div className="fixed inset-0 z-[9999] flex lg:hidden">
+        <div className="fixed inset-0 z-40 flex lg:hidden">
           {/* Overlay */}
           <div
-            className="absolute inset-0 bg-black/40"
+            className="absolute inset-0 bg-black/40 z-40"
             onClick={() => setOpenMobile(false)}
           />
 
           {/* Drawer */}
-          <div className="relative w-[240px] h-full bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 p-4">
+          <div className="relative z-50 w-[240px] h-full bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 p-4">
             <button onClick={() => setOpenMobile(false)} className="mb-4">
               ✕
             </button>

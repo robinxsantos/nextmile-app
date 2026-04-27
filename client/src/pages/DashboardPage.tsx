@@ -812,7 +812,7 @@ export default function DashboardPage() {
                 <Columns3 size={18} />
               </button>
               {showColumnsMenu && (
-                <div className="absolute right-0 mt-2 z-50 w-64 max-h-[320px] overflow-y-auto rounded-md border border-border bg-background p-2">
+                <div className="absolute right-0 mt-2 z-100 w-64 max-h-[320px] overflow-y-auto rounded-md border border-border bg-background p-2">
                   <div className="px-2 pb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                     Show Columns
                   </div>

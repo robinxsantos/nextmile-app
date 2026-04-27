@@ -32,12 +32,12 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-900">
+    <div className="min-h-screen bg-background text-foreground">
       <div className="grid min-h-screen lg:grid-cols-2">
         {/* LEFT: Login */}
-        <section className="flex items-center justify-center bg-white px-6 py-8 sm:px-10">
-          <div className="w-full max-w-md">
-            <div className="mb-10 flex items-center gap-2.5">
+        <section className="flex items-center justify-center bg-background px-4 py-6 sm:px-6 lg:px-10">
+          <div className="w-full max-w-sm sm:max-w-md">
+            <div className="mb-8 flex items-center gap-2.5">
               <div className="flex h-10 w-10 items-center justify-center rounded-md bg-muted">
                 <img src={Logo} alt="Nextmile Logo" className="h-5 w-auto" />
               </div>
@@ -51,8 +51,8 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <div className="mb-8">
-              <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
+            <div className="mb-6">
+              <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">
                 Welcome back
               </h1>
               <p className="mt-2 text-sm text-slate-500">
@@ -113,7 +113,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="h-10 w-full rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition flex items-center justify-center gap-2 active:scale-[0.99] disabled:opacity-60"
+                className="h-11 sm:h-10 w-full rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition flex items-center justify-center gap-2 active:scale-[0.99] disabled:opacity-60"
               >
                 {loading ? (
                   <>
