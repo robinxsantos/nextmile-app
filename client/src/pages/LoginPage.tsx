@@ -43,9 +43,11 @@ export default function LoginPage() {
               </div>
               <div>
                 <p className="text-sm font-semibold text-slate-900">
-                  Nextmile OS
+                  Nextmile Fleet Management App
                 </p>
-                <p className="text-xs text-slate-500">Fleet Management App</p>
+                <p className="text-xs text-slate-500">
+                  by Nextmile Trucking Services
+                </p>
               </div>
             </div>
 
