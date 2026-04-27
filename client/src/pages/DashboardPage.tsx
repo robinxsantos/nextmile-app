@@ -338,7 +338,7 @@ export default function DashboardPage() {
         {/* 🔴 LEFT: KPI SUMMARY (reuses your original logic) */}
         <div className="lg:col-span-1">
           <Card className="p-5 min-h-[600px] flex flex-col justify-start">
-            <div className="mb-4">
+            <div className="mb-2">
               <h2 className="text-base font-semibold">Financial Summary</h2>
               <p className="text-sm text-muted-foreground">
                 Overview vs last period
@@ -358,7 +358,7 @@ export default function DashboardPage() {
                   value: kpis.expenses,
                   prev: previousKpis.expenses,
                   icon: Receipt,
-                  invert: true, // 🔥 kasi higher expense = bad
+                  invert: true,
                 },
                 {
                   label: "Net Income",
@@ -396,9 +396,9 @@ export default function DashboardPage() {
 
                 return (
                   <div key={item.label}>
-                    <div className="flex items-center justify-between py-4">
+                    <div className="grid grid-cols-[1fr_auto] items-start py-4">
                       {/* LEFT */}
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-start gap-3">
                         <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center">
                           <Icon className="h-4 w-4 text-muted-foreground" />
                         </div>
@@ -412,17 +412,18 @@ export default function DashboardPage() {
                       </div>
 
                       {/* RIGHT */}
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold">
+                      <div className="flex flex-col items-end justify-start pt-[2px]">
+                        {/* TOTAL */}
+                        <span className="text-base font-bold leading-tight">
                           ₱{moneyFormat.format(item.value)}
                         </span>
 
-                        {item.prev !== undefined ? (
-                          item.label === "Payable" ? (
-                            // 🔥 PAYABLE = ABSOLUTE ONLY
+                        {/* CHANGE (PILL) */}
+                        {item.prev !== undefined &&
+                          (item.label === "Payable" ? (
                             <span
                               className={cn(
-                                "inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium",
+                                "inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium mt-1",
                                 isGood
                                   ? "bg-green-500/10 text-green-600"
                                   : "bg-red-500/10 text-red-500",
@@ -438,10 +439,9 @@ export default function DashboardPage() {
                               {sign}₱{moneyFormat.format(Math.abs(diff))}
                             </span>
                           ) : (
-                            // 🔥 OTHERS = % + ABSOLUTE
                             <span
                               className={cn(
-                                "inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium",
+                                "inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium mt-1",
                                 isGood
                                   ? "bg-green-500/10 text-green-600"
                                   : "bg-red-500/10 text-red-500",
@@ -460,12 +460,11 @@ export default function DashboardPage() {
                                 ({sign}₱{moneyFormat.format(Math.abs(diff))})
                               </span>
                             </span>
-                          )
-                        ) : null}
+                          ))}
                       </div>
                     </div>
 
-                    {/* DASHED DIVIDER */}
+                    {/* DIVIDER */}
                     {idx !== 4 && (
                       <div className="border-t border-dashed border-border" />
                     )}
@@ -584,7 +583,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="border rounded-lg bg-background p-3.5 overflow-visible">
+      <div className="border rounded-lg bg-background p-3.5 overflow-visible mt-4">
         <div className="flex flex-col gap-3 mb-3">
           <div>
             <h2 className="text-base font-bold tracking-tight">Trip Records</h2>
