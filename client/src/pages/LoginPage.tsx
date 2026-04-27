@@ -37,7 +37,7 @@ export default function LoginPage() {
         {/* LEFT: Login */}
         <section className="flex items-center justify-center bg-white px-6 py-8 sm:px-10">
           <div className="w-full max-w-md">
-            <div className="mb-10 flex items-center gap-3">
+            <div className="mb-10 flex items-center gap-2.5">
               <div className="flex h-10 w-10 items-center justify-center rounded-md bg-muted">
                 <img src={Logo} alt="Nextmile Logo" className="h-5 w-auto" />
               </div>
@@ -60,7 +60,7 @@ export default function LoginPage() {
               </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-5">
               <div>
                 <label
                   htmlFor="username"
@@ -76,7 +76,7 @@ export default function LoginPage() {
                   onChange={(e) => setUsername(e.target.value)}
                   autoComplete="username"
                   autoFocus
-                  className="w-full h-[44px] rounded-md border border-border bg-background px-3 py-2 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20"
+                  className="w-full h-[44px] rounded-md border border-border bg-background px-3 py-2 text-sm outline-none transition focus:border-foreground focus:ring-2 focus:ring-foreground/10"
                 />
               </div>
 
@@ -95,7 +95,7 @@ export default function LoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     autoComplete="current-password"
-                    className="w-full h-[44px] rounded-md border border-border bg-background px-3 py-2 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20"
+                    className="w-full h-[44px] rounded-md border border-border bg-background px-3 py-2 text-sm outline-none transition focus:border-foreground focus:ring-2 focus:ring-foreground/10"
                   />
                   <button
                     type="button"
@@ -113,7 +113,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="h-10 w-full rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition flex items-center justify-center gap-2 disabled:opacity-60"
+                className="h-10 w-full rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition flex items-center justify-center gap-2 active:scale-[0.99] disabled:opacity-60"
               >
                 {loading ? (
                   <>
