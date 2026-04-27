@@ -245,7 +245,9 @@ router.get("/", async (req: Request, res: Response) => {
     }
 
     // Build chart data (monthly aggregation)
-    const monthMap: Record<
+    const chartMode = rangePreset === "TM" ? "WEEKLY" : "MONTHLY";
+
+    const chartMap: Record<
       string,
       {
         label: string;
@@ -255,43 +257,57 @@ router.get("/", async (req: Request, res: Response) => {
         trips: number;
       }
     > = {};
-    const seenDatesPerMonth: Record<string, Set<string>> = {};
+
+    const seenDates: Record<string, Set<string>> = {};
 
     rows.forEach((r) => {
       const d = new Date(r.date);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      let key = "";
+      let label = "";
+
+      if (chartMode === "WEEKLY") {
+        const week = Math.ceil(d.getDate() / 7);
+        key = `${d.getFullYear()}-${d.getMonth()}-W${week}`;
+        label = `Week ${week}`;
+      } else {
+        key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        label = d.toLocaleDateString("en-US", {
+          month: "short",
+          year: "numeric",
+        });
+      }
+
       const dateKey = r.dateIso;
 
-      if (!monthMap[key]) {
-        monthMap[key] = {
-          label: d.toLocaleDateString("en-US", {
-            month: "short",
-            year: "numeric",
-          }),
+      if (!chartMap[key]) {
+        chartMap[key] = {
+          label,
           gross: 0,
           salary: 0,
           expenses: 0,
           trips: 0,
         };
-        seenDatesPerMonth[key] = new Set();
+        seenDates[key] = new Set();
       }
 
-      monthMap[key].gross += r.grossIncome || 0;
-      monthMap[key].salary += r.crewSalary || 0;
-      monthMap[key].trips += r.trips || 0;
+      chartMap[key].gross += r.grossIncome || 0;
+      chartMap[key].salary += r.crewSalary || 0;
+      chartMap[key].trips += r.trips || 0;
 
-      if (!seenDatesPerMonth[key].has(dateKey)) {
-        seenDatesPerMonth[key].add(dateKey);
-        monthMap[key].expenses += r.expenses || 0;
+      if (!seenDates[key].has(dateKey)) {
+        seenDates[key].add(dateKey);
+        chartMap[key].expenses += r.expenses || 0;
       }
     });
 
-    const chartKeys = Object.keys(monthMap).sort();
-    const chartData = chartKeys.map((k) => ({
-      label: monthMap[k].label,
-      gross: monthMap[k].gross,
-      net: monthMap[k].gross - monthMap[k].salary - monthMap[k].expenses,
-      trips: monthMap[k].trips,
+    const chartKeys = Object.keys(chartMap).sort();
+
+    const chartData = rows.map((r) => ({
+      label: r.dateText,
+      dateIso: r.dateIso, // 🔥 ADD THIS
+      gross: r.grossIncome,
+      net: r.grossIncome - r.crewSalary - r.expenses,
+      trips: r.trips,
     }));
 
     res.json({

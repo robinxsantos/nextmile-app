@@ -191,6 +191,12 @@ export default function DashboardPage() {
     CUSTOM: "Custom",
   };
   const kpiPrefix = rangeLabels[rangePreset] || "Selected";
+  const getChartMode = () => {
+    if (rangePreset === "TM") return "WEEKLY";
+    if (rangePreset === "YTD") return "MONTHLY"; // 🔥 FIX
+    if (rangePreset === "ALL") return "MONTHLY"; // 🔥 FIX
+    return "WEEKLY";
+  };
   const pageTitle = selectedTruckName
     ? `${selectedTruckName} Overview`
     : "Overview";
@@ -297,6 +303,81 @@ export default function DashboardPage() {
     await bulkDeleteTrips(selectedTripIds);
     setBulkDeleteModal(false);
   };
+
+  const chartMode = getChartMode();
+
+  const groupedChartData = useMemo(() => {
+    if (chartMode === "WEEKLY") {
+      const weeks: Record<string, any> = {};
+
+      chartData.forEach((item) => {
+        const date = new Date(item.dateIso);
+
+        const getMondayIndex = (d: Date) => (d.getDay() + 6) % 7;
+
+        const startOfWeek = new Date(date);
+        startOfWeek.setDate(date.getDate() - getMondayIndex(date));
+
+        const firstDayOfMonth = new Date(
+          date.getFullYear(),
+          date.getMonth(),
+          1,
+        );
+        const lastDayOfMonth = new Date(
+          date.getFullYear(),
+          date.getMonth() + 1,
+          0,
+        );
+
+        const start =
+          startOfWeek < firstDayOfMonth ? firstDayOfMonth : startOfWeek;
+
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(startOfWeek.getDate() + 6);
+
+        const end = endOfWeek > lastDayOfMonth ? lastDayOfMonth : endOfWeek;
+
+        const format = (d: Date) =>
+          d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+        const label = `${format(start)}–${format(end)}`;
+
+        const key = `${start.getFullYear()}-${start.getMonth()}-${start.getDate()}`;
+
+        if (!weeks[key]) {
+          weeks[key] = { label, gross: 0, net: 0, trips: 0 };
+        }
+
+        weeks[key].gross += item.gross || 0;
+        weeks[key].net += item.net || 0;
+        weeks[key].trips += item.trips || 0;
+      });
+
+      return Object.values(weeks);
+    }
+
+    // 🔥 MONTHLY MODE
+    const months: Record<string, any> = {};
+
+    chartData.forEach((item) => {
+      const date = new Date(item.dateIso);
+
+      const key = `${date.getFullYear()}-${date.getMonth()}`;
+      const label = date.toLocaleDateString("en-US", {
+        month: "short",
+      });
+
+      if (!months[key]) {
+        months[key] = { label, gross: 0, net: 0, trips: 0 };
+      }
+
+      months[key].gross += item.gross || 0;
+      months[key].net += item.net || 0;
+      months[key].trips += item.trips || 0;
+    });
+
+    return Object.values(months);
+  }, [chartData, chartMode]);
 
   return (
     <div>
@@ -482,14 +563,16 @@ export default function DashboardPage() {
             <Card className="flex-1">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium">
-                  Monthly Gross vs Net Income
+                  {chartMode === "WEEKLY"
+                    ? "Weekly Gross vs Net Income"
+                    : "Monthly Gross vs Net Income"}
                 </CardTitle>
                 <span className="text-xs text-muted-foreground">Trend</span>
               </CardHeader>
 
               <CardContent className="h-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={chartData} margin={{ left: 20 }}>
+                  <AreaChart data={groupedChartData} margin={{ left: 20 }}>
                     <CartesianGrid
                       stroke="hsl(var(--border))"
                       strokeDasharray="3 3"
@@ -527,17 +610,69 @@ export default function DashboardPage() {
                         ];
                       }}
                     />
+                    <Legend
+                      wrapperStyle={{
+                        fontSize: "12px",
+                      }}
+                    />
+                    <defs>
+                      <linearGradient
+                        id="grossGradient"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="0%"
+                          stopColor="#2563eb"
+                          stopOpacity={0.25}
+                        />
+                        <stop
+                          offset="100%"
+                          stopColor="#2563eb"
+                          stopOpacity={0}
+                        />
+                      </linearGradient>
+
+                      <linearGradient
+                        id="netGradient"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="0%"
+                          stopColor="#14b8a6"
+                          stopOpacity={0.25}
+                        />
+                        <stop
+                          offset="100%"
+                          stopColor="#14b8a6"
+                          stopOpacity={0}
+                        />
+                      </linearGradient>
+                    </defs>
+
                     <Area
-                      type="linear"
+                      type="monotone"
                       dataKey="gross"
                       stroke="#2563eb"
-                      fill="#2563eb22"
+                      strokeWidth={2}
+                      fill="url(#grossGradient)"
+                      dot={{ r: 3 }}
+                      activeDot={{ r: 5 }}
                     />
+
                     <Area
-                      type="linear"
+                      type="monotone"
                       dataKey="net"
                       stroke="#14b8a6"
-                      fill="#14b8a622"
+                      strokeWidth={2}
+                      fill="url(#netGradient)"
+                      dot={{ r: 3 }}
+                      activeDot={{ r: 5 }}
                     />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -548,14 +683,17 @@ export default function DashboardPage() {
             <Card className="flex-1">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium">
-                  Monthly Trips
+                  {chartMode === "WEEKLY" ? "Weekly Trips" : "Monthly Trips"}
                 </CardTitle>
                 <span className="text-xs text-muted-foreground">Volume</span>
               </CardHeader>
 
               <CardContent className="h-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData} margin={{ top: 20, left: 20 }}>
+                  <BarChart
+                    data={groupedChartData}
+                    margin={{ top: 20, left: 20 }}
+                  >
                     <CartesianGrid
                       stroke="hsl(var(--border))"
                       strokeDasharray="3 3"
@@ -565,14 +703,22 @@ export default function DashboardPage() {
                     <Tooltip />
                     <Bar
                       dataKey="trips"
-                      name="Trips"
                       fill="#ff9319"
                       radius={6}
-                      label={{
-                        position: "top",
-                        offset: 8,
-                        fontSize: 12,
-                        fill: "#9ca3af",
+                      label={(props: any) => {
+                        const { x, y, width, value } = props;
+
+                        return (
+                          <text
+                            x={x + width / 2}
+                            y={y - 6}
+                            textAnchor="middle"
+                            fontSize={12}
+                            fill="#9ca3af"
+                          >
+                            {value}
+                          </text>
+                        );
                       }}
                     />
                   </BarChart>
