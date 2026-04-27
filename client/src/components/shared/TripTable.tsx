@@ -865,23 +865,43 @@ export default function TripTable({
       <button
         onClick={() => onTogglePaid?.(r._id)}
         className={cn(
-          "px-3 py-1.5 rounded-md inline-flex cursor-pointer hover:bg-muted/50 items-center gap-1.5 text-xs border transition-all",
+          "group px-3 py-1.5 rounded-md inline-flex cursor-pointer hover:bg-muted/50 items-center gap-1.5 text-xs border transition-all",
           r.paid
             ? "bg-green-500/10 border-green-500/20 text-green-600"
             : "bg-muted border-border text-slate-400 hover:bg-green-500/10 hover:text-green-500",
         )}
       >
-        {r.paid ? (
-          <>
-            <Check size={12} />
-            Paid
-          </>
-        ) : (
-          <>
-            <X size={12} />
-            Unpaid
-          </>
-        )}
+        <span className="relative flex items-center justify-center w-[110px] min-h-[16px]">
+          {/* DEFAULT */}
+          <span className="absolute inset-0 flex items-center justify-center gap-1.5 group-hover:opacity-0 transition-opacity">
+            {r.paid ? (
+              <>
+                <Check size={12} />
+                Paid
+              </>
+            ) : (
+              <>
+                <X size={12} />
+                Unpaid
+              </>
+            )}
+          </span>
+
+          {/* HOVER */}
+          <span className="absolute inset-0 flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+            {r.paid ? (
+              <>
+                <X size={12} />
+                Mark as Unpaid
+              </>
+            ) : (
+              <>
+                <Check size={12} />
+                Mark as Paid
+              </>
+            )}
+          </span>
+        </span>
       </button>
     ),
   });
