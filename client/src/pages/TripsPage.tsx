@@ -299,22 +299,24 @@ export default function TripsPage() {
         </div>
       </div>
 
-      <FilterBar
-        showTruck={admin}
-        showRange
-        showMonth={false}
-        allowedRangePresets={admin ? undefined : (["CC", "LC"] as const)}
-        actions={
-          <button
-            onClick={handleAddTrip}
-            className="h-10 px-4 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition flex items-center gap-2"
-          >
-            <Plus size={18} /> Add Trip
-          </button>
-        }
-      />
+      <div className="sticky top-0 z-40 bg-background">
+        <FilterBar
+          showTruck={admin}
+          showRange
+          showMonth={false}
+          allowedRangePresets={admin ? undefined : (["CC", "LC"] as const)}
+          actions={
+            <button
+              onClick={handleAddTrip}
+              className="h-10 px-4 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition flex items-center gap-2"
+            >
+              <Plus size={18} /> Add Trip
+            </button>
+          }
+        />
+      </div>
 
-      <div className="border border-border rounded-lg bg-background p-3.5 overflow-visible">
+      <div className="border border-border rounded-lg bg-background p-3.5 overflow-visible mt-4">
         <div className="flex flex-col gap-3 mb-3">
           <div>
             <h2 className="text-base font-bold tracking-tight">Trip Records</h2>

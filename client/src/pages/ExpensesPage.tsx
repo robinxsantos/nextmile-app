@@ -241,7 +241,7 @@ export default function ExpensesPage() {
         }
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-3 mt-4">
         {/* Table */}
         <div className="border rounded-lg bg-background overflow-hidden">
           <div className="p-3.5 pb-2">

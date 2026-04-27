@@ -8,7 +8,7 @@ import TripTable from "../components/shared/TripTable";
 import ErrorState from "../components/shared/ErrorState";
 import { exportTripsCsv, exportPayslip } from "../lib/exportHelpers";
 import {
-  DollarSign,
+  PhilippinePeso,
   CheckCircle2,
   BarChart3,
   ArrowUpDown,
@@ -23,6 +23,7 @@ import {
   Columns3,
   TrendingUp,
   TrendingDown,
+  Receipt,
 } from "lucide-react";
 import {
   XAxis,
@@ -317,399 +318,273 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <FilterBar
-        showTruck={admin}
-        allowedRangePresets={admin ? undefined : (["CC", "LC"] as const)}
-        actions={
-          <button
-            onClick={handleAddTrip}
-            className="h-10 px-4 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition flex items-center gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            Add Trip
-          </button>
-        }
-      />
-
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 mb-4">
-        {/* GROSS */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm text-muted-foreground">
-              {kpiPrefix} Gross
-            </CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">
-              {moneyFormat.format(kpis.gross)}
-            </div>
-
-            {(() => {
-              const current = kpis.gross;
-              const previous = previousKpis.gross;
-
-              if (!previous || previous === 0) return null;
-
-              const diff = current - previous;
-              const percent = (diff / previous) * 100;
-              const isUp = diff >= 0;
-
-              return (
-                <div className="flex items-center gap-2 mt-1">
-                  <span
-                    className={cn(
-                      "inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium",
-                      isUp
-                        ? "bg-green-500/10 text-green-600"
-                        : "bg-red-500/10 text-red-500",
-                    )}
-                  >
-                    {isUp ? (
-                      <TrendingUp className="h-3 w-3" />
-                    ) : (
-                      <TrendingDown className="h-3 w-3" />
-                    )}
-                    {isUp ? "+" : "-"}
-                    {Math.abs(percent).toFixed(1)}%
-                    <span>
-                      ({isUp ? "+" : "-"}
-                      {moneyFormat.format(Math.abs(diff))})
-                    </span>
-                  </span>
-
-                  <span className="text-[11px] text-muted-foreground">
-                    vs last period
-                  </span>
-                </div>
-              );
-            })()}
-          </CardContent>
-        </Card>
-
-        {/* NET */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm text-muted-foreground">
-              {kpiPrefix} Net
-            </CardTitle>
-            <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">
-              {moneyFormat.format(kpis.net)}
-            </div>
-
-            {(() => {
-              const current = kpis.net;
-              const previous = previousKpis.net;
-
-              if (!previous || previous === 0) return null;
-
-              const diff = current - previous;
-              const percent = (diff / previous) * 100;
-              const isUp = diff >= 0;
-
-              return (
-                <div className="flex items-center gap-2 mt-1">
-                  <span
-                    className={cn(
-                      "inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium",
-                      isUp
-                        ? "bg-green-500/10 text-green-600"
-                        : "bg-red-500/10 text-red-500",
-                    )}
-                  >
-                    {isUp ? (
-                      <TrendingUp className="h-3 w-3" />
-                    ) : (
-                      <TrendingDown className="h-3 w-3" />
-                    )}
-                    {isUp ? "+" : "-"}
-                    {Math.abs(percent).toFixed(1)}%
-                    <span>
-                      ({isUp ? "+" : "-"}
-                      {moneyFormat.format(Math.abs(diff))})
-                    </span>
-                  </span>
-
-                  <span className="text-[11px] text-muted-foreground">
-                    vs last period
-                  </span>
-                </div>
-              );
-            })()}
-          </CardContent>
-        </Card>
-
-        {/* PAYABLE */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm text-muted-foreground">
-              {kpiPrefix} Payable
-            </CardTitle>
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">
-              {moneyFormat.format(kpis.payable)}
-            </div>
-
-            {(() => {
-              const current = kpis.payable;
-              const previous = previousKpis.payable;
-
-              if (!previous || previous === 0) return null;
-
-              const diff = current - previous;
-              const percent = (diff / previous) * 100;
-              const isUp = diff >= 0;
-
-              return (
-                <div className="flex items-center gap-2 mt-1">
-                  <span
-                    className={cn(
-                      "inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium",
-                      isUp
-                        ? "bg-green-500/10 text-green-600"
-                        : "bg-red-500/10 text-red-500",
-                    )}
-                  >
-                    {isUp ? (
-                      <TrendingUp className="h-3 w-3" />
-                    ) : (
-                      <TrendingDown className="h-3 w-3" />
-                    )}
-                    {isUp ? "+" : "-"}
-                    {Math.abs(percent).toFixed(1)}%
-                    <span>
-                      ({isUp ? "+" : "-"}
-                      {moneyFormat.format(Math.abs(diff))})
-                    </span>
-                  </span>
-
-                  <span className="text-[11px] text-muted-foreground">
-                    vs last period
-                  </span>
-                </div>
-              );
-            })()}
-          </CardContent>
-        </Card>
-
-        {/* CASH OUTFLOW */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm text-muted-foreground">
-              {kpiPrefix} Cash Outflow
-            </CardTitle>
-            <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-
-          <CardContent>
-            <div className="text-3xl font-bold">
-              {moneyFormat.format(kpis.cashOutflow)}
-            </div>
-
-            {(() => {
-              const current = kpis.cashOutflow;
-              const previous = previousKpis.cashOutflow;
-
-              if (!previous || previous === 0) return null;
-
-              const diff = current - previous;
-              const percent = (diff / previous) * 100;
-
-              // ✅ SIGN = based on actual math
-              const sign = diff > 0 ? "+" : "-";
-
-              // ✅ COLOR LOGIC (INVERTED for expenses)
-              const isGood = diff <= 0;
-
-              return (
-                <div className="flex items-center gap-2 mt-1">
-                  <span
-                    className={cn(
-                      "inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium",
-                      isGood
-                        ? "bg-green-500/10 text-green-600"
-                        : "bg-red-500/10 text-red-500",
-                    )}
-                  >
-                    {diff > 0 ? (
-                      <TrendingUp className="h-3 w-3" />
-                    ) : (
-                      <TrendingDown className="h-3 w-3" />
-                    )}
-                    {sign}
-                    {Math.abs(percent).toFixed(1)}%
-                    <span>
-                      ({sign}
-                      {moneyFormat.format(Math.abs(diff))})
-                    </span>
-                  </span>
-
-                  <span className="text-[11px] text-muted-foreground">
-                    vs last period
-                  </span>
-                </div>
-              );
-            })()}
-          </CardContent>
-        </Card>
+      <div className="sticky top-0 z-40 bg-background">
+        <FilterBar
+          showTruck={admin}
+          allowedRangePresets={admin ? undefined : (["CC", "LC"] as const)}
+          actions={
+            <button
+              onClick={handleAddTrip}
+              className="h-10 px-4 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition flex items-center gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Add Trip
+            </button>
+          }
+        />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-        {/* AREA CHART */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">
-              Monthly Gross vs Net Income
-            </CardTitle>
-            <span className="text-xs text-muted-foreground">Trend</span>
-          </CardHeader>
+      <div className="grid gap-4 lg:grid-cols-3 mt-4">
+        {/* 🔴 LEFT: KPI SUMMARY (reuses your original logic) */}
+        <div className="lg:col-span-1">
+          <Card className="p-5 min-h-[600px] flex flex-col justify-start">
+            <div className="mb-4">
+              <h2 className="text-base font-semibold">Financial Summary</h2>
+              <p className="text-sm text-muted-foreground">
+                Overview vs last period
+              </p>
+            </div>
 
-          <CardContent className="h-[260px]">
-            <ResponsiveContainer width="100%" height={260}>
-              <AreaChart data={chartData}>
-                <CartesianGrid
-                  stroke="hsl(var(--border))"
-                  strokeDasharray="3 3"
-                />
+            <div className="space-y-2">
+              {[
+                {
+                  label: "Gross Income",
+                  value: kpis.gross,
+                  prev: previousKpis.gross,
+                  icon: PhilippinePeso,
+                },
+                {
+                  label: "Expenses",
+                  value: kpis.expenses,
+                  prev: previousKpis.expenses,
+                  icon: Receipt,
+                  invert: true, // 🔥 kasi higher expense = bad
+                },
+                {
+                  label: "Net Income",
+                  value: kpis.net,
+                  prev: previousKpis.net,
+                  icon: CheckCircle2,
+                },
+                {
+                  label: "Payable",
+                  value: kpis.payable,
+                  prev: previousKpis.payable,
+                  icon: BarChart3,
+                },
+                {
+                  label: "Cash Outflow",
+                  value: kpis.cashOutflow,
+                  prev: previousKpis.cashOutflow,
+                  icon: ArrowUpDown,
+                  invert: true,
+                },
+              ].map((item, idx) => {
+                const diff = item.value - item.prev;
+                const percent =
+                  item.prev === 0
+                    ? 100
+                    : item.prev
+                      ? (diff / item.prev) * 100
+                      : 0;
 
-                <XAxis
-                  dataKey="label"
-                  fontSize={12}
-                  stroke="#9ca3af"
-                  tick={{ fill: "#9ca3af" }}
-                />
+                const isUp = diff >= 0;
+                const sign = diff === 0 ? "" : diff > 0 ? "+" : "-";
+                const isGood = item.invert ? diff <= 0 : diff >= 0;
 
-                <YAxis
-                  fontSize={12}
-                  stroke="#9ca3af"
-                  tick={{ fill: "#9ca3af" }}
-                />
+                const Icon = item.icon;
 
-                <Tooltip
-                  contentStyle={{
-                    background: "white",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: 8,
-                    fontSize: 12,
-                  }}
-                  formatter={(value: unknown, name: string) => {
-                    if (typeof value !== "number") return [value ?? "", name];
+                return (
+                  <div key={item.label}>
+                    <div className="flex items-center justify-between py-4">
+                      {/* LEFT */}
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center">
+                          <Icon className="h-4 w-4 text-muted-foreground" />
+                        </div>
 
-                    const label =
-                      name === "gross"
-                        ? "Gross Income"
-                        : name === "net"
-                          ? "Net Income"
-                          : name;
+                        <div>
+                          <p className="text-sm font-medium">{item.label}</p>
+                          <p className="text-xs text-muted-foreground">
+                            vs last period
+                          </p>
+                        </div>
+                      </div>
 
-                    return [moneyFormat.format(value), label];
-                  }}
-                />
+                      {/* RIGHT */}
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold">
+                          {moneyFormat.format(item.value)}
+                        </span>
 
-                <Legend
-                  wrapperStyle={{
-                    color: "hsl(var(--foreground))",
-                    fontSize: "12px",
-                  }}
-                />
+                        {item.prev !== undefined ? (
+                          item.label === "Payable" ? (
+                            // 🔥 PAYABLE = ABSOLUTE ONLY
+                            <span
+                              className={cn(
+                                "inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium",
+                                isGood
+                                  ? "bg-green-500/10 text-green-600"
+                                  : "bg-red-500/10 text-red-500",
+                              )}
+                            >
+                              {diff === 0 ? (
+                                <div className="w-2 h-2 rounded-full bg-muted-foreground" />
+                              ) : isUp ? (
+                                <TrendingUp className="h-3 w-3" />
+                              ) : (
+                                <TrendingDown className="h-3 w-3" />
+                              )}
 
-                <Area
-                  type="linear"
-                  dataKey="gross"
-                  name="Gross Income"
-                  stroke="#2563eb"
-                  strokeWidth={3}
-                  fill="#2563eb22"
-                  dot={{ r: 3 }}
-                  activeDot={{ r: 6 }}
-                  connectNulls
-                  isAnimationActive
-                  animationDuration={800}
-                  animationEasing="ease-out"
-                />
+                              {sign}
+                              {moneyFormat.format(Math.abs(diff))}
+                            </span>
+                          ) : (
+                            // 🔥 OTHERS = % + ABSOLUTE
+                            <span
+                              className={cn(
+                                "inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium",
+                                isGood
+                                  ? "bg-green-500/10 text-green-600"
+                                  : "bg-red-500/10 text-red-500",
+                              )}
+                            >
+                              {diff === 0 ? (
+                                <div className="w-2 h-2 rounded-full bg-muted-foreground" />
+                              ) : isUp ? (
+                                <TrendingUp className="h-3 w-3" />
+                              ) : (
+                                <TrendingDown className="h-3 w-3" />
+                              )}
+                              {sign}
+                              {Math.abs(percent).toFixed(1)}%
+                              <span>
+                                ({sign}
+                                {moneyFormat.format(Math.abs(diff))})
+                              </span>
+                            </span>
+                          )
+                        ) : null}
+                      </div>
+                    </div>
 
-                <Area
-                  type="linear"
-                  dataKey="net"
-                  name="Net Income"
-                  stroke="#14b8a6"
-                  strokeWidth={3}
-                  fill="#14b8a622"
-                  dot={{ r: 3 }}
-                  activeDot={{ r: 6 }}
-                  connectNulls
-                  isAnimationActive
-                  animationDuration={800}
-                  animationEasing="ease-out"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+                    {/* DASHED DIVIDER */}
+                    {idx !== 4 && (
+                      <div className="border-t border-dashed border-border" />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        </div>
 
-        {/* BAR CHART */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Monthly Trips</CardTitle>
-            <span className="text-xs text-muted-foreground">Volume</span>
-          </CardHeader>
+        {/* 🔵 RIGHT: CHARTS (unchanged) */}
+        <div className="lg:col-span-2 h-[600px]">
+          <div className="flex flex-col gap-4 h-full">
+            {/* AREA CHART */}
+            <Card className="flex-1">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Monthly Gross vs Net Income
+                </CardTitle>
+                <span className="text-xs text-muted-foreground">Trend</span>
+              </CardHeader>
 
-          <CardContent className="h-[260px]">
-            <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={chartData} margin={{ top: 20 }}>
-                <CartesianGrid
-                  stroke="hsl(var(--border))"
-                  strokeDasharray="3 3"
-                />
+              <CardContent className="h-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={chartData} margin={{ left: 20 }}>
+                    <CartesianGrid
+                      stroke="hsl(var(--border))"
+                      strokeDasharray="3 3"
+                    />
+                    <XAxis dataKey="label" fontSize={12} />
+                    <YAxis
+                      fontSize={12}
+                      tickFormatter={(value) =>
+                        Number(value).toLocaleString("en-PH", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })
+                      }
+                    />
 
-                <XAxis
-                  dataKey="label"
-                  fontSize={12}
-                  stroke="#9ca3af"
-                  tick={{ fill: "#9ca3af" }}
-                />
+                    <Tooltip
+                      formatter={(value: unknown, name: string) => {
+                        if (typeof value !== "number")
+                          return [value ?? "", name];
 
-                <YAxis
-                  fontSize={12}
-                  stroke="#9ca3af"
-                  tick={{ fill: "#9ca3af" }}
-                />
+                        const label =
+                          name === "gross"
+                            ? "Gross Income"
+                            : name === "net"
+                              ? "Net Income"
+                              : name;
 
-                <Tooltip
-                  contentStyle={{
-                    background: "white",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: 8,
-                    fontSize: 12,
-                  }}
-                  formatter={(value: unknown) =>
-                    typeof value === "number"
-                      ? value.toLocaleString()
-                      : (value ?? "")
-                  }
-                />
+                        return [
+                          "₱" +
+                            new Intl.NumberFormat("en-PH", {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            }).format(value),
+                          label,
+                        ];
+                      }}
+                    />
+                    <Area
+                      type="linear"
+                      dataKey="gross"
+                      stroke="#2563eb"
+                      fill="#2563eb22"
+                    />
+                    <Area
+                      type="linear"
+                      dataKey="net"
+                      stroke="#14b8a6"
+                      fill="#14b8a622"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
 
-                <Bar
-                  dataKey="trips"
-                  name="Trips"
-                  fill="#ff9319"
-                  radius={6}
-                  activeBar={{ fill: "hsl(var(--foreground))" }}
-                  label={{
-                    position: "top",
-                    fontSize: 12,
-                    fill: "#9ca3af",
-                  }}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+            {/* BAR CHART */}
+            <Card className="flex-1">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Monthly Trips
+                </CardTitle>
+                <span className="text-xs text-muted-foreground">Volume</span>
+              </CardHeader>
+
+              <CardContent className="h-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData} margin={{ top: 20, left: 20 }}>
+                    <CartesianGrid
+                      stroke="hsl(var(--border))"
+                      strokeDasharray="3 3"
+                    />
+                    <XAxis dataKey="label" fontSize={12} />
+                    <YAxis fontSize={12} />
+                    <Tooltip />
+                    <Bar
+                      dataKey="trips"
+                      name="Trips"
+                      fill="#ff9319"
+                      radius={6}
+                      label={{
+                        position: "top",
+                        offset: 8,
+                        fontSize: 12,
+                        fill: "#9ca3af",
+                      }}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
 
       <div className="border rounded-lg bg-background p-3.5 overflow-visible">

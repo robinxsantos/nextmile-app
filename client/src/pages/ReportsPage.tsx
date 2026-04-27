@@ -228,7 +228,7 @@ export default function ReportsPage() {
         }
       />
 
-      <div className="border border-border rounded-lg bg-background p-3.5 flex flex-col">
+      <div className="border border-border rounded-lg bg-background p-3.5 flex flex-col mt-4">
         <div className="flex justify-between items-center mb-3 w-full">
           {/* LEFT SIDE */}
           <div>

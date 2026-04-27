@@ -152,7 +152,7 @@ export default function FilterBar({
   };
 
   return (
-    <div className="border rounded-lg p-4 mb-4 bg-background">
+    <div className="border rounded-lg p-4 bg-background">
       <div className="flex flex-wrap gap-3 items-end">
         {showRange && (
           <div className="min-w-[180px] flex-1 max-w-[220px]">

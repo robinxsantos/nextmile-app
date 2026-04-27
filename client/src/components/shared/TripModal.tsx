@@ -211,12 +211,22 @@ export default function TripModal({
 
   useEffect(() => {
     if (editRow) {
+      const d = editRow.dateIso
+        ? new Date(editRow.dateIso + "T00:00:00")
+        : new Date();
+
       prefillFromTrip(editRow, false);
+      setSelectedDate(d);
     } else if (duplicateFrom) {
+      const today = new Date();
+
       prefillFromTrip(duplicateFrom, true);
+      setSelectedDate(today);
     } else {
+      const today = new Date();
+
       setForm({
-        date: new Date(),
+        date: today,
         status: "Working Day",
         shipmentNumber: "",
         rate: "",
@@ -226,6 +236,8 @@ export default function TripModal({
         reimbursements: "",
         note: "",
       });
+
+      setSelectedDate(today); // 🔥 IMPORTANT
     }
   }, [editRow, duplicateFrom, open]);
 
