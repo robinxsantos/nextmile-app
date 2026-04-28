@@ -1054,6 +1054,7 @@ export default function TripTable({
                 Actions
               </th>
             )}
+            {!showActions && <th className="w-[1px] p-0"></th>}
           </tr>
         </thead>
         <tbody>
@@ -1153,6 +1154,7 @@ export default function TripTable({
                       </div>
                     </td>
                   )}
+                  {!showActions && <td className="w-[1px] p-0"></td>}
                 </tr>
               );
             })

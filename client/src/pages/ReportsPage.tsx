@@ -8,7 +8,6 @@ import { Download, BarChart3, Columns3 } from "lucide-react";
 import Pagination from "../components/shared/Pagination";
 import { usePagination } from "../hooks/usePagination";
 import EmptyState from "../components/shared/EmptyState";
-
 export default function ReportsPage() {
   const {
     reportRows,
@@ -57,7 +56,7 @@ export default function ReportsPage() {
     status: false,
     shipmentNumber: true,
     rate: true,
-    trips: true,
+    trips: false,
     crewSalary: true,
     cashAdvance: true,
     reimbursements: true,
@@ -211,23 +210,23 @@ export default function ReportsPage() {
           </div>
         </div>
       </div>
-
-      <FilterBar
-        showRange={false}
-        showTruck={false}
-        showMonth
-        monthValue={reportsMonth}
-        onMonthChange={setReportsMonth}
-        actions={
-          <button
-            onClick={handleDownloadReport}
-            className="h-10 px-4 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors flex items-center gap-2"
-          >
-            <Download size={16} /> Download Report
-          </button>
-        }
-      />
-
+      <div className="sticky top-0 z-40 bg-background">
+        <FilterBar
+          showRange={false}
+          showTruck={false}
+          showMonth
+          monthValue={reportsMonth}
+          onMonthChange={setReportsMonth}
+          actions={
+            <button
+              onClick={handleDownloadReport}
+              className="h-10 px-4 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors flex items-center gap-2"
+            >
+              <Download size={16} /> Download Report
+            </button>
+          }
+        />
+      </div>
       <div className="border border-border rounded-lg bg-background p-3.5 flex flex-col mt-4">
         <div className="flex justify-between items-center mb-3 w-full">
           {/* LEFT SIDE */}
@@ -252,7 +251,7 @@ export default function ReportsPage() {
               </button>
 
               {showColumnsMenu && (
-                <div className="absolute right-0 mt-2 z-50 w-64 max-h-[320px] overflow-y-auto rounded-md border border-border bg-background p-2">
+                <div className="absolute right-0 mt-2 z-100 w-64 max-h-[320px] overflow-y-auto rounded-md border border-border bg-background p-2">
                   <div className="px-2 pb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                     Show Columns
                   </div>
@@ -329,7 +328,6 @@ export default function ReportsPage() {
           onPageSizeChange={handlePageSizeChange}
         />
       </div>
-
       {/* Expense Breakdown Modal */}
       <ExpenseBreakdownModal
         open={!!expenseBreakdown}

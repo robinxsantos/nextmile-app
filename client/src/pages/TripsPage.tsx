@@ -439,9 +439,7 @@ export default function TripsPage() {
 
                           <span
                             className={`relative inline-flex h-4 w-7 items-center rounded-full ${
-                              checked
-                                ? "bg-blue-600"
-                                : "bg-slate-300 dark:bg-slate-600"
+                              checked ? "bg-foreground" : "bg-muted"
                             }`}
                           >
                             <span
