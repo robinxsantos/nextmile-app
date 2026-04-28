@@ -1,7 +1,6 @@
-import { useEffect, useState, useMemo, useCallback, useRef } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useAppStore, type TripRow } from "../store/useAppStore";
 import { useAuthStore } from "../store/useAuthStore";
-import KpiCard from "../components/shared/KpiCard";
 import FilterBar from "../components/shared/FilterBar";
 import TripModal from "../components/shared/TripModal";
 import TripTable from "../components/shared/TripTable";
@@ -38,8 +37,6 @@ import {
   Legend,
 } from "recharts";
 import Modal from "../components/shared/Modal";
-import Pagination from "../components/shared/Pagination";
-import { usePagination } from "../hooks/usePagination";
 import ExpenseBreakdownModal from "../components/shared/ExpenseBreakdownModal";
 import { AnimatePresence, motion } from "framer-motion";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
@@ -118,7 +115,7 @@ export default function DashboardPage() {
     status: false,
     shipmentNumber: true,
     rate: true,
-    trips: true,
+    trips: false,
     crewSalary: true,
     cashAdvance: true,
     reimbursements: true,
@@ -203,44 +200,6 @@ export default function DashboardPage() {
 
   const showTruckColumn = !selectedTruck || selectedTruck === "ALL";
 
-  const [sortField, setSortField] = useState("");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
-
-  const handleSort = useCallback(
-    (field: string) => {
-      setSortDirection((prev) =>
-        sortField === field ? (prev === "asc" ? "desc" : "asc") : "asc",
-      );
-      setSortField(field);
-    },
-    [sortField],
-  );
-
-  const filteredRows = useMemo(() => {
-    let rows = tripRows;
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      rows = rows.filter((r) => r.shipmentNumber.toLowerCase().includes(q));
-    }
-    if (verificationFilter !== "ALL") {
-      rows = rows.filter(
-        (r) =>
-          (r.verificationStatus || "For Confirmation") === verificationFilter,
-      );
-    }
-    if (sortField) {
-      rows = [...rows].sort((a, b) => {
-        const aVal =
-          (a as unknown as Record<string, number | string>)[sortField] ?? 0;
-        const bVal =
-          (b as unknown as Record<string, number | string>)[sortField] ?? 0;
-        const cmp = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
-        return sortDirection === "asc" ? cmp : -cmp;
-      });
-    }
-    return rows;
-  }, [tripRows, searchQuery, verificationFilter, sortField, sortDirection]);
-
   const moneyFormat = new Intl.NumberFormat("en-PH", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
@@ -260,16 +219,6 @@ export default function DashboardPage() {
 
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const {
-    paginatedItems: paginatedRows,
-    currentPage,
-    totalPages,
-    totalItems,
-    pageSize,
-    handlePageChange,
-    handlePageSizeChange,
-  } = usePagination(filteredRows, 20);
-
   const handleAddTrip = () => {
     if (!selectedTruck) {
       setShowTruckWarning(true);
@@ -286,11 +235,11 @@ export default function DashboardPage() {
     setTripModal(true);
   };
 
-  const handleExportCsv = () => exportTripsCsv(filteredRows);
+  const handleExportCsv = () => exportTripsCsv(tripRows);
 
   const handleExportPayslip = () => {
     const truckLabel = selectedTruckName || "All Trucks";
-    exportPayslip(filteredRows, truckLabel, startDate, endDate);
+    exportPayslip(tripRows, truckLabel, startDate, endDate);
   };
 
   const handleDelete = async () => {
@@ -856,9 +805,11 @@ export default function DashboardPage() {
         </div>
 
         <TripTable
-          rows={paginatedRows}
-          totalsRows={filteredRows}
+          rows={tripRows}
+          totalsRows={tripRows}
           loading={loading}
+          verificationFilter={verificationFilter}
+          searchQuery={searchQuery}
           showActions
           selectable
           selectedIds={selectedTripIds}
@@ -879,18 +830,6 @@ export default function DashboardPage() {
           onVerificationChange={async (id, status) => {
             await quickEditTrip(id, "verificationStatus", status);
           }}
-          sortable
-          sortField={sortField}
-          sortDirection={sortDirection}
-          onSort={handleSort}
-        />
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          totalItems={totalItems}
-          pageSize={pageSize}
-          onPageChange={handlePageChange}
-          onPageSizeChange={handlePageSizeChange}
         />
       </div>
 

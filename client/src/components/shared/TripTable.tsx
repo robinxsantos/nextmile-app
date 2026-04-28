@@ -6,8 +6,19 @@ import {
   useMemo,
   type ReactNode,
 } from "react";
+import {
+  useReactTable,
+  getSortedRowModel,
+  getCoreRowModel,
+  type ColumnDef,
+  type SortingState,
+  getPaginationRowModel,
+  type PaginationState,
+  getFilteredRowModel,
+  type ColumnFiltersState,
+} from "@tanstack/react-table";
 import { type TripRow } from "../../store/useAppStore";
-import { peso, cn, pesoOrDash } from "../../lib/utils";
+import { peso, cn } from "../../lib/utils";
 import {
   Pencil,
   Trash2,
@@ -27,26 +38,18 @@ import {
 import EmptyState from "./EmptyState";
 import { Skeleton, SkeletonTableRow } from "./Skeleton";
 import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
-} from "@/components/ui/table";
-import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import Pagination from "../shared/Pagination";
 
 type ColumnKey =
   | "truck"
@@ -64,16 +67,18 @@ type ColumnKey =
   | "note"
   | "grossIncome"
   | "netIncome"
-  | "payable";
+  | "payable"
+  | "paid"
+  | "actions";
 
 type VisibleColumns = Partial<Record<ColumnKey, boolean>>;
 
-type ColumnDef = {
+// Internal column descriptor — drives both header and cell rendering manually
+type ColDesc = {
   key: ColumnKey;
   label: string;
   sortField?: string;
   className?: string;
-  render: (row: TripRow) => ReactNode;
 };
 
 export interface TripTableProps {
@@ -100,7 +105,6 @@ export interface TripTableProps {
     value: number | string,
   ) => Promise<void>;
   onVerificationChange?: (id: string, status: string) => Promise<void>;
-  sortable?: boolean;
   sortField?: string;
   sortDirection?: "asc" | "desc";
   onSort?: (field: string) => void;
@@ -110,7 +114,13 @@ export interface TripTableProps {
   totalsRows?: TripRow[];
   canEditRow?: (row: TripRow) => boolean;
   canDeleteRow?: (row: TripRow) => boolean;
+  verificationFilter?: string;
+  searchQuery?: string;
 }
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
 function statusBadge(status: string) {
   const s = status.toUpperCase();
@@ -120,6 +130,10 @@ function statusBadge(status: string) {
     return "bg-amber-500/10 text-amber-500 border-amber-500/20";
   return "bg-slate-400/10 text-slate-400 border-slate-400/20";
 }
+
+// ---------------------------------------------------------------------------
+// EditableCell
+// ---------------------------------------------------------------------------
 
 function EditableCell({
   rowId,
@@ -179,9 +193,7 @@ function EditableCell({
         e.preventDefault();
         save();
       }
-      if (e.key === "Escape") {
-        cancel();
-      }
+      if (e.key === "Escape") cancel();
     },
     [save, cancel],
   );
@@ -197,7 +209,6 @@ function EditableCell({
   if (editing) {
     const sharedClass =
       "w-full text-xs text-center bg-white dark:bg-slate-800 border border-blue-400 rounded-md px-1.5 py-1 focus:ring-2 focus:ring-blue-500/30 outline-none transition-all";
-
     return isNote ? (
       <textarea
         ref={inputRef as React.RefObject<HTMLTextAreaElement>}
@@ -221,11 +232,8 @@ function EditableCell({
     );
   }
 
-  // ✅ DISPLAY LOGIC (ITO YUNG FIX)
   const numericValue = Number(value);
-
   let display: React.ReactNode;
-
   if (isNote) {
     display = value || "—";
   } else if (field === "trips") {
@@ -255,46 +263,9 @@ function EditableCell({
   );
 }
 
-function SortHeader({
-  label,
-  fieldKey,
-  sortField,
-  sortDirection,
-  onSort,
-}: {
-  label: string;
-  fieldKey: string | undefined;
-  sortField?: string;
-  sortDirection?: "asc" | "desc";
-  onSort?: (field: string) => void;
-}) {
-  if (!fieldKey || !onSort) {
-    return <span>{label}</span>;
-  }
-
-  const isActive = sortField === fieldKey;
-
-  return (
-    <button
-      onClick={() => onSort(fieldKey)}
-      className="inline-flex items-center gap-1 hover:text-foreground transition-colors group"
-    >
-      {label}
-      {isActive ? (
-        sortDirection === "asc" ? (
-          <ArrowUp size={12} className="text-foreground" />
-        ) : (
-          <ArrowDown size={12} className="text-foreground" />
-        )
-      ) : (
-        <ArrowUpDown
-          size={12}
-          className="text-slate-300 dark:text-slate-600 group-hover:text-slate-400"
-        />
-      )}
-    </button>
-  );
-}
+// ---------------------------------------------------------------------------
+// TripCard (mobile)
+// ---------------------------------------------------------------------------
 
 function TripCard({
   r,
@@ -487,6 +458,10 @@ function TripCard({
   );
 }
 
+// ---------------------------------------------------------------------------
+// TripTable
+// ---------------------------------------------------------------------------
+
 export default function TripTable({
   rows,
   loading = false,
@@ -503,17 +478,27 @@ export default function TripTable({
   selectedIds = [],
   onSelectionChange,
   onQuickEdit,
-  sortable = false,
-  sortField,
-  sortDirection,
-  onSort,
   emptyState,
   showTruckColumn = false,
   visibleColumns = {},
   canEditRow,
   canDeleteRow,
   onVerificationChange,
+  verificationFilter,
+  searchQuery,
 }: TripTableProps) {
+  const [sorting, setSorting] = useState<SortingState>([
+    {
+      id: "date", // must match your column key
+      desc: true, // true = newest first
+    },
+  ]);
+  const [globalFilter, setGlobalFilter] = useState("");
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 10,
+  });
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const totalsSource = totalsRows ?? rows;
 
   const totals = useMemo(() => {
@@ -567,145 +552,306 @@ export default function TripTable({
     );
   };
 
-  const renderTripsCell = (value: number) => {
-    const v = Number(value || 0);
-    return v === 0 ? (
-      <span className="text-slate-300 dark:text-slate-600">—</span>
-    ) : (
-      v
-    );
+  // Build the ordered list of visible columns (metadata only — no render fns)
+  const columns = useMemo<ColDesc[]>(() => {
+    const cols: ColDesc[] = [];
+    if (show("week")) cols.push({ key: "week", label: "Week" });
+    if (show("date"))
+      cols.push({ key: "date", label: "Date", sortField: "date" });
+    if (truckVisible)
+      cols.push({
+        key: "truck",
+        label: "Truck",
+        className: "font-semibold text-blue-600 dark:text-blue-400",
+      });
+    if (show("status")) cols.push({ key: "status", label: "Status" });
+    if (show("shipmentNumber"))
+      cols.push({
+        key: "shipmentNumber",
+        label: "Shipment #",
+        className: "font-semibold",
+      });
+    if (show("rate"))
+      cols.push({ key: "rate", label: "Rate", sortField: "rate" });
+    if (show("trips"))
+      cols.push({ key: "trips", label: "Trips", sortField: "trips" });
+    if (show("crewSalary"))
+      cols.push({
+        key: "crewSalary",
+        label: "Crew Salary",
+        sortField: "crewSalary",
+      });
+    if (show("cashAdvance"))
+      cols.push({ key: "cashAdvance", label: "Cash Adv." });
+    if (show("reimbursements"))
+      cols.push({ key: "reimbursements", label: "Cr. Reimb." });
+    if (show("expenses")) cols.push({ key: "expenses", label: "Expenses" });
+    if (show("note"))
+      cols.push({ key: "note", label: "Note", className: "max-w-[120px]" });
+    if (show("grossIncome"))
+      cols.push({
+        key: "grossIncome",
+        label: "Gross",
+        sortField: "grossIncome",
+      });
+    if (show("netIncome"))
+      cols.push({ key: "netIncome", label: "Net", sortField: "netIncome" });
+    if (show("payable"))
+      cols.push({ key: "payable", label: "Payable", sortField: "payable" });
+    cols.push({ key: "paid", label: "Paid" });
+    return cols;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [truckVisible, visibleColumns]);
+
+  // Minimal TanStack column defs — accessorKey only, no cell/header renderers
+  // We render everything manually in JSX below to avoid hook-context issues
+  const tanstackCols = useMemo<ColumnDef<TripRow>[]>(() => {
+    return [
+      ...columns.map((col) => ({
+        id: col.key,
+        accessorFn: (row: TripRow) => {
+          switch (col.key) {
+            case "date":
+              return new Date(row.dateIso).getTime();
+
+            case "status":
+              return row.status;
+
+            case "paid":
+              return row.paid;
+
+            case "rate":
+              return row.rate;
+
+            case "trips":
+              return row.trips;
+
+            case "crewSalary":
+              return row.crewSalary;
+
+            case "grossIncome":
+              return row.grossIncome;
+
+            case "netIncome":
+              return row.netIncome;
+
+            case "payable":
+              return row.payable;
+
+            case "shipmentNumber":
+              return row.shipmentNumber || "";
+
+            case "truck":
+              return row.truckName || "";
+
+            case "week":
+              return row.week || "";
+
+            default:
+              return "";
+          }
+        },
+        enableSorting: ["paid"].includes(col.key) || !!col.sortField,
+        ...(col.key === "paid"
+          ? {
+              sortingFn: (a: any, b: any) => {
+                const aVal = a?.original?.paid ?? false;
+                const bVal = b?.original?.paid ?? false;
+
+                if (aVal === bVal) return 0;
+                return aVal ? -1 : 1;
+              },
+            }
+          : {}),
+      })),
+
+      // ✅ HIDDEN COLUMN FOR FILTERING ONLY
+      {
+        id: "verificationFilter",
+        accessorFn: (row: TripRow) =>
+          row.verificationStatus || "For Confirmation",
+      },
+      {
+        id: "search",
+        accessorFn: (row: TripRow) => `${row.shipmentNumber}`.toLowerCase(),
+      },
+    ];
+  }, [columns]);
+
+  const table = useReactTable({
+    data: rows,
+    columns: tanstackCols,
+    state: {
+      sorting,
+      pagination,
+      columnFilters,
+      globalFilter,
+    },
+    onGlobalFilterChange: setGlobalFilter,
+    onSortingChange: setSorting,
+    onPaginationChange: setPagination,
+    onColumnFiltersChange: setColumnFilters, // ✅ ADD
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getFilteredRowModel: getFilteredRowModel(), // ✅ ADD
+    getRowId: (row) => row._id,
+  });
+
+  useEffect(() => {
+    if (!verificationFilter || verificationFilter === "ALL") {
+      table.getColumn("verificationFilter")?.setFilterValue(undefined);
+    } else {
+      table.getColumn("verificationFilter")?.setFilterValue(verificationFilter);
+    }
+  }, [verificationFilter, table]);
+  useEffect(() => {
+    if (!searchQuery) {
+      table.setGlobalFilter(undefined);
+    } else {
+      table.setGlobalFilter(searchQuery.toLowerCase());
+    }
+  }, [searchQuery, table]);
+
+  const allSelected =
+    rows.length > 0 && rows.every((r) => selectedIds.includes(r._id));
+  const someSelected = rows.some((r) => selectedIds.includes(r._id));
+
+  const handleSelectAll = () => {
+    if (!onSelectionChange) return;
+    if (allSelected) {
+      onSelectionChange(
+        selectedIds.filter((id) => !rows.some((r) => r._id === id)),
+      );
+    } else {
+      const visibleIds = rows.map((r) => r._id);
+      onSelectionChange([...new Set([...selectedIds, ...visibleIds])]);
+    }
   };
 
-  const columns: ColumnDef[] = [];
-  if (show("week"))
-    columns.push({
-      key: "week",
-      label: "Week",
-      render: (r) => r.week,
-    });
-  if (show("date"))
-    columns.push({
-      key: "date",
-      label: "Date",
-      sortField: "dateIso",
-      render: (r) => r.dateText,
-    });
-  if (truckVisible)
-    columns.push({
-      key: "truck",
-      label: "Truck",
-      render: (r) => r.truckName || "—",
-      className: "font-semibold text-blue-600 dark:text-blue-400",
-    });
-  if (show("status"))
-    columns.push({
-      key: "status",
-      label: "Status",
-      render: (r) => (
-        <span
-          className={cn(
-            "inline-block px-2.5 py-1 rounded-full text-[10px] font-bold leading-none border whitespace-nowrap",
-            statusBadge(r.status),
-          )}
-        >
-          {r.status.toUpperCase()}
-        </span>
-      ),
-    });
-  if (show("shipmentNumber"))
-    columns.push({
-      key: "shipmentNumber",
-      label: "Shipment #",
-      render: (r) => {
+  const handleSelectRow = (id: string) => {
+    if (!onSelectionChange) return;
+    if (selectedIds.includes(id)) {
+      onSelectionChange(selectedIds.filter((sid) => sid !== id));
+    } else {
+      onSelectionChange([...selectedIds, id]);
+    }
+  };
+
+  // Render a single cell's content given a column key and row
+  const renderCell = (key: ColumnKey, r: TripRow): ReactNode => {
+    switch (key) {
+      case "week":
+        return r.week;
+
+      case "date":
+        return r.dateText;
+
+      case "truck":
+        return r.truckName || "—";
+
+      case "status":
+        return (
+          <span
+            className={cn(
+              "inline-block px-2.5 py-1 rounded-full text-[10px] font-bold leading-none border whitespace-nowrap",
+              statusBadge(r.status),
+            )}
+          >
+            {r.status.toUpperCase()}
+          </span>
+        );
+
+      case "shipmentNumber": {
         const status = r.verificationStatus || "For Confirmation";
 
         const getIcon = () => {
-          switch (status) {
-            case "Verified":
-              return <CheckCircle size={14} className="text-green-500" />;
-            case "Pending":
-              return <AlertCircle size={14} className="text-orange-500" />;
-            default:
-              return <HelpCircle size={14} className="text-gray-400" />;
-          }
+          if (status === "Verified")
+            return <CheckCircle size={14} className="text-green-500" />;
+          if (status === "Pending")
+            return <AlertCircle size={14} className="text-orange-500" />;
+          return <HelpCircle size={14} className="text-gray-400" />;
         };
 
         return (
-          <DropdownMenu>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <DropdownMenuTrigger asChild>
-                    <div
-                      className={cn(
-                        "flex items-center justify-start gap-1.5 w-full cursor-pointer rounded px-1 py-0.5 transition hover:brightness-50",
-                        r.verificationStatus === "Verified" && "text-green-500",
-                        r.verificationStatus === "Pending" && "text-orange-500",
-                        (!r.verificationStatus ||
-                          r.verificationStatus === "For Confirmation") &&
-                          "text-gray-500",
-                      )}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <div
+                        className={cn(
+                          "flex items-center gap-1.5 w-full cursor-pointer rounded px-1 py-0.5 hover:brightness-50",
+                          status === "Verified" && "text-green-500",
+                          status === "Pending" && "text-orange-500",
+                          status === "For Confirmation" && "text-gray-500",
+                        )}
+                      >
+                        {r.shipmentNumber ? (
+                          <>
+                            {getIcon()}
+                            {r.shipmentNumber}
+                          </>
+                        ) : (
+                          "—"
+                        )}
+                      </div>
+                    </DropdownMenuTrigger>
+
+                    <DropdownMenuContent
+                      align="center"
+                      className="min-w-[180px]"
                     >
-                      {r.shipmentNumber ? (
-                        <>
-                          {getIcon()}
-                          {r.shipmentNumber}
-                        </>
-                      ) : (
-                        <span className="text-slate-300 dark:text-slate-600">
-                          —
-                        </span>
-                      )}
-                    </div>
-                  </DropdownMenuTrigger>
-                </TooltipTrigger>
+                      <DropdownMenuItem
+                        onClick={() =>
+                          onVerificationChange?.(r._id, "Verified")
+                        }
+                      >
+                        <CheckCircle
+                          size={14}
+                          className="mr-2 text-green-500"
+                        />
+                        Verified
+                      </DropdownMenuItem>
 
-                <TooltipContent className="bg-neutral-200 text-neutral-950 dark:bg-neutral-50 [&_svg]:bg-neutral-200 [&_svg]:fill-neutral-200 dark:[&_svg]:bg-neutral-50 dark:[&_svg]:fill-neutral-50">
-                  {r.verificationStatus === "Verified"
-                    ? "Shipment Number is verified"
-                    : r.verificationStatus === "Pending"
-                      ? "Shipment Number is pending"
-                      : "Shipment Number needs confirmation"}
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+                      <DropdownMenuItem
+                        onClick={() => onVerificationChange?.(r._id, "Pending")}
+                      >
+                        <AlertCircle
+                          size={14}
+                          className="mr-2 text-orange-500"
+                        />
+                        Pending
+                      </DropdownMenuItem>
 
-            <DropdownMenuContent align="center" className="min-w-[180px]">
-              <DropdownMenuItem
-                onClick={() => onVerificationChange?.(r._id, "Verified")}
-              >
-                <CheckCircle size={14} className="mr-2 text-green-500" />
-                Verified
-              </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() =>
+                          onVerificationChange?.(r._id, "For Confirmation")
+                        }
+                      >
+                        <HelpCircle size={14} className="mr-2 text-gray-500" />
+                        For Confirmation
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </TooltipTrigger>
 
-              <DropdownMenuItem
-                onClick={() => onVerificationChange?.(r._id, "Pending")}
-              >
-                <AlertCircle size={14} className="mr-2 text-orange-500" />
-                Pending
-              </DropdownMenuItem>
-
-              <DropdownMenuItem
-                onClick={() =>
-                  onVerificationChange?.(r._id, "For Confirmation")
-                }
-              >
-                <HelpCircle size={14} className="mr-2 text-gray-500" />
-                For Confirmation
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+              <TooltipContent>
+                {status === "Verified"
+                  ? "Shipment Number is verified"
+                  : status === "Pending"
+                    ? "Shipment Number is pending"
+                    : "Shipment Number needs confirmation"}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         );
-      },
-      className: "font-semibold",
-    });
-  if (show("rate"))
-    columns.push({
-      key: "rate",
-      label: "Rate",
-      sortField: "rate",
-      render: (r) =>
-        onQuickEdit ? (
+      }
+
+      case "rate":
+        return onQuickEdit ? (
           <EditableCell
             rowId={r._id}
             field="rate"
@@ -714,16 +860,10 @@ export default function TripTable({
           />
         ) : (
           renderMoneyCell(r.rate)
-        ),
-    });
-  if (show("trips"))
-    columns.push({
-      key: "trips",
-      label: "Trips",
-      sortField: "trips",
-      render: (r) => {
-        const tripsValue = Number(r.trips ?? 0);
+        );
 
+      case "trips": {
+        const v = Number(r.trips ?? 0);
         return onQuickEdit ? (
           <EditableCell
             rowId={r._id}
@@ -731,20 +871,15 @@ export default function TripTable({
             value={r.trips}
             onSave={onQuickEdit}
           />
-        ) : tripsValue === 0 ? (
+        ) : v === 0 ? (
           <span className="text-slate-300 dark:text-slate-600">—</span>
         ) : (
-          tripsValue
+          v
         );
-      },
-    });
-  if (show("crewSalary"))
-    columns.push({
-      key: "crewSalary",
-      label: "Crew Salary",
-      sortField: "crewSalary",
-      render: (r) =>
-        onQuickEdit ? (
+      }
+
+      case "crewSalary":
+        return onQuickEdit ? (
           <EditableCell
             rowId={r._id}
             field="crewSalary"
@@ -753,34 +888,19 @@ export default function TripTable({
           />
         ) : (
           renderMoneyCell(r.crewSalary)
-        ),
-    });
-  if (show("cashAdvance"))
-    columns.push({
-      key: "cashAdvance",
-      label: "Cash Adv.",
-      render: (r) => renderMoneyCell(r.cashAdvance),
-    });
+        );
 
-  if (show("reimbursements"))
-    columns.push({
-      key: "reimbursements",
-      label: "Cr. Reimb.",
-      render: (r) => renderMoneyCell(r.reimbursements),
-    });
+      case "cashAdvance":
+        return renderMoneyCell(r.cashAdvance);
 
-  if (show("expenses"))
-    columns.push({
-      key: "expenses",
-      label: "Expenses",
-      render: (r) => renderMoneyCell(r.expenses),
-    });
-  if (show("note"))
-    columns.push({
-      key: "note",
-      label: "Note",
-      render: (r) =>
-        onExpenseClick && (r.hasExpenses || r.expenses > 0 || r.note) ? (
+      case "reimbursements":
+        return renderMoneyCell(r.reimbursements);
+
+      case "expenses":
+        return renderMoneyCell(r.expenses);
+
+      case "note":
+        return onExpenseClick && (r.hasExpenses || r.expenses > 0 || r.note) ? (
           <button
             onClick={() => {
               if (r.hasExpenses || r.expenses > 0) {
@@ -816,22 +936,12 @@ export default function TripTable({
           >
             {r.note || "—"}
           </span>
-        ),
-      className: "max-w-[120px]",
-    });
-  if (show("grossIncome"))
-    columns.push({
-      key: "grossIncome",
-      label: "Gross",
-      sortField: "grossIncome",
-      render: (r) => peso(r.grossIncome),
-    });
-  if (show("netIncome"))
-    columns.push({
-      key: "netIncome",
-      label: "Net",
-      sortField: "netIncome",
-      render: (r) => {
+        );
+
+      case "grossIncome":
+        return peso(r.grossIncome);
+
+      case "netIncome": {
         const netValue = netValueFor(r);
         return (
           <span
@@ -843,169 +953,98 @@ export default function TripTable({
             {peso(netValue)}
           </span>
         );
-      },
-    });
+      }
 
-  if (show("payable"))
-    columns.push({
-      key: "payable",
-      label: "Payable",
-      sortField: "payable",
-      render: (r) => (
-        <span className="text-red-500 font-semibold">
-          {displayPayableFor(r)}
-        </span>
-      ),
-    });
-
-  columns.push({
-    key: "paid" as ColumnKey,
-    label: "Paid",
-    render: (r) => (
-      <button
-        onClick={() => onTogglePaid?.(r._id)}
-        className={cn(
-          "group px-3 py-1.5 rounded-md inline-flex cursor-pointer items-center gap-1.5 text-xs border transition-all",
-          r.paid
-            ? "bg-green-500/10 border-green-500/20 text-green-600 hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-500"
-            : "bg-muted border-border text-slate-400 hover:bg-green-500/10 hover:border-green-500/20 hover:text-green-500",
-        )}
-      >
-        <span className="relative flex items-center justify-center w-[110px] min-h-[16px]">
-          {/* DEFAULT */}
-          <span className="absolute inset-0 flex items-center justify-center gap-1.5 group-hover:opacity-0 group-hover:invisible transition-all">
-            {r.paid ? (
-              <>
-                <Check size={12} />
-                Paid
-              </>
-            ) : (
-              <>
-                <X size={12} />
-                Unpaid
-              </>
-            )}
+      case "payable":
+        return (
+          <span className="text-red-500 font-semibold">
+            {displayPayableFor(r)}
           </span>
+        );
 
-          {/* HOVER */}
-          <span
+      case "paid":
+        return (
+          <button
+            onClick={() => onTogglePaid?.(r._id)}
             className={cn(
-              "absolute inset-0 flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 group-hover:visible transition-all",
-              r.paid ? "text-red-500" : "text-green-500",
+              "group px-3 py-1.5 rounded-md inline-flex cursor-pointer items-center gap-1.5 text-xs border transition-all",
+              r.paid
+                ? "bg-green-500/10 border-green-500/20 text-green-600 hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-500"
+                : "bg-muted border-border text-slate-400 hover:bg-green-500/10 hover:border-green-500/20 hover:text-green-500",
             )}
           >
-            {r.paid ? (
-              <>
-                <X size={12} />
-                Mark as Unpaid
-              </>
-            ) : (
-              <>
-                <Check size={12} />
-                Mark as Paid
-              </>
-            )}
-          </span>
-        </span>
-      </button>
-    ),
-  });
+            <span className="relative flex items-center justify-center w-[110px] min-h-[16px]">
+              <span className="absolute inset-0 flex items-center justify-center gap-1.5 group-hover:opacity-0 group-hover:invisible transition-all">
+                {r.paid ? (
+                  <>
+                    <Check size={12} />
+                    Paid
+                  </>
+                ) : (
+                  <>
+                    <X size={12} />
+                    Unpaid
+                  </>
+                )}
+              </span>
+              <span
+                className={cn(
+                  "absolute inset-0 flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 group-hover:visible transition-all",
+                  r.paid ? "text-red-500" : "text-green-500",
+                )}
+              >
+                {r.paid ? (
+                  <>
+                    <X size={12} />
+                    Mark as Unpaid
+                  </>
+                ) : (
+                  <>
+                    <Check size={12} />
+                    Mark as Paid
+                  </>
+                )}
+              </span>
+            </span>
+          </button>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  const getTotalForColumn = (key: ColumnKey): ReactNode => {
+    switch (key) {
+      case "rate":
+        return peso(totals.rate);
+      case "trips":
+        return totals.trips;
+      case "crewSalary":
+        return peso(totals.crewSalary);
+      case "cashAdvance":
+        return peso(totals.cashAdvance);
+      case "reimbursements":
+        return peso(totals.reimbursements);
+      case "expenses":
+        return peso(totals.expenses);
+      case "grossIncome":
+        return peso(totals.grossIncome);
+      case "netIncome":
+        return peso(totals.netIncome);
+      case "payable":
+        return peso(totals.payable);
+      default:
+        return null;
+    }
+  };
 
   const colCount =
     (selectable ? 1 : 0) + columns.length + (showActions ? 1 : 0);
 
-  const allSelected =
-    rows.length > 0 && rows.every((r) => selectedIds.includes(r._id));
-  const someSelected = rows.some((r) => selectedIds.includes(r._id));
-
-  const handleSelectAll = () => {
-    if (!onSelectionChange) return;
-    if (allSelected) {
-      onSelectionChange(
-        selectedIds.filter((id) => !rows.some((r) => r._id === id)),
-      );
-    } else {
-      const visibleIds = rows.map((r) => r._id);
-      const merged = [...new Set([...selectedIds, ...visibleIds])];
-      onSelectionChange(merged);
-    }
-  };
-
-  const handleSelectRow = (id: string) => {
-    if (!onSelectionChange) return;
-    if (selectedIds.includes(id)) {
-      onSelectionChange(selectedIds.filter((sid) => sid !== id));
-    } else {
-      onSelectionChange([...selectedIds, id]);
-    }
-  };
-
-  const renderVerificationBadge = (
-    r: TripRow,
-    onChange?: (id: string, value: string) => void,
-  ) => {
-    const status = r.verificationStatus || "Pending";
-
-    const getBadge = () => {
-      switch (status) {
-        case "Verified":
-          return (
-            <Badge
-              variant="outline"
-              className="rounded-sm border-green-600 text-green-600 dark:border-green-400 dark:text-green-400 [a&]:hover:bg-green-600/10 [a&]:hover:text-green-600/90 dark:[a&]:hover:bg-green-400/10 dark:[a&]:hover:text-green-400/90"
-            >
-              <CheckCircle size={14} /> Verified
-            </Badge>
-          );
-        case "Pending":
-          return (
-            <Badge
-              variant="outline"
-              className="rounded-sm border-amber-600 text-amber-600 dark:border-amber-400 dark:text-amber-400 [a&]:hover:bg-amber-600/10 [a&]:hover:text-amber-600/90 dark:[a&]:hover:bg-amber-400/10 dark:[a&]:hover:text-amber-400/90"
-            >
-              <AlertCircle size={14} /> Pending
-            </Badge>
-          );
-        default:
-          return (
-            <Badge
-              variant="outline"
-              className="rounded-sm border-gray-600 text-gray-600 dark:border-gray-400 dark:text-gray-400 [a&]:hover:bg-gray-600/10 [a&]:hover:text-gray-600/90 dark:[a&]:hover:bg-gray-400/10 dark:[a&]:hover:text-gray-400/90"
-            >
-              <HelpCircle size={14} /> For Confirmation
-            </Badge>
-          );
-      }
-    };
-
-    return (
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>{getBadge()}</DropdownMenuTrigger>
-
-        <DropdownMenuContent align="center" className="w-[180px]">
-          <DropdownMenuItem onClick={() => onChange?.(r._id, "Verified")}>
-            <CheckCircle size={14} className="mr-2 text-green-500" />
-            Verified
-          </DropdownMenuItem>
-
-          <DropdownMenuItem onClick={() => onChange?.(r._id, "Pending")}>
-            <AlertCircle size={14} className="mr-2 text-orange-500" />
-            Pending
-          </DropdownMenuItem>
-
-          <DropdownMenuItem
-            onClick={() => onChange?.(r._id, "For Confirmation")}
-          >
-            <HelpCircle size={14} className="mr-2 text-gray-500" />
-            For Confirmation
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    );
-  };
-
   return (
     <div className="border rounded-lg bg-background">
+      {/* Desktop table */}
       <table
         className={cn(
           "w-full text-sm hidden md:table",
@@ -1027,36 +1066,53 @@ export default function TripTable({
                 />
               </th>
             )}
-            {columns.map((col, idx) => (
-              <th
-                key={col.key}
-                className={cn(
-                  "sticky top-[101px] z-50 bg-muted/60 backdrop-blur border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-muted-foreground px-2.5 py-3 whitespace-nowrap",
-                  idx === 0 && !selectable && "left-0 z-20",
-                  idx === 0 && selectable && "left-[40px] z-20",
-                )}
-              >
-                {sortable ? (
-                  <SortHeader
-                    label={col.label}
-                    fieldKey={col.sortField}
-                    sortField={sortField}
-                    sortDirection={sortDirection}
-                    onSort={onSort}
-                  />
-                ) : (
-                  col.label
-                )}
-              </th>
-            ))}
+            {columns.map((col, idx) => {
+              const column = table.getColumn(col.key);
+              const sortState = column?.getIsSorted(); // false | "asc" | "desc"
+
+              return (
+                <th
+                  key={col.key}
+                  onClick={() =>
+                    (col.sortField || col.key === "paid") &&
+                    column?.toggleSorting()
+                  }
+                  className={cn(
+                    "group sticky top-[101px] z-50 bg-muted/60 backdrop-blur border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-muted-foreground px-2.5 py-3 whitespace-nowrap cursor-pointer select-none transition-colors hover:bg-muted hover:text-foreground",
+                    idx === 0 && !selectable && "left-0 z-20",
+                    idx === 0 && selectable && "left-[40px] z-20",
+                  )}
+                >
+                  <div className="inline-flex items-center justify-center gap-1 transition-colors group-hover:text-foreground">
+                    {col.label}
+
+                    {!sortState && (
+                      <ArrowUpDown
+                        size={12}
+                        className="text-muted-foreground"
+                      />
+                    )}
+
+                    {sortState === "asc" && (
+                      <ArrowUp size={12} className="text-foreground" />
+                    )}
+
+                    {sortState === "desc" && (
+                      <ArrowDown size={12} className="text-foreground" />
+                    )}
+                  </div>
+                </th>
+              );
+            })}
             {showActions && (
               <th className="sticky top-[101px] z-50 bg-muted/60 backdrop-blur border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-muted-foreground px-2.5 py-3 whitespace-nowrap">
                 Actions
               </th>
             )}
-            {!showActions && <th className="w-[1px] p-0"></th>}
+            {!showActions && <th className="w-[1px] p-0" />}
           </tr>
         </thead>
+
         <tbody>
           {loading ? (
             Array.from({ length: 5 }).map((_, i) => (
@@ -1075,10 +1131,11 @@ export default function TripTable({
               </td>
             </tr>
           ) : (
-            rows.map((r) => {
+            table.getRowModel().rows.map((row) => {
+              const r = row.original;
               return (
                 <tr
-                  key={r._id}
+                  key={row.id}
                   className={cn(
                     "hover:bg-muted/50",
                     r.status === "Holiday" && "bg-muted/30",
@@ -1102,16 +1159,12 @@ export default function TripTable({
                       key={col.key}
                       className={cn(
                         "text-center text-xs px-2.5 py-2.5 border-b border-border",
-                        idx === 0 &&
-                          !selectable &&
-                          "sticky left-0 z-[5] bg-background",
-                        idx === 0 &&
-                          selectable &&
-                          "sticky left-[40px] z-[5] bg-background",
+                        idx === 0 && !selectable && "sticky left-0 z-[5]",
+                        idx === 0 && selectable && "sticky left-[40px] z-[5]",
                         col.className,
                       )}
                     >
-                      {col.render(r)}
+                      {renderCell(col.key, r)}
                     </td>
                   ))}
                   {showActions && (
@@ -1123,7 +1176,6 @@ export default function TripTable({
                               <MoreVertical size={16} />
                             </button>
                           </DropdownMenuTrigger>
-
                           <DropdownMenuContent
                             align="end"
                             className="w-[160px]"
@@ -1133,20 +1185,17 @@ export default function TripTable({
                                 <Pencil size={14} className="mr-2" /> Edit
                               </DropdownMenuItem>
                             )}
-
                             {onDuplicate && (
                               <DropdownMenuItem onClick={() => onDuplicate(r)}>
                                 <Copy size={14} className="mr-2" /> Duplicate
                               </DropdownMenuItem>
                             )}
-
                             {onDelete && (!canDeleteRow || canDeleteRow(r)) && (
                               <DropdownMenuItem
                                 onClick={() => onDelete(r)}
                                 variant="destructive"
                               >
-                                <Trash2 size={14} className="mr-2" />
-                                Delete
+                                <Trash2 size={14} className="mr-2" /> Delete
                               </DropdownMenuItem>
                             )}
                           </DropdownMenuContent>
@@ -1154,50 +1203,30 @@ export default function TripTable({
                       </div>
                     </td>
                   )}
-                  {!showActions && <td className="w-[1px] p-0"></td>}
+                  {!showActions && <td className="w-[1px] p-0" />}
                 </tr>
               );
             })
           )}
         </tbody>
+
         <tfoot>
           <tr>
             {selectable && (
               <td className="sticky bottom-0 z-30 bg-muted border-t-2 border-border px-2.5 py-3" />
             )}
-
             {columns.map((col, idx) => {
               const isFirst = idx === 0;
-              const value =
-                col.key === "rate"
-                  ? peso(totals.rate)
-                  : col.key === "trips"
-                    ? totals.trips
-                    : col.key === "crewSalary"
-                      ? peso(totals.crewSalary)
-                      : col.key === "cashAdvance"
-                        ? peso(totals.cashAdvance)
-                        : col.key === "reimbursements"
-                          ? peso(totals.reimbursements)
-                          : col.key === "expenses"
-                            ? peso(totals.expenses)
-                            : col.key === "grossIncome"
-                              ? peso(totals.grossIncome)
-                              : col.key === "netIncome"
-                                ? peso(totals.netIncome)
-                                : col.key === "payable"
-                                  ? peso(totals.payable)
-                                  : isFirst
-                                    ? "TOTALS"
-                                    : "";
-
+              const totalVal = getTotalForColumn(col.key);
+              const displayVal =
+                totalVal !== null ? totalVal : isFirst ? "TOTALS" : "";
               return (
                 <td
                   key={`total-${col.key}`}
                   className={cn(
                     "sticky bottom-0 z-30 bg-muted border-t-2 border-border text-center text-xs px-2.5 py-3 font-bold",
-                    idx === 0 && !selectable && "left-0 z-[31]",
-                    idx === 0 && selectable && "left-[40px] z-[31]",
+                    isFirst && !selectable && "left-0 z-[31]",
+                    isFirst && selectable && "left-[40px] z-[31]",
                     col.key === "netIncome" &&
                       (totals.netIncome < 0
                         ? "text-red-600 dark:text-red-400"
@@ -1205,11 +1234,10 @@ export default function TripTable({
                     col.key === "payable" && "text-red-600 dark:text-red-400",
                   )}
                 >
-                  {value}
+                  {displayVal}
                 </td>
               );
             })}
-
             {showActions && (
               <td className="sticky bottom-0 z-30 bg-muted border-t-2 border-border px-2.5 py-3" />
             )}
@@ -1217,6 +1245,18 @@ export default function TripTable({
         </tfoot>
       </table>
 
+      <div className="mt-3 border-t border-border flex items-center justify-center">
+        <Pagination
+          currentPage={table.getState().pagination.pageIndex + 1}
+          totalPages={table.getPageCount()}
+          totalItems={rows.length}
+          pageSize={table.getState().pagination.pageSize}
+          onPageChange={(page) => table.setPageIndex(page - 1)}
+          onPageSizeChange={(size) => table.setPageSize(size)}
+        />
+      </div>
+
+      {/* Mobile cards */}
       <div className="flex flex-col gap-3 md:hidden p-3">
         {selectable && rows.length > 0 && !loading && (
           <div className="flex items-center gap-2 px-1 pb-1">

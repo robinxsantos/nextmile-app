@@ -1,12 +1,10 @@
-import { useEffect, useState, useMemo, useCallback, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useAppStore } from "../store/useAppStore";
 import FilterBar from "../components/shared/FilterBar";
 import TripTable from "../components/shared/TripTable";
 import ExpenseBreakdownModal from "../components/shared/ExpenseBreakdownModal";
 import { exportMonthlyReport } from "../lib/exportHelpers";
 import { Download, BarChart3, Columns3 } from "lucide-react";
-import Pagination from "../components/shared/Pagination";
-import { usePagination } from "../hooks/usePagination";
 import EmptyState from "../components/shared/EmptyState";
 export default function ReportsPage() {
   const {
@@ -129,42 +127,9 @@ export default function ReportsPage() {
   )?.truckName;
 
   // Sorting state
-  const [sortField, setSortField] = useState("");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [showColumnsMenu, setShowColumnsMenu] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-
-  const handleSort = useCallback(
-    (field: string) => {
-      setSortDirection((prev) =>
-        sortField === field ? (prev === "asc" ? "desc" : "asc") : "asc",
-      );
-      setSortField(field);
-    },
-    [sortField],
-  );
-
-  const sortedRows = useMemo(() => {
-    if (!sortField) return reportRows;
-    return [...reportRows].sort((a, b) => {
-      const aVal =
-        (a as unknown as Record<string, number | string>)[sortField] ?? 0;
-      const bVal =
-        (b as unknown as Record<string, number | string>)[sortField] ?? 0;
-      const cmp = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
-      return sortDirection === "asc" ? cmp : -cmp;
-    });
-  }, [reportRows, sortField, sortDirection]);
-
-  const {
-    paginatedItems: paginatedReports,
-    currentPage,
-    totalPages,
-    totalItems,
-    pageSize,
-    handlePageChange,
-    handlePageSizeChange,
-  } = usePagination(sortedRows, 20);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const pageTitle = selectedTruckName
     ? `${selectedTruckName} Reports`
@@ -293,18 +258,24 @@ export default function ReportsPage() {
             </div>
           </div>
         </div>
+        <div className="mb-3">
+          <input
+            type="text"
+            placeholder="Search shipment..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full border border-border rounded-md px-3 py-2 text-sm"
+          />
+        </div>
         <TripTable
-          rows={paginatedReports}
-          totalsRows={sortedRows}
+          rows={reportRows}
+          totalsRows={reportRows}
           loading={false}
           showActions={false}
+          searchQuery={searchQuery}
           reportMode
           showTruckColumn={!selectedTruck}
           visibleColumns={visibleColumns}
-          sortable
-          sortField={sortField}
-          sortDirection={sortDirection}
-          onSort={handleSort}
           onExpenseClick={(data) => setExpenseBreakdown(data)}
           selectedTruck={selectedTruck}
           emptyState={
@@ -318,14 +289,6 @@ export default function ReportsPage() {
               }
             />
           }
-        />
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          totalItems={totalItems}
-          pageSize={pageSize}
-          onPageChange={handlePageChange}
-          onPageSizeChange={handlePageSizeChange}
         />
       </div>
       {/* Expense Breakdown Modal */}

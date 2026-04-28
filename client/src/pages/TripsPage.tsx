@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useAppStore, type TripRow } from "../store/useAppStore";
 import { useAuthStore } from "../store/useAuthStore";
 import FilterBar from "../components/shared/FilterBar";
@@ -18,8 +18,6 @@ import {
   Route,
   Columns3,
 } from "lucide-react";
-import Pagination from "../components/shared/Pagination";
-import { usePagination } from "../hooks/usePagination";
 import ExpenseBreakdownModal from "../components/shared/ExpenseBreakdownModal";
 import { AnimatePresence, motion } from "framer-motion";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
@@ -161,66 +159,6 @@ export default function TripsPage() {
   const pageTitle = selectedTruckName ? `${selectedTruckName} Trips` : "Trips";
   const showTruckColumn = !selectedTruck || selectedTruck === "ALL";
 
-  const [sortField, setSortField] = useState("");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
-
-  const handleSort = useCallback(
-    (field: string) => {
-      setSortDirection((prev) =>
-        sortField === field ? (prev === "asc" ? "desc" : "asc") : "asc",
-      );
-      setSortField(field);
-    },
-    [sortField],
-  );
-
-  const filteredRows = useMemo(() => {
-    let rows = tripRows;
-    if (!admin && driverStatus !== "ALL") {
-      rows = rows.filter((r) => (driverStatus === "PAID" ? r.paid : !r.paid));
-    }
-    if (verificationFilter !== "ALL") {
-      rows = rows.filter(
-        (r) =>
-          (r.verificationStatus || "For Confirmation") === verificationFilter,
-      );
-    }
-    if (searchQuery) {
-      rows = rows.filter((r) =>
-        r.shipmentNumber.toLowerCase().includes(searchQuery.toLowerCase()),
-      );
-    }
-    if (sortField) {
-      rows = [...rows].sort((a, b) => {
-        const aVal =
-          (a as unknown as Record<string, number | string>)[sortField] ?? 0;
-        const bVal =
-          (b as unknown as Record<string, number | string>)[sortField] ?? 0;
-        const cmp = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
-        return sortDirection === "asc" ? cmp : -cmp;
-      });
-    }
-    return rows;
-  }, [
-    tripRows,
-    searchQuery,
-    verificationFilter,
-    sortField,
-    sortDirection,
-    admin,
-    driverStatus,
-  ]);
-
-  const {
-    paginatedItems: paginatedRows,
-    currentPage,
-    totalPages,
-    totalItems,
-    pageSize,
-    handlePageChange,
-    handlePageSizeChange,
-  } = usePagination(filteredRows, 20);
-
   const handleAddTrip = () => {
     if (!selectedTruck) {
       setShowTruckWarning(true);
@@ -269,14 +207,14 @@ export default function TripsPage() {
       "All Trucks";
     const rangeLabel = getRangeLabel();
     const filename = `NEXTMILE_${truckLabel.replace(/\s+/g, "_")}_${rangeLabel.replace(/[^a-zA-Z0-9-]/g, "_")}.csv`;
-    exportTripsCsv(filteredRows, filename);
+    exportTripsCsv(tripRows, filename);
   };
 
   const handleExportPayslip = () => {
     const truckLabel =
       truckOptions.find((t) => t._id === selectedTruck)?.truckName ||
       "All Trucks";
-    exportPayslip(filteredRows, truckLabel, startDate, endDate);
+    exportPayslip(tripRows, truckLabel, startDate, endDate);
   };
 
   const handleBulkDelete = async () => {
@@ -459,9 +397,11 @@ export default function TripsPage() {
         </div>
 
         <TripTable
-          rows={paginatedRows}
-          totalsRows={filteredRows}
+          rows={tripRows}
+          totalsRows={tripRows}
+          searchQuery={searchQuery}
           loading={loading}
+          verificationFilter={verificationFilter}
           showActions
           selectable={admin}
           selectedIds={admin ? selectedTripIds : []}
@@ -489,10 +429,6 @@ export default function TripsPage() {
                 }
               : undefined
           }
-          sortable
-          sortField={sortField}
-          sortDirection={sortDirection}
-          onSort={handleSort}
           emptyState={
             <EmptyState
               icon={Route}
@@ -514,15 +450,6 @@ export default function TripsPage() {
               }
             />
           }
-        />
-
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          totalItems={totalItems}
-          pageSize={pageSize}
-          onPageChange={handlePageChange}
-          onPageSizeChange={handlePageSizeChange}
         />
       </div>
 

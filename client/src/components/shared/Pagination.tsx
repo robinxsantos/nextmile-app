@@ -66,7 +66,8 @@ export default function Pagination({
   const btnDisabled = "opacity-30 pointer-events-none";
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 px-1">
+    <div className="w-full px-4 py-3 grid grid-cols-[auto_1fr_auto] items-center">
+      {/* LEFT: TEXT */}
       <div className="flex items-center gap-3 text-sm text-muted-foreground">
         <span>
           Showing{" "}
@@ -75,6 +76,7 @@ export default function Pagination({
           </span>{" "}
           of <span className="font-semibold text-foreground">{totalItems}</span>
         </span>
+
         {onPageSizeChange && (
           <div className="min-w-[120px]">
             <Select
@@ -99,7 +101,11 @@ export default function Pagination({
         )}
       </div>
 
-      <div className="flex items-center gap-1">
+      {/* CENTER SPACER (ITO YUNG KULANG MO) */}
+      <div />
+
+      {/* RIGHT: BUTTONS */}
+      <div className="flex items-center gap-1 justify-self-end">
         <button
           onClick={() => onPageChange(1)}
           disabled={currentPage === 1}
@@ -108,6 +114,7 @@ export default function Pagination({
         >
           <ChevronsLeft size={16} />
         </button>
+
         <button
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1}
@@ -151,6 +158,7 @@ export default function Pagination({
         >
           <ChevronRight size={16} />
         </button>
+
         <button
           onClick={() => onPageChange(totalPages)}
           disabled={currentPage === totalPages}
