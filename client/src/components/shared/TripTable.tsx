@@ -496,7 +496,7 @@ export default function TripTable({
   const [globalFilter, setGlobalFilter] = useState("");
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
-    pageSize: 10,
+    pageSize: 20,
   });
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const totalsSource = totalsRows ?? rows;

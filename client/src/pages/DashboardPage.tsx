@@ -521,7 +521,10 @@ export default function DashboardPage() {
 
               <CardContent className="h-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={groupedChartData} margin={{ left: 20 }}>
+                  <AreaChart
+                    data={groupedChartData}
+                    margin={{ left: 20, top: 20, right: 20 }}
+                  >
                     <CartesianGrid
                       stroke="hsl(var(--border))"
                       strokeDasharray="3 3"
@@ -641,7 +644,7 @@ export default function DashboardPage() {
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     data={groupedChartData}
-                    margin={{ top: 20, left: 20 }}
+                    margin={{ top: 20, left: 20, right: 20 }}
                   >
                     <CartesianGrid
                       stroke="hsl(var(--border))"
