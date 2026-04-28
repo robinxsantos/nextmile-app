@@ -87,6 +87,8 @@ export default function DashboardPage() {
     bulkTogglePaid,
     bulkDeleteTrips,
     quickEditTrip,
+    addExpense,
+    deleteExpense,
   } = useAppStore();
   const { isAdmin } = useAuthStore();
   const admin = isAdmin();
@@ -177,17 +179,6 @@ export default function DashboardPage() {
     (t) => t._id === selectedTruck,
   )?.truckName;
 
-  const rangeLabels: Record<string, string> = {
-    ALL: "Selected",
-    CC: "This Week's",
-    LC: "Previous Cutoff's",
-    TM: "This Month's",
-    LM: "Last Month's",
-    MTD: "MTD",
-    YTD: "YTD",
-    CUSTOM: "Custom",
-  };
-  const kpiPrefix = rangeLabels[rangePreset] || "Selected";
   const getChartMode = () => {
     if (rangePreset === "TM") return "WEEKLY";
     if (rangePreset === "YTD") return "MONTHLY"; // 🔥 FIX
@@ -204,18 +195,6 @@ export default function DashboardPage() {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
-
-  const getChange = (current: number, previous: number) => {
-    if (!previous) return { percent: 0, isUp: true };
-
-    const diff = current - previous;
-    const percent = (diff / previous) * 100;
-
-    return {
-      percent: Math.abs(percent),
-      isUp: diff >= 0,
-    };
-  };
 
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -240,6 +219,51 @@ export default function DashboardPage() {
   const handleExportPayslip = () => {
     const truckLabel = selectedTruckName || "All Trucks";
     exportPayslip(tripRows, truckLabel, startDate, endDate);
+  };
+
+  const handleTogglePaid = async (id: string) => {
+    const trip = tripRows.find((r) => r._id === id);
+    if (!trip) return;
+
+    const willBePaid = !trip.paid;
+
+    try {
+      const latestExpenses = useAppStore.getState().expenseRows;
+
+      const existing = latestExpenses.find((e) => e.tripId === trip._id);
+
+      // 🔴 UNPAID FIRST → delete expense
+      if (!willBePaid) {
+        if (existing) {
+          await deleteExpense(existing._id);
+        }
+      }
+
+      // 🔥 ALWAYS TOGGLE FIRST (SOURCE OF TRUTH)
+      await toggleTripPaid(id);
+
+      // 🟢 AFTER TOGGLE → create expense if needed
+      if (willBePaid && !existing && trip.reimbursements > 0) {
+        await addExpense({
+          truckId:
+            typeof trip.truck === "string"
+              ? trip.truck
+              : trip.truck && typeof trip.truck === "object"
+                ? trip.truck._id
+                : selectedTruck,
+          date: trip.dateIso,
+          category: "REIMBURSEMENT",
+          amount: trip.reimbursements,
+          description: `Crew reimbursement (${trip.shipmentNumber || "Trip"})`,
+          tripId: trip._id,
+        });
+      }
+
+      // 🔥 FINAL SYNC (single refresh only)
+      await fetchDashboard();
+    } catch (err) {
+      console.error("Toggle failed", err);
+    }
   };
 
   const handleDelete = async () => {
@@ -541,26 +565,25 @@ export default function DashboardPage() {
                     />
 
                     <Tooltip
-                      formatter={(value: unknown, name: string) => {
-                        if (typeof value !== "number")
-                          return [value ?? "", name];
+                      formatter={
+                        ((value: number, name: string) => {
+                          const label =
+                            name === "gross"
+                              ? "Gross Income"
+                              : name === "net"
+                                ? "Net Income"
+                                : name;
 
-                        const label =
-                          name === "gross"
-                            ? "Gross Income"
-                            : name === "net"
-                              ? "Net Income"
-                              : name;
-
-                        return [
-                          "₱" +
-                            new Intl.NumberFormat("en-PH", {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
-                            }).format(value),
-                          label,
-                        ];
-                      }}
+                          return [
+                            "₱" +
+                              new Intl.NumberFormat("en-PH", {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              }).format(value),
+                            label,
+                          ];
+                        }) as any
+                      }
                     />
                     <Legend
                       wrapperStyle={{
@@ -817,7 +840,7 @@ export default function DashboardPage() {
           selectable
           selectedIds={selectedTripIds}
           onSelectionChange={setSelectedTripIds}
-          onTogglePaid={(id) => toggleTripPaid(id)}
+          onTogglePaid={(id) => handleTogglePaid(id)}
           onEdit={(r) => {
             setEditRow(r);
             setDuplicateFrom(null);

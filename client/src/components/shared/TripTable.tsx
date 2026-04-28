@@ -34,6 +34,7 @@ import {
   CheckCircle,
   AlertCircle,
   HelpCircle,
+  CheckCheck,
 } from "lucide-react";
 import EmptyState from "./EmptyState";
 import { Skeleton, SkeletonTableRow } from "./Skeleton";
@@ -116,6 +117,7 @@ export interface TripTableProps {
   canDeleteRow?: (row: TripRow) => boolean;
   verificationFilter?: string;
   searchQuery?: string;
+  isRefreshing?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -384,12 +386,15 @@ function TripCard({
         </div>
         <div>
           <div className="text-slate-500">Reimb.</div>
-          <div className="font-semibold">{peso(r.reimbursements)}</div>
+          <div className="font-semibold flex items-center gap-1">
+            {r.paid && <CheckCheck size={14} className="text-green-500" />}
+            {peso(r.reimbursements)}
+          </div>
         </div>
         {r.expenses > 0 && (
           <div>
             <div className="text-slate-500">Expenses</div>
-            <div className="font-semibold">{peso(r.expenses)}</div>
+            <div className="font-semibold">{peso(Number(r.expenses || 0))}</div>
           </div>
         )}
         {r.note && (
@@ -486,6 +491,7 @@ export default function TripTable({
   onVerificationChange,
   verificationFilter,
   searchQuery,
+  isRefreshing = false,
 }: TripTableProps) {
   const [sorting, setSorting] = useState<SortingState>([
     {
@@ -499,24 +505,43 @@ export default function TripTable({
     pageSize: 20,
   });
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [loadingId, setLoadingId] = useState<string | null>(null);
   const totalsSource = totalsRows ?? rows;
 
   const totals = useMemo(() => {
     return totalsSource.reduce(
       (acc, r) => {
+        const reimbursements = Number(r.reimbursements || 0);
+        const expenses = Number(r.expenses || 0);
+
         acc.rate += Number(r.rate || 0);
         acc.trips += Number(r.trips || 0);
         acc.crewSalary += Number(r.crewSalary || 0);
         acc.cashAdvance += Number(r.cashAdvance || 0);
-        acc.reimbursements += Number(r.reimbursements || 0);
-        acc.expenses += Number(r.expenses || 0);
+
+        // keep original reimbursements total
+        acc.reimbursements += reimbursements;
+
+        // IF PAID → idagdag sa expenses
+        const effectiveExpenses = expenses;
+
+        acc.expenses += effectiveExpenses;
+
         acc.grossIncome += Number(r.grossIncome || 0);
-        acc.netIncome += Number(
+
+        // NET calculation
+        const baseNet = Number(
           reportMode ? (r.reportNetIncome ?? r.netIncome) : r.netIncome,
         );
+
+        const adjustedNet = r.paid ? baseNet - reimbursements : baseNet;
+
+        acc.netIncome += adjustedNet;
+
         acc.payable += Number(
           reportMode ? (r.reportPayable ?? r.payable) : r.payable,
         );
+
         return acc;
       },
       {
@@ -536,8 +561,13 @@ export default function TripTable({
   const show = (key: ColumnKey) => visibleColumns[key] !== false;
   const truckVisible = showTruckColumn && show("truck");
 
-  const netValueFor = (r: TripRow) =>
-    reportMode ? (r.reportNetIncome ?? r.netIncome) : r.netIncome;
+  const netValueFor = (r: TripRow) => {
+    const gross = Number(r.grossIncome || 0);
+    const salary = Number(r.crewSalary || 0);
+    const expenses = Number(r.expenses || 0);
+
+    return gross - salary - expenses;
+  };
   const payableValueFor = (r: TripRow) =>
     reportMode ? (r.reportPayable ?? r.payable) : r.payable;
   const displayPayableFor = (r: TripRow) =>
@@ -893,11 +923,42 @@ export default function TripTable({
       case "cashAdvance":
         return renderMoneyCell(r.cashAdvance);
 
-      case "reimbursements":
-        return renderMoneyCell(r.reimbursements);
+      case "reimbursements": {
+        const value = Number(r.reimbursements || 0);
 
-      case "expenses":
-        return renderMoneyCell(r.expenses);
+        if (value === 0) {
+          return <span className="text-slate-300 dark:text-slate-600">—</span>;
+        }
+
+        return (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center justify-center gap-1.5">
+                  {r.paid && (
+                    <CheckCheck size={14} className="text-green-500" />
+                  )}
+                  <span className={cn(r.paid && "text-slate-400 line-through")}>
+                    {peso(value)}
+                  </span>
+                </div>
+              </TooltipTrigger>
+
+              {r.paid && (
+                <TooltipContent>
+                  Reimbursement PAID (Added to Expenses)
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
+        );
+      }
+
+      case "expenses": {
+        const base = Number(r.expenses || 0);
+
+        return renderMoneyCell(base);
+      }
 
       case "note":
         return onExpenseClick && (r.hasExpenses || r.expenses > 0 || r.note) ? (
@@ -962,20 +1023,35 @@ export default function TripTable({
           </span>
         );
 
-      case "paid":
+      case "paid": {
+        const isLoading = loadingId === r._id;
+        const effectivePaid = isLoading ? !r.paid : r.paid;
+
         return (
           <button
-            onClick={() => onTogglePaid?.(r._id)}
+            disabled={isLoading}
+            onClick={async () => {
+              if (isLoading) return;
+              setLoadingId(r._id);
+
+              try {
+                await onTogglePaid?.(r._id);
+              } finally {
+                setLoadingId(null);
+              }
+            }}
             className={cn(
               "group px-3 py-1.5 rounded-md inline-flex cursor-pointer items-center gap-1.5 text-xs border transition-all",
-              r.paid
+              effectivePaid
                 ? "bg-green-500/10 border-green-500/20 text-green-600 hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-500"
                 : "bg-muted border-border text-slate-400 hover:bg-green-500/10 hover:border-green-500/20 hover:text-green-500",
             )}
           >
             <span className="relative flex items-center justify-center w-[110px] min-h-[16px]">
               <span className="absolute inset-0 flex items-center justify-center gap-1.5 group-hover:opacity-0 group-hover:invisible transition-all">
-                {r.paid ? (
+                {isLoading ? (
+                  <Loader2 size={12} className="animate-spin" />
+                ) : effectivePaid ? (
                   <>
                     <Check size={12} />
                     Paid
@@ -987,13 +1063,14 @@ export default function TripTable({
                   </>
                 )}
               </span>
+
               <span
                 className={cn(
                   "absolute inset-0 flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 group-hover:visible transition-all",
-                  r.paid ? "text-red-500" : "text-green-500",
+                  effectivePaid ? "text-red-500" : "text-green-500",
                 )}
               >
-                {r.paid ? (
+                {effectivePaid ? (
                   <>
                     <X size={12} />
                     Mark as Unpaid
@@ -1008,6 +1085,7 @@ export default function TripTable({
             </span>
           </button>
         );
+      }
 
       default:
         return null;
@@ -1047,8 +1125,9 @@ export default function TripTable({
       {/* Desktop table */}
       <table
         className={cn(
-          "w-full text-sm hidden md:table",
+          "w-full text-sm hidden md:table transition-opacity duration-150",
           !showActions && "report-table",
+          isRefreshing && "opacity-70",
         )}
       >
         <thead>

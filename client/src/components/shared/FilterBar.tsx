@@ -2,7 +2,6 @@ import { RotateCcw, CalendarDays } from "lucide-react";
 import { useAppStore } from "../../store/useAppStore";
 import type { RangePreset } from "../../lib/dateHelpers";
 import type { DateRange } from "react-day-picker";
-import { getSelectStyles } from "../../lib/selectStyles";
 import { Check, ChevronsUpDown } from "lucide-react";
 import {
   Popover,
@@ -19,13 +18,6 @@ import {
 import { useState, useEffect } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 interface FilterBarProps {
   showTruck?: boolean;
@@ -85,7 +77,6 @@ export default function FilterBar({
     setEndDate,
     fetchDashboard,
     fetchExpenses,
-    theme,
   } = useAppStore();
   const [openMonth, setOpenMonth] = useState(false);
   const [openTruck, setOpenTruck] = useState(false);
@@ -110,31 +101,16 @@ export default function FilterBar({
     }
   }, [startDate, endDate]);
 
-  const isDark = theme === "dark";
-  const styles = getSelectStyles(isDark);
-
   const rangeOptions = allowedRangePresets
     ? RANGE_OPTIONS.filter((option) =>
         allowedRangePresets.includes(option.value as RangePreset),
       )
     : RANGE_OPTIONS;
 
-  const currentRangeOption =
-    rangeOptions.find((o) => o.value === rangePreset) || rangeOptions[0];
-
   const truckSelectOptions = [
     { value: "", label: "All Trucks" },
     ...truckOptions.map((t) => ({ value: t._id, label: t.truckName })),
   ];
-
-  const handleRangeChange = (option: { value: string } | null) => {
-    if (!option) return;
-    setRangePreset(option.value as RangePreset);
-    setTimeout(() => {
-      fetchDashboard();
-      fetchExpenses();
-    }, 0);
-  };
 
   const handleReset = () => {
     const resetPreset = rangeOptions.some((option) => option.value === "ALL")

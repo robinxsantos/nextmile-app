@@ -123,6 +123,7 @@ export interface ExpenseRow {
   amount: number;
   description: string;
   reimbursed: boolean;
+  tripId?: string;
 }
 
 export interface TruckRow {
@@ -679,8 +680,26 @@ export const useAppStore = create<AppState>((set, get) => ({
   // CRUD - Trips
   addTrip: async (tripData) => {
     try {
-      await api.post("/trips", tripData);
+      const res = await api.post("/trips", tripData);
+      const newTrip = res.data;
+
+      // 🔥 AUTO CREATE REIMBURSEMENT EXPENSE
+      if (newTrip.paid && newTrip.reimbursements > 0) {
+        await get().addExpense({
+          truckId:
+            typeof newTrip.truck === "string"
+              ? newTrip.truck
+              : newTrip.truck?._id,
+          date: newTrip.dateIso,
+          category: "REIMBURSEMENT",
+          amount: newTrip.reimbursements,
+          description: `Crew reimbursement (${newTrip.shipmentNumber || "Trip"})`,
+          tripId: newTrip._id,
+        });
+      }
+
       toast.success("Trip created successfully", { duration: 4000 });
+
       await get().fetchDashboard();
       await get().fetchExpenses();
     } catch (err: unknown) {
@@ -717,69 +736,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
   toggleTripPaid: async (id) => {
-    const state = get();
-    const trip = state.tripRows.find((t) => t._id === id);
-    if (!trip) return;
-
-    const wasPaid = trip.paid;
-    const originalPayable = trip.payable;
-    const totalPayable =
-      trip.crewSalary - trip.cashAdvance + trip.reimbursements;
-
-    // 🔥 optimistic update (SAFE)
-    set((state) => ({
-      tripRows: state.tripRows.map((t) =>
-        t._id === id
-          ? {
-              ...t,
-              paid: !wasPaid,
-              payable: wasPaid ? totalPayable : 0,
-            }
-          : t,
-      ),
-    }));
-
     try {
       await api.patch(`/trips/${id}/toggle-paid`);
-
-      toast.success(wasPaid ? "Marked as unpaid" : "Marked as paid", {
-        duration: 5000,
-        action: {
-          label: "Undo",
-          onClick: async () => {
-            // 🔥 optimistic undo (SAFE)
-            set((state) => ({
-              tripRows: state.tripRows.map((t) =>
-                t._id === id
-                  ? {
-                      ...t,
-                      paid: wasPaid,
-                      payable: originalPayable,
-                    }
-                  : t,
-              ),
-            }));
-
-            await api.patch(`/trips/${id}/toggle-paid`);
-            toast.success("Undone", { duration: 2000 });
-          },
-        },
-      });
     } catch (err: unknown) {
-      // 🔥 revert on error
-      set((state) => ({
-        tripRows: state.tripRows.map((t) =>
-          t._id === id
-            ? {
-                ...t,
-                paid: wasPaid,
-                payable: originalPayable,
-              }
-            : t,
-        ),
-      }));
-
       toast.error(getErrorMessage(err, "Failed to update paid status"));
+      throw err;
     }
   },
 

@@ -38,8 +38,10 @@ export function exportTripsCsv(rows: TripRow[], filename?: string) {
   ];
   const lines = [
     headers.map(escapeCsv).join(","),
-    ...rows.map((r) =>
-      [
+    ...rows.map((r) => {
+      const reimbValue = Number(r.reimbursements || 0);
+
+      return [
         r.week,
         r.dateText,
         r.status,
@@ -48,7 +50,7 @@ export function exportTripsCsv(rows: TripRow[], filename?: string) {
         r.trips,
         r.crewSalary,
         r.cashAdvance,
-        r.reimbursements,
+        reimbValue > 0 ? (r.paid ? `✔ ${peso(reimbValue)}` : reimbValue) : "",
         r.expenses,
         r.note,
         r.grossIncome,
@@ -56,8 +58,8 @@ export function exportTripsCsv(rows: TripRow[], filename?: string) {
         r.payable,
       ]
         .map(escapeCsv)
-        .join(","),
-    ),
+        .join(",");
+    }),
   ];
   const blob = new Blob([lines.join("\r\n")], {
     type: "text/csv;charset=utf-8;",
@@ -115,10 +117,17 @@ export function exportPayslip(
       : "All Dates";
 
   const rowHtml = rows
-    .filter((r) => r.status === "Working Day" && !r.paid)
+    .filter((r) => r.status === "Working Day")
     .map(
       (r) =>
-        `<tr><td>${escHtml(r.dateText)}</td><td>${escHtml(r.shipmentNumber)}</td><td>${pesoOrBlank(r.crewSalary)}</td><td>${pesoOrBlank(r.cashAdvance)}</td><td>${pesoOrBlank(r.reimbursements)}</td><td>${pesoOrBlank(r.paid ? 0 : r.payable)}</td></tr>`,
+        `<tr><td>${escHtml(r.dateText)}</td><td>${escHtml(r.shipmentNumber)}</td><td>${pesoOrBlank(r.crewSalary)}</td><td>${pesoOrBlank(r.cashAdvance)}</td><td>
+  ${(() => {
+    const reimbValue = Number(r.reimbursements || 0);
+    if (reimbValue === 0) return "";
+
+    return r.paid ? `✔ <s>${peso(reimbValue)}</s>` : peso(reimbValue);
+  })()}
+</td><td>${peso(r.paid ? 0 : r.payable)}</td></tr>`,
     )
     .join("");
 
@@ -256,7 +265,14 @@ export function exportMonthlyReport(
         <td>${pesoOrBlank(r.rate)}</td>
         <td>${pesoOrBlank(r.crewSalary)}</td>
         <td>${pesoOrBlank(r.cashAdvance)}</td>
-        <td>${pesoOrBlank(r.reimbursements)}</td>
+        <td>
+  ${(() => {
+    const reimbValue = Number(r.reimbursements || 0);
+    if (reimbValue === 0) return "";
+
+    return r.paid ? `✔ <s>${peso(reimbValue)}</s>` : peso(reimbValue);
+  })()}
+</td>
         <td>${pesoOrBlank(r.expenses)}</td>
         <td class="expense-breakdown">${expenseNoteHtml}</td>
         <td>${pesoOrBlank(r.grossIncome)}</td>

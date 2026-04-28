@@ -53,6 +53,9 @@ export default function TripsPage() {
     initApp,
     deleteTrip,
     toggleTripPaid,
+    addExpense, // 🔥 ADD THIS
+    deleteExpense, // 🔥 ADD THIS
+    fetchDashboard,
     searchQuery,
     setSearchQuery,
     startDate,
@@ -158,6 +161,50 @@ export default function TripsPage() {
   )?.truckName;
   const pageTitle = selectedTruckName ? `${selectedTruckName} Trips` : "Trips";
   const showTruckColumn = !selectedTruck || selectedTruck === "ALL";
+
+  const handleTogglePaid = async (id: string) => {
+    const trip = tripRows.find((r) => r._id === id);
+    if (!trip) return;
+
+    const willBePaid = !trip.paid;
+
+    try {
+      const latestExpenses = useAppStore.getState().expenseRows;
+
+      const existing = latestExpenses.find((e) => e.tripId === trip._id);
+
+      // 🔴 UNPAID
+      if (!willBePaid) {
+        if (existing) {
+          await deleteExpense(existing._id);
+        }
+      }
+
+      // 🔥 TOGGLE FIRST
+      await toggleTripPaid(id);
+
+      // 🟢 PAID
+      if (willBePaid && !existing && trip.reimbursements > 0) {
+        await addExpense({
+          truckId:
+            typeof trip.truck === "string"
+              ? trip.truck
+              : trip.truck && typeof trip.truck === "object"
+                ? trip.truck._id
+                : selectedTruck,
+          date: trip.dateIso,
+          category: "REIMBURSEMENT",
+          amount: trip.reimbursements,
+          description: `Crew reimbursement (${trip.shipmentNumber || "Trip"})`,
+          tripId: trip._id,
+        });
+      }
+
+      await fetchDashboard();
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const handleAddTrip = () => {
     if (!selectedTruck) {
@@ -406,7 +453,7 @@ export default function TripsPage() {
           selectable={admin}
           selectedIds={admin ? selectedTripIds : []}
           onSelectionChange={admin ? setSelectedTripIds : undefined}
-          onTogglePaid={admin ? (id) => toggleTripPaid(id) : undefined}
+          onTogglePaid={admin ? handleTogglePaid : undefined}
           onEdit={(r) => {
             setEditRow(r);
             setDuplicateFrom(null);

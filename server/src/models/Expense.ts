@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document, Types } from 'mongoose';
+import mongoose, { Schema, Document, Types } from "mongoose";
 
 export interface IExpense extends Document {
   truck: Types.ObjectId;
@@ -10,19 +10,20 @@ export interface IExpense extends Document {
   reimbursed: boolean;
   createdAt: Date;
   updatedAt: Date;
+  tripId?: Types.ObjectId;
 }
 
 const ExpenseSchema = new Schema<IExpense>(
   {
     truck: {
       type: Schema.Types.ObjectId,
-      ref: 'Truck',
+      ref: "Truck",
       required: true,
       index: true,
     },
     createdBy: {
       type: Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       default: null,
     },
     date: {
@@ -42,8 +43,13 @@ const ExpenseSchema = new Schema<IExpense>(
     },
     description: {
       type: String,
-      default: '',
+      default: "",
       trim: true,
+    },
+    tripId: {
+      type: Schema.Types.ObjectId as unknown as Types.ObjectId,
+      ref: "Trip",
+      index: true,
     },
     reimbursed: {
       type: Boolean,
@@ -52,9 +58,9 @@ const ExpenseSchema = new Schema<IExpense>(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 ExpenseSchema.index({ truck: 1, date: 1 });
 
-export const Expense = mongoose.model<IExpense>('Expense', ExpenseSchema);
+export const Expense = mongoose.model<IExpense>("Expense", ExpenseSchema);
