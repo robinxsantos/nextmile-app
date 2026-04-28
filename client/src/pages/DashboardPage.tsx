@@ -268,8 +268,27 @@ export default function DashboardPage() {
 
   const handleDelete = async () => {
     if (!deleteModal) return;
-    await deleteTrip(deleteModal._id);
-    setDeleteModal(null);
+
+    const trip = deleteModal;
+
+    try {
+      // 🔍 hanapin related expense
+      const latestExpenses = useAppStore.getState().expenseRows;
+
+      const existing = latestExpenses.find((e) => e.tripId === trip._id);
+
+      // 🔥 delete expense first (if exists)
+      if (existing) {
+        await deleteExpense(existing._id);
+      }
+
+      // 🔥 then delete trip
+      await deleteTrip(trip._id);
+
+      setDeleteModal(null);
+    } catch (err) {
+      console.error("Delete failed", err);
+    }
   };
 
   const handleBulkDelete = async () => {

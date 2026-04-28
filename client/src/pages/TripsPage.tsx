@@ -574,9 +574,29 @@ export default function TripsPage() {
 
             <button
               onClick={async () => {
-                if (deleteModal) {
-                  await deleteTrip(deleteModal._id);
+                if (!deleteModal) return;
+
+                const trip = deleteModal;
+
+                try {
+                  // 🔍 hanapin related expense
+                  const latestExpenses = useAppStore.getState().expenseRows;
+
+                  const existing = latestExpenses.find(
+                    (e) => e.tripId === trip._id,
+                  );
+
+                  // 🔥 delete expense first
+                  if (existing) {
+                    await deleteExpense(existing._id);
+                  }
+
+                  // 🔥 delete trip
+                  await deleteTrip(trip._id);
+
                   setDeleteModal(null);
+                } catch (err) {
+                  console.error("Delete failed", err);
                 }
               }}
               className="px-6 py-2.5 rounded-md bg-red-500/10 text-red-500 text-sm font-medium hover:bg-red-500/20 transition"
