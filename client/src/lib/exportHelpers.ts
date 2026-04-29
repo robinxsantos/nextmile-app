@@ -1,6 +1,7 @@
 import type { TripRow } from "../store/useAppStore";
 import { peso } from "./utils";
 import { getExpenseBreakdown } from "./expenseSummary";
+import { getColumnLabels } from "./columnLabels";
 
 function pesoOrBlank(n: number | undefined | null): string {
   const value = Number(n || 0);
@@ -20,15 +21,16 @@ function escHtml(s: string): string {
 }
 
 export function exportTripsCsv(rows: TripRow[], filename?: string) {
+  const labels = getColumnLabels();
   const headers = [
     "Week",
     "Date",
     "Status",
-    "Shipment #",
+    labels.shipmentNumber,
     "Rate",
     "Trips",
     "Crew Salary",
-    "Cash Advance",
+    labels.cashAdvance,
     "Reimbursements",
     "Expenses",
     "Note",
@@ -83,6 +85,7 @@ export function exportPayslip(
   startDate?: string,
   endDate?: string,
 ) {
+  const labels = getColumnLabels();
   const totalTrips = rows.reduce((s, r) => s + (r.trips || 0), 0);
   const totalPayable = rows.reduce(
     (s, r) => s + (r.paid ? 0 : r.payable || 0),
@@ -157,7 +160,7 @@ tbody tr:nth-child(even) td { background-color: #f9fafb; }
   </div>
 </div>
 <table>
-  <thead><tr><th class="date-col">Date</th><th>Shipment #</th><th>Crew Salary</th><th>Cash Advance</th><th>Reimbursements</th><th>Payable</th></tr></thead>
+  <thead><tr><th class="date-col">Date</th><th>${labels.shipmentNumber}</th><th>Crew Salary</th><th>${labels.cashAdvance}</th><th>Reimbursements</th><th>Payable</th></tr></thead>
   <tbody>${rowHtml || '<tr><td colspan="6" style="text-align:center;color:#999;padding:20px">No working days found</td></tr>'}</tbody>
 </table>
 <div class="totals">
@@ -181,6 +184,7 @@ export function exportMonthlyReport(
   periodText: string,
   expenseRows: { category?: string; amount?: number }[] = [],
 ) {
+  const labels = getColumnLabels();
   const totalTrips = rows.reduce((s, r) => s + Number(r.trips || 0), 0);
   const totalGross = rows.reduce((s, r) => s + Number(r.grossIncome || 0), 0);
   const totalPayable = rows.reduce(
@@ -582,10 +586,10 @@ export function exportMonthlyReport(
       <thead>
         <tr>
           <th>Date</th>
-          <th>Shipment #</th>
+          <th>${labels.shipmentNumber}</th>
           <th>Rate</th>
           <th>Crew Salary</th>
-          <th>Cash Adv</th>
+          <th>${labels.cashAdvance}</th>
           <th>Reimb</th>
           <th>Expenses</th>
           <th class="expense-breakdown">Expense Breakdown</th>

@@ -6,6 +6,7 @@ import TripModal from "../components/shared/TripModal";
 import TripTable from "../components/shared/TripTable";
 import Modal from "../components/shared/Modal";
 import { exportTripsCsv, exportPayslip } from "../lib/exportHelpers";
+import { defaultColumnLabels } from "@/lib/columnLabels";
 import {
   Plus,
   Search,

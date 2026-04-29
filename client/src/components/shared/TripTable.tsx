@@ -19,6 +19,7 @@ import {
 } from "@tanstack/react-table";
 import { type TripRow } from "../../store/useAppStore";
 import { peso, cn } from "../../lib/utils";
+import { getColumnLabels } from "../../lib/columnLabels";
 import {
   Pencil,
   Trash2,
@@ -282,6 +283,7 @@ function TripCard({
   selected,
   onSelectToggle,
   showTruckColumn,
+  columnLabels,
 }: {
   r: TripRow;
   showActions: boolean;
@@ -300,6 +302,10 @@ function TripCard({
   selected?: boolean;
   onSelectToggle?: (id: string) => void;
   showTruckColumn?: boolean;
+  columnLabels: {
+    shipmentNumber: string;
+    cashAdvance: string;
+  };
 }) {
   const netValue = reportMode
     ? (r.reportNetIncome ?? r.netIncome)
@@ -381,7 +387,7 @@ function TripCard({
           <div className="font-semibold">{peso(r.crewSalary)}</div>
         </div>
         <div>
-          <div className="text-slate-500">Cash Adv.</div>
+          <div className="text-slate-500">{columnLabels.cashAdvance}</div>
           <div className="font-semibold">{peso(r.cashAdvance)}</div>
         </div>
         <div>
@@ -506,6 +512,9 @@ export default function TripTable({
   });
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [editingLabel, setEditingLabel] = useState<string | null>(null);
+  const [labelDraft, setLabelDraft] = useState("");
+  const [columnLabels, setColumnLabels] = useState(getColumnLabels());
   const totalsSource = totalsRows ?? rows;
 
   const totals = useMemo(() => {
@@ -598,7 +607,7 @@ export default function TripTable({
     if (show("shipmentNumber"))
       cols.push({
         key: "shipmentNumber",
-        label: "Shipment #",
+        label: columnLabels.shipmentNumber,
         className: "font-semibold",
       });
     if (show("rate"))
@@ -612,7 +621,7 @@ export default function TripTable({
         sortField: "crewSalary",
       });
     if (show("cashAdvance"))
-      cols.push({ key: "cashAdvance", label: "Cash Adv." });
+      cols.push({ key: "cashAdvance", label: columnLabels.cashAdvance });
     if (show("reimbursements"))
       cols.push({ key: "reimbursements", label: "Cr. Reimb." });
     if (show("expenses")) cols.push({ key: "expenses", label: "Expenses" });
@@ -631,7 +640,7 @@ export default function TripTable({
     cols.push({ key: "paid", label: "Paid" });
     return cols;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [truckVisible, visibleColumns]);
+  }, [truckVisible, visibleColumns, columnLabels]);
 
   // Minimal TanStack column defs — accessorKey only, no cell/header renderers
   // We render everything manually in JSX below to avoid hook-context issues
@@ -1162,8 +1171,57 @@ export default function TripTable({
                     idx === 0 && selectable && "left-[40px] z-20",
                   )}
                 >
-                  <div className="inline-flex items-center justify-center gap-1 transition-colors group-hover:text-foreground">
-                    {col.label}
+                  <div
+                    className="inline-flex items-center justify-center gap-1 transition-colors group-hover:text-foreground"
+                    onDoubleClick={() => {
+                      if (
+                        col.key === "shipmentNumber" ||
+                        col.key === "cashAdvance"
+                      ) {
+                        setEditingLabel(col.key);
+                        setLabelDraft(col.label);
+                      }
+                    }}
+                  >
+                    {editingLabel === col.key ? (
+                      <input
+                        value={labelDraft}
+                        autoFocus
+                        onChange={(e) => setLabelDraft(e.target.value)}
+                        onBlur={() => {
+                          const updated = {
+                            ...columnLabels,
+                            [col.key]: labelDraft,
+                          };
+                          localStorage.setItem(
+                            "column-labels",
+                            JSON.stringify(updated),
+                          );
+                          setColumnLabels(updated);
+                          setEditingLabel(null);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            const updated = {
+                              ...columnLabels,
+                              [col.key]: labelDraft,
+                            };
+                            localStorage.setItem(
+                              "column-labels",
+                              JSON.stringify(updated),
+                            );
+                            setColumnLabels(updated);
+                            setEditingLabel(null);
+                          }
+                          if (e.key === "Escape") {
+                            setEditingLabel(null);
+                          }
+                        }}
+                        className="text-xs px-1 border rounded bg-background text-center"
+                      />
+                    ) : (
+                      col.label
+                    )}
 
                     {!sortState && (
                       <ArrowUpDown
@@ -1404,6 +1462,7 @@ export default function TripTable({
               selected={selectedIds.includes(r._id)}
               onSelectToggle={handleSelectRow}
               showTruckColumn={truckVisible}
+              columnLabels={columnLabels}
             />
           ))
         )}
