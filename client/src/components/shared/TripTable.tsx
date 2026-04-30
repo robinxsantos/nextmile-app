@@ -211,7 +211,7 @@ function EditableCell({
 
   if (editing) {
     const sharedClass =
-      "w-full text-xs text-center bg-white dark:bg-slate-800 border border-blue-400 rounded-md px-1.5 py-1 focus:ring-2 focus:ring-blue-500/30 outline-none transition-all";
+      "w-full text-xs text-left bg-white dark:bg-slate-800 border border-blue-400 rounded-md px-1.5 py-1 focus:ring-2 focus:ring-blue-500/30 outline-none transition-all";
     return isNote ? (
       <textarea
         ref={inputRef as React.RefObject<HTMLTextAreaElement>}
@@ -508,7 +508,7 @@ export default function TripTable({
   const [globalFilter, setGlobalFilter] = useState("");
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
-    pageSize: 20,
+    pageSize: 10,
   });
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [loadingId, setLoadingId] = useState<string | null>(null);
@@ -1142,7 +1142,7 @@ export default function TripTable({
         <thead>
           <tr>
             {selectable && (
-              <th className="sticky top-[101px] z-50 bg-muted/60 backdrop-blur border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-muted-foreground px-2.5 py-3 whitespace-nowrap">
+              <th className="sticky top-[101px] z-50 bg-muted/60 backdrop-blur border-b border-slate-200 dark:border-slate-700 text-left text-xs font-semibold text-muted-foreground px-2.5 py-3 whitespace-nowrap">
                 <input
                   type="checkbox"
                   checked={allSelected}
@@ -1166,7 +1166,8 @@ export default function TripTable({
                     column?.toggleSorting()
                   }
                   className={cn(
-                    "group sticky top-[101px] z-50 bg-muted/60 backdrop-blur border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-muted-foreground px-2.5 py-3 whitespace-nowrap cursor-pointer select-none transition-colors hover:bg-muted hover:text-foreground",
+                    "group sticky top-[101px] z-50 bg-muted/60 backdrop-blur border-b border-slate-200 dark:border-slate-700 text-xs font-semibold text-muted-foreground px-2.5 py-3 whitespace-nowrap cursor-pointer select-none transition-colors hover:bg-muted hover:text-foreground",
+                    col.key === "paid" ? "text-center" : "text-left",
                     idx === 0 && !selectable && "left-0 z-20",
                     idx === 0 && selectable && "left-[40px] z-20",
                   )}
@@ -1217,7 +1218,7 @@ export default function TripTable({
                             setEditingLabel(null);
                           }
                         }}
-                        className="text-xs px-1 border rounded bg-background text-center"
+                        className="text-xs px-1 border rounded bg-background text-left"
                       />
                     ) : (
                       col.label
@@ -1242,7 +1243,7 @@ export default function TripTable({
               );
             })}
             {showActions && (
-              <th className="sticky top-[101px] z-50 bg-muted/60 backdrop-blur border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-muted-foreground px-2.5 py-3 whitespace-nowrap">
+              <th className="sticky top-[101px] z-50 bg-muted/60 backdrop-blur border-b border-slate-200 dark:border-slate-700 text-left text-xs font-semibold text-muted-foreground px-2.5 py-3 whitespace-nowrap">
                 Actions
               </th>
             )}
@@ -1282,7 +1283,7 @@ export default function TripTable({
                   )}
                 >
                   {selectable && (
-                    <td className="sticky left-0 z-[5] bg-background text-center px-2.5 py-2.5 border-b border-border w-[40px] min-w-[40px] max-w-[40px]">
+                    <td className="sticky left-0 z-[5] bg-background text-left px-2.5 py-2.5 border-b border-border w-[40px] min-w-[40px] max-w-[40px]">
                       <input
                         type="checkbox"
                         checked={selectedIds.includes(r._id)}
@@ -1295,7 +1296,8 @@ export default function TripTable({
                     <td
                       key={col.key}
                       className={cn(
-                        "text-center text-xs px-2.5 py-2.5 border-b border-border",
+                        "text-xs px-2.5 py-2.5 border-b border-border",
+                        col.key === "paid" ? "text-center" : "text-left",
                         idx === 0 && !selectable && "sticky left-0 z-[5]",
                         idx === 0 && selectable && "sticky left-[40px] z-[5]",
                         col.className,
@@ -1305,7 +1307,7 @@ export default function TripTable({
                     </td>
                   ))}
                   {showActions && (
-                    <td className="text-center text-xs px-2.5 py-2.5 border-b border-border">
+                    <td className="text-left text-xs px-2.5 py-2.5 border-b border-border">
                       <div className="flex items-center justify-center">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -1361,7 +1363,7 @@ export default function TripTable({
                 <td
                   key={`total-${col.key}`}
                   className={cn(
-                    "sticky bottom-0 z-30 bg-muted border-t-2 border-border text-center text-xs px-2.5 py-3 font-bold",
+                    "sticky bottom-0 z-30 bg-muted border-t-2 border-border text-left text-xs px-2.5 py-3 font-bold",
                     isFirst && !selectable && "left-0 z-[31]",
                     isFirst && selectable && "left-[40px] z-[31]",
                     col.key === "netIncome" &&

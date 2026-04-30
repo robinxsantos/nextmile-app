@@ -15,6 +15,9 @@ import {
   Coins,
   Check,
   ChevronsUpDown,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
 } from "lucide-react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
@@ -83,10 +86,15 @@ export default function ExpensesPage() {
   const [deleteModal, setDeleteModal] = useState<ExpenseRow | null>(null);
   const [showTruckWarning, setShowTruckWarning] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [sorting, setSorting] = useState<SortingState>([]);
+  const [sorting, setSorting] = useState<SortingState>([
+    {
+      id: "date",
+      desc: true,
+    },
+  ]);
   const [pagination, setPagination] = useState({
     pageIndex: 0,
-    pageSize: 20,
+    pageSize: 10,
   });
   const [categoryFilter, setCategoryFilter] = useState<string>("ALL");
   const [openCategory, setOpenCategory] = useState(false);
@@ -238,8 +246,11 @@ export default function ExpensesPage() {
   const columns = useMemo<ColumnDef<ExpenseRow>[]>(
     () => [
       {
-        accessorKey: "dateText",
+        accessorFn: (row) => new Date(row.dateIso).getTime(), // for sorting
+        id: "date",
         header: "Date",
+        cell: ({ row }) => row.original.dateText, // 🔥 FIX DISPLAY
+        enableSorting: true,
       },
       {
         accessorKey: "category",
@@ -249,10 +260,12 @@ export default function ExpensesPage() {
             {row.original.category}
           </span>
         ),
+        enableSorting: true,
       },
       {
         accessorKey: "amount",
         header: "Amount",
+        enableSorting: true,
         cell: ({ row }) => (
           <span
             className={cn(
@@ -269,6 +282,7 @@ export default function ExpensesPage() {
       {
         accessorKey: "description",
         header: "Description",
+        enableSorting: false,
       },
       ...(admin
         ? [
@@ -279,19 +293,21 @@ export default function ExpensesPage() {
                 const r = row.original;
 
                 return isReimbursableCategory(r.category) ? (
-                  <button
-                    onClick={() => toggleExpenseReimbursed(r._id)}
-                    className={cn(
-                      "w-[34px] h-[34px] rounded-md inline-flex items-center justify-center border transition",
-                      r.reimbursed
-                        ? "bg-green-500/10 border-green-500/20 text-green-600"
-                        : "bg-background border-border text-muted-foreground hover:bg-green-500/10 hover:text-green-500",
-                    )}
-                  >
-                    <Check size={14} />
-                  </button>
+                  <div className="flex justify-center">
+                    <button
+                      onClick={() => toggleExpenseReimbursed(r._id)}
+                      className={cn(
+                        "w-[34px] h-[34px] rounded-md inline-flex items-center justify-center border transition",
+                        r.reimbursed
+                          ? "bg-green-500/10 border-green-500/20 text-green-600"
+                          : "bg-background border-border text-muted-foreground hover:bg-green-500/10 hover:text-green-500",
+                      )}
+                    >
+                      <Check size={14} />
+                    </button>
+                  </div>
                 ) : (
-                  "—"
+                  <span className="text-center block">—</span>
                 );
               },
             },
@@ -454,13 +470,51 @@ export default function ExpensesPage() {
                   {hg.headers.map((header) => (
                     <th
                       key={header.id}
-                      className="sticky top-0 z-40 bg-muted/60 backdrop-blur border-b border-border text-center text-xs font-semibold text-muted-foreground px-3 py-3 whitespace-nowrap"
+                      className={cn(
+                        "sticky top-0 z-40 bg-muted/60 backdrop-blur border-b border-border text-xs font-semibold text-muted-foreground px-3 py-3 whitespace-nowrap",
+                        header.column.id === "reimbursed"
+                          ? "text-center"
+                          : "text-left",
+                      )}
                     >
-                      {header.isPlaceholder
-                        ? null
-                        : typeof header.column.columnDef.header === "function"
-                          ? header.column.columnDef.header(header.getContext())
-                          : header.column.columnDef.header}
+                      {header.isPlaceholder ? null : (
+                        <div
+                          onClick={() => {
+                            if (!header.column.getCanSort()) return;
+                            header.column.toggleSorting();
+                          }}
+                          className={cn(
+                            "flex items-center gap-1 cursor-pointer select-none",
+                            header.column.id === "reimbursed"
+                              ? "justify-center"
+                              : "justify-start",
+                          )}
+                        >
+                          {typeof header.column.columnDef.header === "function"
+                            ? header.column.columnDef.header(
+                                header.getContext(),
+                              )
+                            : header.column.columnDef.header}
+
+                          {header.column.getCanSort() &&
+                            header.column.getIsSorted() === false && (
+                              <ArrowUpDown
+                                size={12}
+                                className="text-muted-foreground"
+                              />
+                            )}
+
+                          {header.column.getCanSort() &&
+                            header.column.getIsSorted() === "asc" && (
+                              <ArrowUp size={12} />
+                            )}
+
+                          {header.column.getCanSort() &&
+                            header.column.getIsSorted() === "desc" && (
+                              <ArrowDown size={12} />
+                            )}
+                        </div>
+                      )}
                     </th>
                   ))}
                 </tr>
@@ -474,7 +528,7 @@ export default function ExpensesPage() {
                   className="hover:bg-muted/50 transition-colors"
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <td className="text-center text-xs px-3 py-2.5 border-b border-border">
+                    <td className="text-left text-xs px-3 py-2.5 border-b border-border">
                       {typeof cell.column.columnDef.cell === "function"
                         ? cell.column.columnDef.cell(cell.getContext())
                         : cell.getValue()}
