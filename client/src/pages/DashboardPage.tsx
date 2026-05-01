@@ -43,7 +43,19 @@ import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
-function Sparkline({ data, labels }: { data: number[]; labels: string[] }) {
+function Sparkline({
+  data,
+  labels,
+  invert = false,
+  current,
+  previous,
+}: {
+  data: number[];
+  labels: string[];
+  invert?: boolean;
+  current: number;
+  previous: number;
+}) {
   const min = Math.min(...data);
   const max = Math.max(...data);
 
@@ -53,31 +65,59 @@ function Sparkline({ data, labels }: { data: number[]; labels: string[] }) {
     label: labels[i],
   }));
 
-  const isUp = data[data.length - 1] >= data[0];
+  const isGood = invert ? current <= previous : current >= previous;
 
-  const gradientId = isUp ? "sparkUp" : "sparkDown";
+  const gradientId = isGood ? "sparkUp" : "sparkDown";
 
   return (
-    <AreaChart width={90} height={32} data={normalized}>
+    <AreaChart
+      key={JSON.stringify(data)} // ✅ force re-animation
+      width={90}
+      height={32}
+      data={normalized}
+    >
       <defs>
-        <linearGradient id="sparkUp" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#22c55e" stopOpacity={0.35} />
-          <stop offset="100%" stopColor="#22c55e" stopOpacity={0} />
+        <linearGradient id="sparkUp">
+          <stop offset="0%" stopColor="#22c55e" stopOpacity={0.1} />
+          <stop offset="70%" stopColor="#22c55e" stopOpacity={0.25} />
+          <stop offset="100%" stopColor="#22c55e" stopOpacity={0.4} />
         </linearGradient>
 
         <linearGradient id="sparkDown" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#ef4444" stopOpacity={0.35} />
-          <stop offset="100%" stopColor="#ef4444" stopOpacity={0} />
+          <stop offset="0%" stopColor="#ef4444" stopOpacity={0.1} />
+          <stop offset="70%" stopColor="#ef4444" stopOpacity={0.25} />
+          <stop offset="100%" stopColor="#ef4444" stopOpacity={0.4} />
         </linearGradient>
       </defs>
 
       <Area
         type="monotone"
         dataKey="value"
-        stroke={isUp ? "#22c55e" : "#ef4444"}
-        strokeWidth={2}
+        stroke={isGood ? "#22c55e" : "#ef4444"}
+        strokeWidth={1.5}
+        isAnimationActive
+        animationDuration={800}
+        animationEasing="ease-in-out"
+        animationBegin={100}
+        style={{
+          filter: isGood
+            ? "drop-shadow(0 0 2px rgba(34,197,94,0.4))"
+            : "drop-shadow(0 0 2px rgba(239,68,68,0.4))",
+        }}
         fill={`url(#${gradientId})`}
-        dot={false}
+        dot={(props: any) => {
+          const isLast = props.index === data.length - 1;
+          return isLast ? (
+            <circle cx={props.cx} cy={props.cy} r={2} fill={props.stroke}>
+              <animate
+                attributeName="r"
+                values="2.5;3.5;2.5"
+                dur="2s"
+                repeatCount="indefinite"
+              />
+            </circle>
+          ) : null;
+        }}
       />
 
       <Tooltip
@@ -530,6 +570,7 @@ export default function DashboardPage() {
                   value: kpis.payable,
                   prev: previousKpis.payable,
                   icon: BarChart3,
+                  invert: true,
                 },
                 {
                   label: "Cash Outflow",
@@ -620,6 +661,9 @@ export default function DashboardPage() {
                               }
                             })}
                             labels={sparkSource.map((d: any) => d.label)}
+                            invert={item.invert}
+                            current={item.value}
+                            previous={item.prev}
                           />
                         </div>
                       </div>
@@ -705,6 +749,7 @@ export default function DashboardPage() {
               <CardContent className="h-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart
+                    key={JSON.stringify(groupedChartData)} // ✅ FORCE RE-ANIMATE
                     data={groupedChartData}
                     margin={{ left: 20, top: 20, right: 20 }}
                   >
@@ -809,8 +854,9 @@ export default function DashboardPage() {
                       stroke="#2563eb"
                       strokeWidth={2}
                       fill="url(#grossGradient)"
-                      dot={{ r: 3 }}
-                      activeDot={{ r: 5 }}
+                      isAnimationActive
+                      animationDuration={1000}
+                      animationEasing="ease-in-out"
                     />
 
                     <Area
@@ -819,8 +865,9 @@ export default function DashboardPage() {
                       stroke="#14b8a6"
                       strokeWidth={2}
                       fill="url(#netGradient)"
-                      dot={{ r: 3 }}
-                      activeDot={{ r: 5 }}
+                      isAnimationActive
+                      animationDuration={1000}
+                      animationEasing="ease-in-out"
                     />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -839,6 +886,7 @@ export default function DashboardPage() {
               <CardContent className="h-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
+                    key={JSON.stringify(groupedChartData)} // ✅ FORCE RE-ANIMATE
                     data={groupedChartData}
                     margin={{ top: 20, left: 20, right: 20 }}
                   >
@@ -876,6 +924,11 @@ export default function DashboardPage() {
                       dataKey="trips"
                       fill="#ff9319"
                       radius={6}
+                      // ✅ ANIMATION
+                      isAnimationActive
+                      animationDuration={700}
+                      animationEasing="ease-in-out"
+                      animationBegin={100}
                       label={(props: any) => {
                         const { x, y, width, value } = props;
 
