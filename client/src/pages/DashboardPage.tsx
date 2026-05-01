@@ -6,7 +6,6 @@ import TripModal from "../components/shared/TripModal";
 import TripTable from "../components/shared/TripTable";
 import ErrorState from "../components/shared/ErrorState";
 import { exportTripsCsv, exportPayslip } from "../lib/exportHelpers";
-import { defaultColumnLabels } from "@/lib/columnLabels";
 import {
   PhilippinePeso,
   CheckCircle2,

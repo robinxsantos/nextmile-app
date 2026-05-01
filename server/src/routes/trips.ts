@@ -14,6 +14,45 @@ import {
 } from "../middleware/validate.js";
 import { requireAdmin, type AuthRequest } from "../middleware/auth.js";
 
+async function getFirstTripOfDay(truckId: any, date: Date) {
+  const start = new Date(date);
+  start.setHours(0, 0, 0, 0);
+
+  const end = new Date(date);
+  end.setHours(23, 59, 59, 999);
+
+  const trips = await Trip.find({
+    truck: truckId,
+    date: { $gte: start, $lte: end },
+  }).sort({ createdAt: 1 });
+
+  return trips[0] || null;
+}
+
+async function recomputeTrip(tripId: any) {
+  const trip = await Trip.findById(tripId);
+  if (!trip) return;
+
+  const truck = await Truck.findById(trip.truck);
+
+  const recalculated = prepareTripData({
+    date: trip.date,
+    status: trip.status,
+    dayOff: truck?.dayOff ?? 0,
+    shipmentNumber: trip.shipmentNumber,
+    rate: trip.rate,
+    trips: trip.trips,
+    crewSalary: trip.crewSalary,
+    cashAdvance: trip.cashAdvance,
+    reimbursements: trip.reimbursements,
+    note: trip.note,
+    paid: trip.paid,
+    expenses: trip.expenses,
+  });
+
+  await Trip.findByIdAndUpdate(tripId, recalculated);
+}
+
 const router = Router();
 
 // GET /api/trips/last?truck=
@@ -213,6 +252,25 @@ router.post("/", validateTripData, async (req: AuthRequest, res: Response) => {
     });
     const applyExpense = existingTrips === 0;
 
+    // 🔥 STEP 1: compute reimbursement FIRST
+    let finalReimbursement = isAdmin ? Number(reimbursements) || 0 : 0;
+
+    if (finalReimbursement > 0) {
+      const firstTrip = await getFirstTripOfDay(truck._id, parsedDate);
+
+      if (firstTrip && existingTrips > 0) {
+        await Trip.findByIdAndUpdate(firstTrip._id, {
+          $inc: { reimbursements: finalReimbursement },
+        });
+
+        // 🔥 ADD THIS LINE
+        await recomputeTrip(firstTrip._id);
+
+        finalReimbursement = 0;
+      }
+    }
+
+    // 🔥 STEP 2: NOW build tripData
     const tripData = prepareTripData({
       date: parsedDate,
       status,
@@ -222,7 +280,7 @@ router.post("/", validateTripData, async (req: AuthRequest, res: Response) => {
       trips: isAdmin ? Number(trips) || 0 : 0,
       crewSalary: isAdmin ? Number(crewSalary) || 0 : 0,
       cashAdvance: isAdmin ? Number(cashAdvance) || 0 : 0,
-      reimbursements: isAdmin ? Number(reimbursements) || 0 : 0,
+      reimbursements: finalReimbursement, // ✅ CLEAN
       note,
       expenses: applyExpense ? expenseTotal : 0,
     });
@@ -234,9 +292,9 @@ router.post("/", validateTripData, async (req: AuthRequest, res: Response) => {
     });
 
     // Re-sync all trips for this date if there are multiple
-    if (existingTrips > 0) {
-      await syncTripsForDate(truck._id as any, parsedDate);
-    }
+    // if (existingTrips > 0) {
+    //   await syncTripsForDate(truck._id as any, parsedDate);
+    // }
 
     const populated = await Trip.findById(trip._id).populate(
       "truck",
@@ -289,7 +347,29 @@ router.put(
       }
 
       const truck = await Truck.findById(existingTrip.truck);
+      if (!truck) {
+        res.status(404).json({ error: "Truck not found." });
+        return;
+      }
       const parsedDate = date ? new Date(date) : existingTrip.date;
+
+      let finalReimbursement = Number(reimbursements) || 0;
+
+      const firstTrip = await getFirstTripOfDay(truck._id, parsedDate);
+      const isFirst = String(firstTrip?._id) === String(existingTrip._id);
+
+      if (!isFirst && finalReimbursement > 0 && firstTrip) {
+        const diff = finalReimbursement - (existingTrip.reimbursements || 0);
+
+        await Trip.findByIdAndUpdate(firstTrip._id, {
+          $inc: { reimbursements: diff },
+        });
+
+        // 🔥 ADD THIS LINE
+        await recomputeTrip(firstTrip._id);
+
+        finalReimbursement = 0;
+      }
 
       const tripData = prepareTripData({
         date: parsedDate,
@@ -300,19 +380,13 @@ router.put(
         trips: Number(trips) || 0,
         crewSalary: Number(crewSalary) || 0,
         cashAdvance: Number(cashAdvance) || 0,
-        reimbursements: Number(reimbursements) || 0,
+        reimbursements: finalReimbursement, // ✅ FIXED
         note,
         paid: existingTrip.paid,
         expenses: existingTrip.expenses,
       });
 
       await Trip.findByIdAndUpdate(req.params.id, tripData);
-
-      // Re-sync expenses for both old and new dates
-      await syncTripsForDate(existingTrip.truck as any, existingTrip.date);
-      if (parsedDate.toDateString() !== existingTrip.date.toDateString()) {
-        await syncTripsForDate(existingTrip.truck as any, parsedDate);
-      }
 
       const updated = await Trip.findById(req.params.id).populate(
         "truck",
@@ -352,7 +426,7 @@ router.delete("/:id", async (req: AuthRequest, res: Response) => {
     await Trip.findByIdAndDelete(req.params.id);
 
     // Re-sync remaining trips for this date
-    await syncTripsForDate(truckId as any, tripDate);
+    // await syncTripsForDate(truckId as any, tripDate);
 
     res.json({ ok: true });
   } catch (err: any) {
@@ -399,6 +473,25 @@ router.patch(
         (trip as any)[field] = Number(value) || 0;
       }
 
+      if (field === "reimbursements") {
+        const parsedDate = trip.date;
+        const firstTrip = await getFirstTripOfDay(trip.truck, parsedDate);
+        const isFirst = String(firstTrip?._id) === String(trip._id);
+
+        if (!isFirst && Number(value) > 0) {
+          const diff = Number(value) - (trip.reimbursements || 0);
+
+          await Trip.findByIdAndUpdate(firstTrip._id, {
+            $inc: { reimbursements: diff },
+          });
+
+          // 🔥 ADD THIS LINE
+          await recomputeTrip(firstTrip._id);
+
+          (trip as any)[field] = 0;
+        }
+      }
+
       // 2. Recalculate numeric fields only
       const recalculated = prepareTripData({
         date: trip.date,
@@ -428,7 +521,6 @@ router.patch(
       await Trip.findByIdAndUpdate(req.params.id, updatePayload);
 
       // Re-sync expenses for this date
-      await syncTripsForDate(trip.truck as any, trip.date);
 
       const result = await Trip.findById(req.params.id).populate(
         "truck",

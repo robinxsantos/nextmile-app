@@ -11,7 +11,6 @@ import {
   AlertTriangle,
   Pencil,
 } from "lucide-react";
-import Select from "react-select";
 import Modal from "../components/shared/Modal";
 import { Calendar } from "@/components/ui/calendar";
 import {

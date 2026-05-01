@@ -943,7 +943,7 @@ export default function TripTable({
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className="flex items-center justify-center gap-1.5">
+                <div className="flex items-center justify-start gap-1.5">
                   {r.paid && (
                     <CheckCheck size={14} className="text-green-500" />
                   )}

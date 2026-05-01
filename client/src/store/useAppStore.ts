@@ -35,7 +35,9 @@ function applyReimbursedParkingAdjustments(
     )
       continue;
 
-    const key = `${getTruckId(expense.truck)}|${expense.dateIso}`;
+    if (!expense.tripId) continue;
+
+    const key = expense.tripId;
     reimbursedByKey.set(
       key,
       (reimbursedByKey.get(key) || 0) + Number(expense.amount || 0),

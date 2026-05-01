@@ -30,7 +30,6 @@ import {
   useReactTable,
   getCoreRowModel,
   getSortedRowModel,
-  getFilteredRowModel,
   getPaginationRowModel,
   type ColumnDef,
   type SortingState,

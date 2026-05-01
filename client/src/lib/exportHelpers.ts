@@ -436,7 +436,7 @@ export function exportMonthlyReport(
     th,td{
       padding:7px 5px;
       font-size:9.5px;
-      text-align:center;
+      text-align:left;
       vertical-align:top;
       border-bottom:1px solid #ddd;
       overflow-wrap:anywhere;
