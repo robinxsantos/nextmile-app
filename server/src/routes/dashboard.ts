@@ -302,13 +302,23 @@ router.get("/", async (req: Request, res: Response) => {
 
     const chartKeys = Object.keys(chartMap).sort();
 
-    const chartData = rows.map((r) => ({
-      label: r.dateText,
-      dateIso: r.dateIso, // 🔥 ADD THIS
-      gross: r.grossIncome,
-      net: r.grossIncome - r.crewSalary - r.expenses,
-      trips: r.trips,
-    }));
+    const chartData = rows.map((r) => {
+      const originalPayable =
+        (r.crewSalary || 0) - (r.cashAdvance || 0) + (r.reimbursements || 0);
+
+      return {
+        label: r.dateText,
+        dateIso: r.dateIso,
+
+        gross: r.grossIncome || 0,
+        net: r.grossIncome - r.crewSalary - r.expenses,
+        trips: r.trips || 0,
+
+        expenses: r.expenses || 0,
+        payable: r.paid ? 0 : originalPayable,
+        cashOutflow: r.paid ? originalPayable : 0,
+      };
+    });
 
     res.json({
       rows,

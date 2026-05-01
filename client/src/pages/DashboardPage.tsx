@@ -43,6 +43,68 @@ import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
+function Sparkline({ data, labels }: { data: number[]; labels: string[] }) {
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+
+  const normalized = data.map((v, i) => ({
+    value: max === min ? 50 : ((v - min) / (max - min)) * 100,
+    raw: v,
+    label: labels[i],
+  }));
+
+  const isUp = data[data.length - 1] >= data[0];
+
+  const gradientId = isUp ? "sparkUp" : "sparkDown";
+
+  return (
+    <AreaChart width={90} height={32} data={normalized}>
+      <defs>
+        <linearGradient id="sparkUp" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#22c55e" stopOpacity={0.35} />
+          <stop offset="100%" stopColor="#22c55e" stopOpacity={0} />
+        </linearGradient>
+
+        <linearGradient id="sparkDown" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#ef4444" stopOpacity={0.35} />
+          <stop offset="100%" stopColor="#ef4444" stopOpacity={0} />
+        </linearGradient>
+      </defs>
+
+      <Area
+        type="monotone"
+        dataKey="value"
+        stroke={isUp ? "#22c55e" : "#ef4444"}
+        strokeWidth={2}
+        fill={`url(#${gradientId})`}
+        dot={false}
+      />
+
+      <Tooltip
+        formatter={(_, __, props: any) => [
+          `₱${props.payload.raw.toLocaleString()}`,
+        ]}
+        labelFormatter={(_, payload) => payload?.[0]?.payload?.label || ""}
+        contentStyle={{
+          fontSize: "11px",
+          padding: "6px 8px",
+          borderRadius: "6px",
+
+          // ✅ WHITE STYLE
+          backgroundColor: "#ffffff",
+          color: "#111827", // dark text
+
+          border: "1px solid #e5e7eb", // light border
+          boxShadow: "0 4px 10px rgba(0,0,0,0.08)",
+        }}
+        labelStyle={{
+          color: "#111827",
+          fontWeight: 600,
+        }}
+      />
+    </AreaChart>
+  );
+}
 const COLUMN_OPTIONS = [
   ["truck", "Truck"],
   ["week", "Week"],
@@ -337,12 +399,24 @@ export default function DashboardPage() {
         const key = `${start.getFullYear()}-${start.getMonth()}-${start.getDate()}`;
 
         if (!weeks[key]) {
-          weeks[key] = { label, gross: 0, net: 0, trips: 0 };
+          weeks[key] = {
+            label,
+            gross: 0,
+            net: 0,
+            trips: 0,
+
+            expenses: 0,
+            payable: 0,
+            cashOutflow: 0,
+          };
         }
 
         weeks[key].gross += item.gross || 0;
         weeks[key].net += item.net || 0;
         weeks[key].trips += item.trips || 0;
+        weeks[key].expenses += item.expenses || 0;
+        weeks[key].payable += item.payable || 0;
+        weeks[key].cashOutflow += item.cashOutflow || 0;
       });
 
       return Object.values(weeks);
@@ -360,12 +434,24 @@ export default function DashboardPage() {
       });
 
       if (!months[key]) {
-        months[key] = { label, gross: 0, net: 0, trips: 0 };
+        months[key] = {
+          label,
+          gross: 0,
+          net: 0,
+          trips: 0,
+
+          expenses: 0,
+          payable: 0,
+          cashOutflow: 0,
+        };
       }
 
       months[key].gross += item.gross || 0;
       months[key].net += item.net || 0;
       months[key].trips += item.trips || 0;
+      months[key].expenses += item.expenses || 0;
+      months[key].payable += item.payable || 0;
+      months[key].cashOutflow += item.cashOutflow || 0;
     });
 
     return Object.values(months);
@@ -453,6 +539,34 @@ export default function DashboardPage() {
                   invert: true,
                 },
               ].map((item, idx) => {
+                const isCutoff = rangePreset === "CC" || rangePreset === "LC";
+
+                let sparkSource;
+
+                if (isCutoff) {
+                  // 🔥 cutoff = comparison only (2 points)
+                  sparkSource = [
+                    {
+                      label: "Previous",
+                      gross: previousKpis.gross,
+                      net: previousKpis.net,
+                      expenses: previousKpis.expenses,
+                      payable: previousKpis.payable,
+                      cashOutflow: previousKpis.cashOutflow,
+                    },
+                    {
+                      label: "Current",
+                      gross: kpis.gross,
+                      net: kpis.net,
+                      expenses: kpis.expenses,
+                      payable: kpis.payable,
+                      cashOutflow: kpis.cashOutflow,
+                    },
+                  ];
+                } else {
+                  // 🔥 TM / YTD / ALL → follow chart behavior
+                  sparkSource = groupedChartData;
+                }
                 const diff = item.value - item.prev;
                 const percent =
                   item.prev === 0
@@ -469,7 +583,7 @@ export default function DashboardPage() {
 
                 return (
                   <div key={item.label}>
-                    <div className="grid grid-cols-[1fr_auto] items-start py-4">
+                    <div className="grid grid-cols-[1fr_1fr_auto] items-center py-4 gap-3">
                       {/* LEFT */}
                       <div className="flex items-start gap-3">
                         <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center">
@@ -481,6 +595,32 @@ export default function DashboardPage() {
                           <p className="text-xs text-muted-foreground">
                             vs last period
                           </p>
+                        </div>
+                      </div>
+
+                      {/* MIDDLE — SPARKLINE */}
+                      <div className="hidden md:flex justify-center items-center">
+                        {/* MIDDLE — SPARKLINE */}
+                        <div className="hidden md:flex justify-center items-center">
+                          <Sparkline
+                            data={sparkSource.map((d: any) => {
+                              switch (item.label) {
+                                case "Gross Income":
+                                  return d.gross;
+                                case "Net Income":
+                                  return d.net;
+                                case "Expenses":
+                                  return d.expenses;
+                                case "Payable":
+                                  return d.payable;
+                                case "Cash Outflow":
+                                  return d.cashOutflow;
+                                default:
+                                  return 0;
+                              }
+                            })}
+                            labels={sparkSource.map((d: any) => d.label)}
+                          />
                         </div>
                       </div>
 
@@ -584,25 +724,39 @@ export default function DashboardPage() {
                     />
 
                     <Tooltip
-                      formatter={
-                        ((value: number, name: string) => {
-                          const label =
-                            name === "gross"
-                              ? "Gross Income"
-                              : name === "net"
-                                ? "Net Income"
-                                : name;
+                      formatter={(value: number, name: string) => {
+                        const label =
+                          name === "gross"
+                            ? "Gross Income"
+                            : name === "net"
+                              ? "Net Income"
+                              : name;
 
-                          return [
-                            "₱" +
-                              new Intl.NumberFormat("en-PH", {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                              }).format(value),
-                            label,
-                          ];
-                        }) as any
-                      }
+                        return [
+                          "₱" +
+                            new Intl.NumberFormat("en-PH", {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            }).format(value),
+                          label,
+                        ];
+                      }}
+                      contentStyle={{
+                        fontSize: "12px",
+                        padding: "8px 10px",
+                        borderRadius: "8px",
+
+                        // ✅ WHITE STYLE
+                        backgroundColor: "#ffffff",
+                        color: "#111827",
+
+                        border: "1px solid #e5e7eb",
+                        boxShadow: "0 4px 10px rgba(0,0,0,0.08)",
+                      }}
+                      labelStyle={{
+                        color: "#111827",
+                        fontWeight: 600,
+                      }}
                     />
                     <Legend
                       wrapperStyle={{
@@ -694,7 +848,30 @@ export default function DashboardPage() {
                     />
                     <XAxis dataKey="label" fontSize={12} />
                     <YAxis fontSize={12} />
-                    <Tooltip />
+                    <Tooltip
+                      formatter={(value: number) => [
+                        "₱" +
+                          new Intl.NumberFormat("en-PH", {
+                            minimumFractionDigits: 0,
+                          }).format(value),
+                      ]}
+                      contentStyle={{
+                        fontSize: "12px",
+                        padding: "8px 10px",
+                        borderRadius: "8px",
+
+                        // ✅ SAME STYLE
+                        backgroundColor: "#ffffff",
+                        color: "#111827",
+
+                        border: "1px solid #e5e7eb",
+                        boxShadow: "0 4px 10px rgba(0,0,0,0.08)",
+                      }}
+                      labelStyle={{
+                        color: "#111827",
+                        fontWeight: 600,
+                      }}
+                    />
                     <Bar
                       dataKey="trips"
                       fill="#ff9319"

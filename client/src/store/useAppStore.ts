@@ -159,9 +159,15 @@ export interface KPIs {
 export interface ChartPoint {
   label: string;
   dateIso: string;
+
   gross: number;
   net: number;
   trips: number;
+
+  // ✅ ADD THESE
+  expenses: number;
+  payable: number;
+  cashOutflow: number;
 }
 
 interface AppState {
