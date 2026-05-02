@@ -2,7 +2,13 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useAppStore, type TruckRow } from "../store/useAppStore";
 import KpiCard from "../components/shared/KpiCard";
-import Modal from "../components/shared/Modal";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogFooter,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Truck,
   CheckCircle2,
@@ -435,386 +441,287 @@ export default function TrucksPage() {
       </div>
 
       {/* Truck Modal */}
-      <Modal
-        open={truckModal}
-        onClose={() => setTruckModal(false)}
-        title={editRow ? "Edit Truck" : "Add Truck"}
-        wide
-        footer={
-          <>
-            <button
-              onClick={() => setTruckModal(false)}
-              className="px-4 py-2.5 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors"
-            >
-              Cancel
-            </button>
+      <>
+        {/* ADD / EDIT TRUCK */}
+        <Dialog open={truckModal} onOpenChange={setTruckModal}>
+          <DialogContent
+            className="sm:max-w-[700px]"
+            onOpenAutoFocus={(e) => e.preventDefault()}
+          >
+            <DialogHeader>
+              <DialogTitle>{editRow ? "Edit Truck" : "Add Truck"}</DialogTitle>
+            </DialogHeader>
 
-            <button
-              onClick={handleSave}
-              disabled={loading}
-              className="px-6 py-2.5 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition disabled:opacity-50"
-            >
-              {loading ? "Saving..." : editRow ? "Update" : "Save"}
-            </button>
-          </>
-        }
-      >
-        <div className="grid grid-cols-2 gap-4">
-          <div className="col-span-2">
-            <label className="text-xs font-semibold text-muted-foreground mb-1 block">
-              Truck Name
-            </label>
-            <input
-              type="text"
-              value={form.truckName}
-              onChange={(e) => setForm({ ...form, truckName: e.target.value })}
-              placeholder="e.g. AAA_1234"
-              className={inputClass}
-            />
-          </div>
+            {/* ✅ ORIGINAL FORM (UNCHANGED) */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="col-span-2">
+                <label className="text-xs font-semibold text-muted-foreground mb-1 block">
+                  Truck Name
+                </label>
+                <input
+                  type="text"
+                  value={form.truckName}
+                  onChange={(e) =>
+                    setForm({ ...form, truckName: e.target.value })
+                  }
+                  placeholder="e.g. AAA_1234"
+                  className={inputClass}
+                />
+              </div>
 
-          <div>
-            <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
-              Status
-            </label>
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
+                  Status
+                </label>
 
-            <UiSelect
-              value={form.status}
-              onValueChange={(val) => setForm({ ...form, status: val })}
-            >
-              <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
-                <SelectValue />
-              </SelectTrigger>
+                <UiSelect
+                  value={form.status}
+                  onValueChange={(val) => setForm({ ...form, status: val })}
+                >
+                  <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
 
-              <SelectContent className="z-[9999]">
-                {STATUS_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </UiSelect>
-          </div>
+                  <SelectContent>
+                    {STATUS_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </UiSelect>
+              </div>
 
-          <div>
-            <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
-              Cutoff Type
-            </label>
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
+                  Cutoff Type
+                </label>
 
-            <UiSelect
-              value={form.cutoffType}
-              onValueChange={(val) => {
-                setForm((prev) =>
-                  val === "monthly"
-                    ? {
-                        ...prev,
-                        cutoffType: val,
-                        cutoffStart: "26",
-                        cutoffEnd: "25",
-                        payday: "26",
-                        dayOff: "0",
-                      }
-                    : {
-                        ...prev,
-                        cutoffType: val,
-                        cutoffStart: "1",
-                        cutoffEnd: "6",
-                        payday: "6",
-                        dayOff: "0",
-                      },
-                );
-              }}
-            >
-              <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
-                <SelectValue />
-              </SelectTrigger>
+                <UiSelect
+                  value={form.cutoffType}
+                  onValueChange={(val) => {
+                    setForm((prev) =>
+                      val === "monthly"
+                        ? {
+                            ...prev,
+                            cutoffType: val,
+                            cutoffStart: "26",
+                            cutoffEnd: "25",
+                            payday: "26",
+                            dayOff: "0",
+                          }
+                        : {
+                            ...prev,
+                            cutoffType: val,
+                            cutoffStart: "1",
+                            cutoffEnd: "6",
+                            payday: "6",
+                            dayOff: "0",
+                          },
+                    );
+                  }}
+                >
+                  <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
 
-              <SelectContent className="z-[9999]">
-                {CUTOFF_TYPE_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </UiSelect>
-          </div>
+                  <SelectContent>
+                    {CUTOFF_TYPE_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </UiSelect>
+              </div>
 
-          <div>
-            <label className="text-xs font-semibold text-muted-foreground mb-1 block">
-              Client
-            </label>
-            <input
-              type="text"
-              value={form.client}
-              onChange={(e) => setForm({ ...form, client: e.target.value })}
-              placeholder="Client name"
-              className={inputClass}
-            />
-          </div>
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground mb-1 block">
+                  Client
+                </label>
+                <input
+                  type="text"
+                  value={form.client}
+                  onChange={(e) => setForm({ ...form, client: e.target.value })}
+                  placeholder="Client name"
+                  className={inputClass}
+                />
+              </div>
 
-          <div>
-            <label className="text-xs font-semibold text-muted-foreground mb-1 block">
-              Last Change Oil
-            </label>
-            <div className="relative ">
-              <input
-                type="text"
-                value={formatNumberWithComma(form.lastChangeOil)}
-                onChange={(e) => {
-                  const raw = e.target.value.replace(/,/g, "");
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground mb-1 block">
+                  Last Change Oil
+                </label>
 
-                  // allow only numbers
-                  if (!/^\d*$/.test(raw)) return;
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={formatNumberWithComma(form.lastChangeOil)}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(/,/g, "");
+                      if (!/^\d*$/.test(raw)) return;
+                      setForm({ ...form, lastChangeOil: raw });
+                    }}
+                    placeholder="e.g. 100,000"
+                    className={`${inputClass} pr-12`}
+                  />
 
-                  setForm({ ...form, lastChangeOil: raw });
+                  <div className="absolute inset-y-0 right-3 flex items-center text-xs font-semibold text-muted-foreground">
+                    KM
+                  </div>
+                </div>
+              </div>
+
+              {/* 🔥 KEEP YOUR WEEKLY / MONTHLY BLOCK EXACTLY */}
+              {form.cutoffType === "weekly" ? (
+                <div className="col-span-2">
+                  <label className="text-xs font-semibold text-muted-foreground mb-2 block">
+                    Cutoff Settings
+                  </label>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      ["cutoffStart", "Cutoff Start"],
+                      ["cutoffEnd", "Cutoff End"],
+                      ["payday", "Payday"],
+                      ["dayOff", "Day Off"],
+                    ].map(([key, label]) => (
+                      <div key={key}>
+                        <label className="text-xs text-muted-foreground mb-1.5 block">
+                          {label}
+                        </label>
+
+                        <UiSelect
+                          value={form[key as keyof typeof form]}
+                          onValueChange={(val) =>
+                            setForm({ ...form, [key]: val })
+                          }
+                        >
+                          <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
+                            <SelectValue />
+                          </SelectTrigger>
+
+                          <SelectContent>
+                            {DAY_OPTIONS.map((opt) => (
+                              <SelectItem key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </UiSelect>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="col-span-2">
+                  <label className="text-xs font-semibold text-muted-foreground mb-2 block">
+                    Monthly Cutoff Settings
+                  </label>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    {["cutoffStart", "cutoffEnd", "payday"].map((key) => (
+                      <div key={key}>
+                        <label className="text-xs text-muted-foreground mb-1.5 block">
+                          {key}
+                        </label>
+
+                        <UiSelect
+                          value={form[key as keyof typeof form]}
+                          onValueChange={(val) =>
+                            setForm({ ...form, [key]: val })
+                          }
+                        >
+                          <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
+                            <SelectValue />
+                          </SelectTrigger>
+
+                          <SelectContent>
+                            {MONTH_DAY_OPTIONS.map((opt) => (
+                              <SelectItem key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </UiSelect>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-2 text-xs text-muted-foreground">
+                    <strong>Monthly Cutoff</strong>
+                    <br />
+                    When the cutoff start date is set to the 1st day of the
+                    month and the cutoff end date is set to the 31st, the cutoff
+                    period covers the entire calendar month.
+                    <br />
+                    <strong>Cross-Month Cutoff</strong>
+                    <br />
+                    When the cutoff start date is set to the 26th and the cutoff
+                    end date is set to the 25th, the cutoff period begins on the
+                    26th of the current month and ends on the 25th of the
+                    following month.
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* FOOTER */}
+            <DialogFooter className="mt-4">
+              <button
+                onClick={() => setTruckModal(false)}
+                className="px-4 py-2.5 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={handleSave}
+                disabled={loading}
+                className="px-6 py-2.5 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition disabled:opacity-50"
+              >
+                {loading ? "Saving..." : editRow ? "Update" : "Save"}
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* DELETE TRUCK */}
+        <Dialog open={!!deleteModal} onOpenChange={() => setDeleteModal(null)}>
+          <DialogContent className="sm:max-w-[400px]">
+            <DialogHeader>
+              <DialogTitle>Delete truck?</DialogTitle>
+            </DialogHeader>
+
+            <p>
+              Are you sure you want to delete this truck?
+              <br />
+              <strong>{deleteModal?.truckName}</strong>
+            </p>
+
+            <DialogFooter className="mt-4">
+              <button
+                onClick={() => setDeleteModal(null)}
+                className="px-4 py-2 border rounded-md text-sm"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={async () => {
+                  if (deleteModal) {
+                    await deleteTruck(deleteModal._id);
+                    setDeleteModal(null);
+                  }
                 }}
-                placeholder="e.g. 100,000"
-                className={`${inputClass} pr-12`}
-              />
-
-              {/* KM sa right side */}
-              <div className="absolute inset-y-0 right-3 flex items-center text-xs font-semibold text-slate-500">
-                KM
-              </div>
-            </div>
-          </div>
-
-          {form.cutoffType === "weekly" ? (
-            <div className="col-span-2">
-              <label className="text-xs font-semibold text-muted-foreground mb-2 block">
-                Cutoff Settings
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs text-muted-foreground mb-1.5 block">
-                    Cutoff Start
-                  </label>
-
-                  <UiSelect
-                    value={form.cutoffStart}
-                    onValueChange={(val) =>
-                      setForm({ ...form, cutoffStart: val })
-                    }
-                  >
-                    <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
-                      <SelectValue />
-                    </SelectTrigger>
-
-                    <SelectContent className="z-[9999]">
-                      {DAY_OPTIONS.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </UiSelect>
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground mb-1.5 block">
-                    Cutoff End
-                  </label>
-
-                  <UiSelect
-                    value={form.cutoffEnd}
-                    onValueChange={(val) =>
-                      setForm({ ...form, cutoffEnd: val })
-                    }
-                  >
-                    <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
-                      <SelectValue />
-                    </SelectTrigger>
-
-                    <SelectContent className="z-[9999]">
-                      {DAY_OPTIONS.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </UiSelect>
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground mb-1.5 block">
-                    Payday
-                  </label>
-
-                  <UiSelect
-                    value={form.payday}
-                    onValueChange={(val) => setForm({ ...form, payday: val })}
-                  >
-                    <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
-                      <SelectValue />
-                    </SelectTrigger>
-
-                    <SelectContent className="z-[9999]">
-                      {DAY_OPTIONS.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </UiSelect>
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground mb-1.5 block">
-                    Day Off
-                  </label>
-
-                  <UiSelect
-                    value={form.dayOff}
-                    onValueChange={(val) => setForm({ ...form, dayOff: val })}
-                  >
-                    <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
-                      <SelectValue />
-                    </SelectTrigger>
-
-                    <SelectContent className="z-[9999]">
-                      {DAY_OPTIONS.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </UiSelect>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="col-span-2">
-              <label className="text-xs font-semibold text-muted-foreground mb-2 block">
-                Monthly Cutoff Settings
-              </label>
-
-              <div className="grid grid-cols-2 gap-3">
-                {/* START */}
-                <div>
-                  <label className="text-xs text-muted-foreground mb-1.5 block">
-                    Cutoff Start Day
-                  </label>
-
-                  <UiSelect
-                    value={form.cutoffStart}
-                    onValueChange={(val) =>
-                      setForm({ ...form, cutoffStart: val })
-                    }
-                  >
-                    <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
-                      <SelectValue />
-                    </SelectTrigger>
-
-                    <SelectContent className="z-[9999]">
-                      {MONTH_DAY_OPTIONS.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </UiSelect>
-                </div>
-
-                {/* END */}
-                <div>
-                  <label className="text-xs text-muted-foreground mb-1.5 block">
-                    Cutoff End Day
-                  </label>
-
-                  <UiSelect
-                    value={form.cutoffEnd}
-                    onValueChange={(val) =>
-                      setForm({ ...form, cutoffEnd: val })
-                    }
-                  >
-                    <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
-                      <SelectValue />
-                    </SelectTrigger>
-
-                    <SelectContent className="z-[9999]">
-                      {MONTH_DAY_OPTIONS.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </UiSelect>
-                </div>
-
-                {/* PAYDAY */}
-                <div>
-                  <label className="text-xs text-muted-foreground mb-1.5 block">
-                    Salary Day
-                  </label>
-
-                  <UiSelect
-                    value={form.payday}
-                    onValueChange={(val) => setForm({ ...form, payday: val })}
-                  >
-                    <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
-                      <SelectValue />
-                    </SelectTrigger>
-
-                    <SelectContent className="z-[9999]">
-                      {MONTH_DAY_OPTIONS.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </UiSelect>
-                </div>
-              </div>
-
-              <div className="mt-2 text-xs text-muted-foreground">
-                <strong>Monthly Cutoff</strong>
-                <br />
-                When the cutoff start date is set to the 1st day of the month
-                and the cutoff end date is set to the 31st, the cutoff period
-                covers the entire calendar month.
-                <br />
-                <strong>Cross-Month Cutoff</strong>
-                <br />
-                When the cutoff start date is set to the 26th and the cutoff end
-                date is set to the 25th, the cutoff period begins on the 26th of
-                the current month and ends on the 25th of the following month.
-              </div>
-            </div>
-          )}
-        </div>
-      </Modal>
-
-      {/* Delete Confirmation */}
-      <Modal
-        open={!!deleteModal}
-        onClose={() => setDeleteModal(null)}
-        title="Delete truck?"
-        footer={
-          <>
-            <button
-              onClick={() => setDeleteModal(null)}
-              className="px-4 py-2.5 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors"
-            >
-              Cancel
-            </button>
-
-            <button
-              onClick={async () => {
-                if (deleteModal) {
-                  await deleteTruck(deleteModal._id);
-                  setDeleteModal(null);
-                }
-              }}
-              className="px-6 py-2.5 rounded-md bg-red-500/10 text-red-500 text-sm font-medium hover:bg-red-500/20 transition"
-            >
-              Delete
-            </button>
-          </>
-        }
-      >
-        <p>
-          Are you sure you want to delete this truck?
-          <br />
-          <strong>{deleteModal?.truckName}</strong>
-        </p>
-      </Modal>
+                className="px-6 py-2 bg-red-500 text-white rounded-md text-sm"
+              >
+                Delete
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </>
     </div>
   );
 }

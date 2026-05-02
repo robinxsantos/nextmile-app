@@ -5,7 +5,13 @@ import { useAppStore, type ExpenseRow } from "../store/useAppStore";
 import { useAuthStore } from "../store/useAuthStore";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 import FilterBar from "../components/shared/FilterBar";
-import Modal from "../components/shared/Modal";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { peso, toInputDate, cn } from "../lib/utils";
 import {
   Plus,
@@ -46,6 +52,9 @@ import {
   CommandItem,
   CommandEmpty,
 } from "@/components/ui/command";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { Calendar as CalendarIcon } from "lucide-react";
 
 const DEFAULT_CATEGORIES = [
   "FUEL",
@@ -81,6 +90,7 @@ export default function ExpensesPage() {
   const { isAdmin } = useAuthStore();
   const admin = isAdmin();
   const [expenseModal, setExpenseModal] = useState(false);
+  const [dateOpen, setDateOpen] = useState(false);
   const [editRow, setEditRow] = useState<ExpenseRow | null>(null);
   const [deleteModal, setDeleteModal] = useState<ExpenseRow | null>(null);
   const [showTruckWarning, setShowTruckWarning] = useState(false);
@@ -705,121 +715,135 @@ export default function ExpensesPage() {
       </div>
 
       {/* Expense Modal */}
-      <Modal
-        open={expenseModal}
-        onClose={() => setExpenseModal(false)}
-        title={
-          editRow
-            ? `Edit Expense - ${selectedTruckName || "Truck"} - ${editRow.dateText}`
-            : "Add Expense"
-        }
-        wide
-        footer={
-          <>
+      <Dialog open={expenseModal} onOpenChange={setExpenseModal}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>
+              {editRow
+                ? `Edit Expense - ${selectedTruckName || "Truck"} - ${editRow.dateText}`
+                : "Add Expense"}
+            </DialogTitle>
+          </DialogHeader>
+
+          {/* BODY */}
+          <div className="grid grid-cols-2 gap-4 mt-4">
+            <div className="col-span-2">
+              <label className="text-xs font-semibold mb-1 block">Date</label>
+
+              <Popover open={dateOpen} onOpenChange={setDateOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    className={cn(
+                      "w-full h-[44px] justify-between rounded-md border border-border bg-background px-3 text-sm flex items-center",
+                      !form.date && "text-muted-foreground",
+                    )}
+                  >
+                    {form.date
+                      ? format(new Date(form.date), "MMM d, yyyy")
+                      : "Pick a date"}
+
+                    <CalendarIcon className="ml-2 h-4 w-4 opacity-50" />
+                  </button>
+                </PopoverTrigger>
+
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={form.date ? new Date(form.date) : undefined}
+                    onSelect={(d) => {
+                      if (d) {
+                        setForm({
+                          ...form,
+                          date: format(d, "yyyy-MM-dd"),
+                        });
+                        setDateOpen(false);
+                      }
+                    }}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold mb-1 block">
+                Category
+              </label>
+              <CreatableSelect
+                options={categoryOptions}
+                value={
+                  form.category
+                    ? { value: form.category, label: form.category }
+                    : null
+                }
+                onChange={(opt) =>
+                  setForm({ ...form, category: opt?.value || "" })
+                }
+                onCreateOption={(val) => setForm({ ...form, category: val })}
+                styles={selectStyles}
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold mb-1 block">Amount</label>
+              <input
+                type="number"
+                value={form.amount}
+                onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                className={inputClass}
+              />
+            </div>
+
+            <div className="col-span-2">
+              <label className="text-xs font-semibold mb-1 block">
+                Description
+              </label>
+              <input
+                type="text"
+                value={form.description}
+                onChange={(e) =>
+                  setForm({ ...form, description: e.target.value })
+                }
+                className={inputClass}
+              />
+            </div>
+          </div>
+
+          {/* FOOTER */}
+          <DialogFooter className="mt-4">
             <button
-              onClick={() => setExpenseModal(false)}
-              className="px-4 py-2.5 rounded-[14px] border border-slate-200 dark:border-slate-700 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-800"
+              onClick={() => setDeleteModal(null)}
+              className="px-4 py-2.5 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors"
             >
               Cancel
             </button>
+
             <button
               onClick={handleSave}
               disabled={loading}
-              className="px-6 py-2.5 rounded-[14px] bg-gradient-to-br from-blue-600 to-blue-700 text-white text-sm font-semibold shadow-[0_10px_20px_rgba(37,99,235,0.18)] disabled:opacity-50"
+              className="px-6 py-2.5 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition disabled:opacity-50"
             >
               {loading ? "Saving..." : editRow ? "Update" : "Save"}
             </button>
-          </>
-        }
-      >
-        <div className="grid grid-cols-2 gap-4">
-          <div className="col-span-2">
-            <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 block">
-              Date
-            </label>
-            <DatePicker
-              selected={
-                form.date ? new Date(form.date + "T00:00:00") : new Date()
-              }
-              onChange={(d: Date | null) => {
-                if (d)
-                  setForm({
-                    ...form,
-                    date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`,
-                  });
-              }}
-              dateFormat="MMM d, yyyy"
-              className={inputClass + " cursor-pointer"}
-              wrapperClassName="w-full"
-              showPopperArrow={false}
-            />
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1 block">
-              Category
-            </label>
-            <CreatableSelect
-              options={categoryOptions}
-              value={
-                form.category
-                  ? { value: form.category, label: form.category }
-                  : null
-              }
-              onChange={(opt) =>
-                setForm({ ...form, category: opt?.value || "" })
-              }
-              onCreateOption={(val) => setForm({ ...form, category: val })}
-              styles={{
-                ...selectStyles,
-                menuPortal: (base: Record<string, unknown>) => ({
-                  ...base,
-                  zIndex: 9999,
-                }),
-              }}
-              menuPortalTarget={document.body}
-              placeholder="Select or type..."
-              isClearable
-              formatCreateLabel={(input) => `Add "${input}"`}
-              classNamePrefix="nm-select"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1 block">
-              Amount
-            </label>
-            <input
-              type="number"
-              value={form.amount}
-              onChange={(e) => setForm({ ...form, amount: e.target.value })}
-              className={inputClass}
-            />
-          </div>
-          <div className="col-span-2">
-            <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1 block">
-              Description
-            </label>
-            <input
-              type="text"
-              value={form.description}
-              onChange={(e) =>
-                setForm({ ...form, description: e.target.value })
-              }
-              className={inputClass}
-            />
-          </div>
-        </div>
-      </Modal>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Confirmation */}
-      <Modal
-        open={!!deleteModal}
-        onClose={() => setDeleteModal(null)}
-        title="Delete expense?"
-        footer={
-          <>
+      <Dialog open={!!deleteModal} onOpenChange={() => setDeleteModal(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete expense?</DialogTitle>
+          </DialogHeader>
+
+          <p className="text-sm">
+            {deleteModal?.dateText} / {deleteModal?.category}
+          </p>
+
+          <DialogFooter>
             <button
               onClick={() => setDeleteModal(null)}
-              className="px-4 py-2.5 rounded-[14px] border border-slate-200 dark:border-slate-700 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-800"
+              className="px-4 py-2.5 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors"
             >
               Cancel
             </button>
@@ -830,40 +854,41 @@ export default function ExpensesPage() {
                   setDeleteModal(null);
                 }
               }}
-              className="px-6 py-2.5 rounded-[14px] bg-red-500 text-white text-sm font-semibold hover:bg-red-600"
+              className="bg-red-500 text-white px-4 py-2 rounded-md"
             >
               Delete
             </button>
-          </>
-        }
-      >
-        <p>
-          Are you sure?
-          <br />
-          <strong>
-            {deleteModal?.dateText} / {deleteModal?.category}
-          </strong>
-        </p>
-      </Modal>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Truck Warning */}
-      <Modal
-        open={showTruckWarning}
-        onClose={() => setShowTruckWarning(false)}
-        title=""
-      >
-        <div className="text-center py-4">
-          <div className="mx-auto mb-4 w-14 h-14 rounded-full bg-amber-500/10 grid place-items-center text-amber-500">
-            <AlertTriangle size={28} />
+      <Dialog open={showTruckWarning} onOpenChange={setShowTruckWarning}>
+        <DialogContent className="sm:max-w-[400px] text-center">
+          <div className="py-4">
+            <div className="mx-auto mb-4 w-14 h-14 rounded-full bg-amber-500/10 grid place-items-center text-amber-500">
+              <AlertTriangle size={28} />
+            </div>
+
+            <div className="font-bold text-lg mb-1">
+              Please select a truck first!
+            </div>
+
+            <p className="text-sm text-muted-foreground">
+              Choose a truck from the Dashboard filter bar.
+            </p>
           </div>
-          <div className="font-bold text-lg mb-1">
-            Please select a truck first!
-          </div>
-          <p className="text-sm text-slate-500">
-            Choose a truck from the Dashboard filter bar.
-          </p>
-        </div>
-      </Modal>
+
+          <DialogFooter className="flex justify-center">
+            <button
+              onClick={() => setShowTruckWarning(false)}
+              className="px-4 py-2 rounded-md border border-border text-sm font-medium hover:bg-muted transition"
+            >
+              OK
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

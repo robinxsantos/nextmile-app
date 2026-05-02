@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import api from "../api/client";
 import { useAppStore } from "../store/useAppStore";
-import Modal from "../components/shared/Modal";
 import {
   Plus,
   Pencil,
@@ -18,6 +17,13 @@ import {
   SelectItem,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 interface UserRow {
   _id: string;
@@ -30,7 +36,7 @@ interface UserRow {
 }
 
 export default function UsersPage() {
-  const { truckOptions, initApp, theme } = useAppStore();
+  const { truckOptions, initApp } = useAppStore();
 
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -334,150 +340,170 @@ export default function UsersPage() {
       </div>
 
       {/* Add/Edit Modal */}
-      <Modal
-        open={modal}
-        onClose={() => setModal(false)}
-        title={editUser ? `Edit User – ${editUser.displayName}` : "Add User"}
-        wide
-        footer={
-          <>
-            <button
-              onClick={() => setModal(false)}
-              className="px-4 py-2.5 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors"
-            >
-              Cancel
-            </button>
+      <>
+        {/* Add/Edit Modal */}
+        <Dialog open={modal} onOpenChange={setModal}>
+          <DialogContent
+            className="sm:max-w-[700px]"
+            onOpenAutoFocus={(e) => e.preventDefault()}
+          >
+            <DialogHeader>
+              <DialogTitle>
+                {editUser ? `Edit User – ${editUser.displayName}` : "Add User"}
+              </DialogTitle>
+            </DialogHeader>
 
-            <button
-              onClick={handleSave}
-              disabled={loading}
-              className="px-6 py-2.5 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition disabled:opacity-50"
-            >
-              {loading ? "Saving..." : editUser ? "Update" : "Create"}
-            </button>
-          </>
-        }
-      >
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
-              Username <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={form.username}
-              onChange={(e) => setForm({ ...form, username: e.target.value })}
-              disabled={!!editUser}
-              className={inputClass + (editUser ? " opacity-50" : "")}
-              placeholder="e.g. juan"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
-              Password {!editUser && <span className="text-red-500">*</span>}
-              {editUser && (
-                <span className="text-slate-400 font-normal">
-                  (leave blank to keep)
-                </span>
-              )}
-            </label>
-            <input
-              type="password"
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-              className={inputClass}
-              placeholder={editUser ? "••••••" : "Set password"}
-            />
-          </div>
-          <div className="col-span-2">
-            <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
-              Display Name <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={form.displayName}
-              onChange={(e) =>
-                setForm({ ...form, displayName: e.target.value })
-              }
-              className={inputClass}
-              placeholder="e.g. Juan Dela Cruz"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
-              Role
-            </label>
-            <UiSelect
-              value={form.role}
-              onValueChange={(val) => setForm({ ...form, role: val })}
-            >
-              <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
-                <SelectValue />
-              </SelectTrigger>
+            {/* 🔥 ORIGINAL BODY — UNCHANGED */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
+                  Username <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={form.username}
+                  onChange={(e) =>
+                    setForm({ ...form, username: e.target.value })
+                  }
+                  disabled={!!editUser}
+                  className={inputClass + (editUser ? " opacity-50" : "")}
+                  placeholder="e.g. juan"
+                />
+              </div>
 
-              <SelectContent className="z-[9999]">
-                {roleOptions.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </UiSelect>
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
-              Assigned Truck
-            </label>
-            <UiSelect
-              value={form.truck}
-              onValueChange={(val) => setForm({ ...form, truck: val })}
-            >
-              <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
-                <SelectValue placeholder="Select truck..." />
-              </SelectTrigger>
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
+                  Password{" "}
+                  {!editUser && <span className="text-red-500">*</span>}
+                  {editUser && (
+                    <span className="text-slate-400 font-normal">
+                      (leave blank to keep)
+                    </span>
+                  )}
+                </label>
+                <input
+                  type="password"
+                  value={form.password}
+                  onChange={(e) =>
+                    setForm({ ...form, password: e.target.value })
+                  }
+                  className={inputClass}
+                  placeholder={editUser ? "••••••" : "Set password"}
+                />
+              </div>
 
-              <SelectContent className="z-[9999]">
-                {truckSelectOptions.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </UiSelect>
-          </div>
-        </div>
-      </Modal>
+              <div className="col-span-2">
+                <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
+                  Display Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={form.displayName}
+                  onChange={(e) =>
+                    setForm({ ...form, displayName: e.target.value })
+                  }
+                  className={inputClass}
+                  placeholder="e.g. Juan Dela Cruz"
+                />
+              </div>
 
-      {/* Delete Confirmation */}
-      <Modal
-        open={!!deleteModal}
-        onClose={() => setDeleteModal(null)}
-        title="Delete user?"
-        footer={
-          <>
-            <button
-              onClick={() => setDeleteModal(null)}
-              className="px-6 py-2.5 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition"
-            >
-              Cancel
-            </button>
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
+                  Role
+                </label>
+                <UiSelect
+                  value={form.role}
+                  onValueChange={(val) => setForm({ ...form, role: val })}
+                >
+                  <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
 
-            <button
-              onClick={handleDelete}
-              className="px-6 py-2.5 rounded-md bg-red-500/10 text-red-500 text-sm font-medium hover:bg-red-500/20 transition"
-            >
-              Delete
-            </button>
-          </>
-        }
-      >
-        <p className="text-sm text-muted-foreground">
-          Are you sure you want to delete
-        </p>
-        <p className="font-semibold mt-1">
-          {deleteModal?.displayName} (@{deleteModal?.username})?
-        </p>
-      </Modal>
+                  <SelectContent className="z-[9999]">
+                    {roleOptions.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </UiSelect>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
+                  Assigned Truck
+                </label>
+                <UiSelect
+                  value={form.truck}
+                  onValueChange={(val) => setForm({ ...form, truck: val })}
+                >
+                  <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
+                    <SelectValue placeholder="Select truck..." />
+                  </SelectTrigger>
+
+                  <SelectContent className="z-[9999]">
+                    {truckSelectOptions.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </UiSelect>
+              </div>
+            </div>
+
+            <DialogFooter className="mt-4">
+              <button
+                onClick={() => setModal(false)}
+                className="px-4 py-2.5 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={handleSave}
+                disabled={loading}
+                className="px-6 py-2.5 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition disabled:opacity-50"
+              >
+                {loading ? "Saving..." : editUser ? "Update" : "Create"}
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Confirmation */}
+        <Dialog open={!!deleteModal} onOpenChange={() => setDeleteModal(null)}>
+          <DialogContent className="sm:max-w-[400px]">
+            <DialogHeader>
+              <DialogTitle>Delete user?</DialogTitle>
+            </DialogHeader>
+
+            {/* 🔥 ORIGINAL BODY — UNCHANGED */}
+            <p className="text-sm text-muted-foreground">
+              Are you sure you want to delete
+            </p>
+            <p className="font-semibold mt-1">
+              {deleteModal?.displayName} (@{deleteModal?.username})?
+            </p>
+
+            <DialogFooter className="mt-4">
+              <button
+                onClick={() => setDeleteModal(null)}
+                className="px-4 py-2.5 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={handleDelete}
+                className="px-6 py-2.5 rounded-md bg-red-500 text-white text-sm font-medium hover:bg-red-600 transition"
+              >
+                Delete
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </>
     </div>
   );
 }

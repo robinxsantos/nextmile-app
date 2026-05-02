@@ -36,12 +36,18 @@ import {
   BarChart,
   Legend,
 } from "recharts";
-import Modal from "../components/shared/Modal";
 import ExpenseBreakdownModal from "../components/shared/ExpenseBreakdownModal";
 import { AnimatePresence, motion } from "framer-motion";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 function Sparkline({
   data,
@@ -1165,96 +1171,117 @@ export default function DashboardPage() {
         duplicateFrom={duplicateFrom}
       />
 
-      <Modal
-        open={!!deleteModal}
-        onClose={() => setDeleteModal(null)}
-        title={`Delete Trip for - ${
-          deleteModal?.truckName || selectedTruckName || "Selected Truck"
-        }`}
-        footer={
-          <>
-            <button
-              onClick={() => setDeleteModal(null)}
-              className="px-4 py-2.5 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors"
-            >
-              Cancel
-            </button>
+      <>
+        {/* DELETE SINGLE */}
+        <Dialog open={!!deleteModal} onOpenChange={() => setDeleteModal(null)}>
+          <DialogContent className="sm:max-w-[400px]">
+            <DialogHeader>
+              <DialogTitle>
+                Delete Trip for -{" "}
+                {deleteModal?.truckName ||
+                  selectedTruckName ||
+                  "Selected Truck"}
+              </DialogTitle>
+            </DialogHeader>
 
-            <button
-              onClick={handleDelete}
-              className="px-6 py-2.5 rounded-md bg-red-500/10 text-red-500 text-sm font-medium hover:bg-red-500/20 transition"
-            >
-              Delete
-            </button>
-          </>
-        }
-      >
-        <p className="text-sm text-muted-foreground">
-          Are you sure you want to delete
-        </p>
+            <p className="text-sm text-muted-foreground">
+              Are you sure you want to delete
+            </p>
 
-        <p className="font-semibold mt-1">
-          {deleteModal?.dateText} / {deleteModal?.shipmentNumber}
-        </p>
-      </Modal>
+            <p className="font-semibold mt-1">
+              {deleteModal?.dateText} / {deleteModal?.shipmentNumber}
+            </p>
 
-      <Modal
-        open={bulkDeleteModal}
-        onClose={() => setBulkDeleteModal(false)}
-        title="Delete selected trips?"
-        footer={
-          <>
-            <button
-              onClick={() => setBulkDeleteModal(false)}
-              className="px-4 py-2.5 rounded-[14px] border border-slate-200 dark:border-slate-700 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleBulkDelete}
-              className="px-6 py-2.5 rounded-[14px] bg-red-500 text-white text-sm font-semibold hover:bg-red-600 transition-colors"
-            >
-              Delete {selectedTripIds.length} Trip
-              {selectedTripIds.length !== 1 ? "s" : ""}
-            </button>
-          </>
-        }
-      >
-        <p>
-          Are you sure you want to delete{" "}
-          <strong>{selectedTripIds.length}</strong> selected trip
-          {selectedTripIds.length !== 1 ? "s" : ""}?
-        </p>
-        <p className="text-sm text-slate-500 mt-1">
-          This action cannot be undone.
-        </p>
-      </Modal>
+            <DialogFooter className="mt-4">
+              <button
+                onClick={() => setDeleteModal(null)}
+                className="px-4 py-2.5 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors"
+              >
+                Cancel
+              </button>
 
-      <ExpenseBreakdownModal
-        open={!!expenseBreakdown}
-        onClose={() => setExpenseBreakdown(null)}
-        truckId={expenseBreakdown?.truckId || ""}
-        dateIso={expenseBreakdown?.dateIso || ""}
-        dateText={expenseBreakdown?.dateText || ""}
-      />
+              <button
+                onClick={handleDelete}
+                className="px-6 py-2.5 rounded-md bg-red-500 text-white text-sm font-medium hover:bg-red-600 transition"
+              >
+                Delete
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
-      <Modal
-        open={showTruckWarning}
-        onClose={() => setShowTruckWarning(false)}
-        title=""
-      >
-        <div className="text-center py-4">
-          <div className="mx-auto mb-4 w-14 h-14 rounded-full bg-amber-500/10 grid place-items-center text-amber-500">
-            <AlertTriangle size={28} />
-          </div>
-          <div className="font-bold text-lg mb-1">
-            Please select a truck first!
-          </div>
-          <p className="text-sm text-slate-500">
-            Choose a truck from the filter bar to add a trip.
-          </p>
-        </div>
-      </Modal>
+        {/* BULK DELETE */}
+        <Dialog open={bulkDeleteModal} onOpenChange={setBulkDeleteModal}>
+          <DialogContent className="sm:max-w-[400px]">
+            <DialogHeader>
+              <DialogTitle>Delete selected trips?</DialogTitle>
+            </DialogHeader>
+
+            <p>
+              Are you sure you want to delete{" "}
+              <strong>{selectedTripIds.length}</strong> selected trip
+              {selectedTripIds.length !== 1 ? "s" : ""}?
+            </p>
+
+            <p className="text-sm text-muted-foreground mt-1">
+              This action cannot be undone.
+            </p>
+
+            <DialogFooter className="mt-4">
+              <button
+                onClick={() => setBulkDeleteModal(false)}
+                className="px-4 py-2 border rounded-md text-sm"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={handleBulkDelete}
+                className="px-6 py-2 bg-red-500 text-white rounded-md text-sm"
+              >
+                Delete {selectedTripIds.length} Trip
+                {selectedTripIds.length !== 1 ? "s" : ""}
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <ExpenseBreakdownModal
+          open={!!expenseBreakdown}
+          onClose={() => setExpenseBreakdown(null)}
+          truckId={expenseBreakdown?.truckId || ""}
+          dateIso={expenseBreakdown?.dateIso || ""}
+          dateText={expenseBreakdown?.dateText || ""}
+        />
+
+        {/* TRUCK WARNING */}
+        <Dialog open={showTruckWarning} onOpenChange={setShowTruckWarning}>
+          <DialogContent className="sm:max-w-[400px] text-center">
+            <div className="py-4">
+              <div className="mx-auto mb-4 w-14 h-14 rounded-full bg-amber-500/10 grid place-items-center text-amber-500">
+                <AlertTriangle size={28} />
+              </div>
+
+              <div className="font-bold text-lg mb-1">
+                Please select a truck first!
+              </div>
+
+              <p className="text-sm text-muted-foreground">
+                Choose a truck from the filter bar to add a trip.
+              </p>
+            </div>
+
+            <DialogFooter className="flex justify-center">
+              <button
+                onClick={() => setShowTruckWarning(false)}
+                className="px-4 py-2 border rounded-md text-sm"
+              >
+                OK
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </>
     </div>
   );
 }

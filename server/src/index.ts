@@ -46,6 +46,7 @@ app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
+//{*IBALIK KAPAG BABALIK SA RENDER.COM*}
 // Serve React frontend in production
 // if (process.env.NODE_ENV === "production") {
 //   const clientDist = path.join(__dirname, "../../client/dist");
