@@ -494,7 +494,8 @@ export default function ExpensesPage() {
                           }}
                           className={cn(
                             "flex items-center gap-1 cursor-pointer select-none",
-                            header.column.id === "reimbursed"
+                            header.column.id === "reimbursed" ||
+                              header.column.id === "actions"
                               ? "justify-center"
                               : "justify-start",
                           )}
