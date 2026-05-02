@@ -98,7 +98,7 @@ export default function TripsPage() {
     status: false,
     shipmentNumber: true,
     rate: true,
-    trips: true,
+    trips: false,
     crewSalary: true,
     cashAdvance: true,
     reimbursements: true,
