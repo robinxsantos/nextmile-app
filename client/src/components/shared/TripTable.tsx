@@ -543,9 +543,7 @@ export default function TripTable({
           reportMode ? (r.reportNetIncome ?? r.netIncome) : r.netIncome,
         );
 
-        const adjustedNet = r.paid ? baseNet - reimbursements : baseNet;
-
-        acc.netIncome += adjustedNet;
+        acc.netIncome += baseNet;
 
         acc.payable += Number(
           reportMode ? (r.reportPayable ?? r.payable) : r.payable,

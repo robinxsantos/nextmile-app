@@ -207,6 +207,12 @@ export function exportMonthlyReport(
   const netMargin =
     totalGross > 0 ? ((totalNet / totalGross) * 100).toFixed(1) : "0.0";
   const avgPerTrip = totalTrips > 0 ? totalGross / totalTrips : 0;
+  // NEW: Profit per Trip (TRUE value)
+  const profitPerTrip = totalTrips > 0 ? totalNet / totalTrips : 0;
+
+  // OPTIONAL (HIGHLY RECOMMENDED): Break-even per Trip
+  const breakEvenPerTrip =
+    totalTrips > 0 ? (totalCrewSalary + totalExpenses) / totalTrips : 0;
   const crewCostRatio =
     totalGross > 0 ? ((totalCrewSalary / totalGross) * 100).toFixed(1) : "0.0";
 
@@ -369,13 +375,18 @@ export function exportMonthlyReport(
       tbody tr:nth-child(even) td {
         background-color: #f9fafb !important;
       }
+
+      .summary-grid {
+        break-inside: avoid;
+      }
     }
 
     .summary-grid {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 10px;
+      gap: 12px;
       align-items: stretch;
+      margin-bottom: 14px;
     }
 
     .summary-card,
@@ -388,13 +399,14 @@ export function exportMonthlyReport(
       border-radius: 10px;
       padding: 10px 12px;
       background: #fff;
+      height: 100%; /* ✅ equal height without flex */
     }
 
     .summary-row {
       display: flex;
       justify-content: space-between;
       gap: 12px;
-      padding: 4px 0;
+      padding: 6px 0;
       border-bottom: 1px dashed #e5e7eb;
       font-size: 12px;
     }
@@ -418,13 +430,14 @@ export function exportMonthlyReport(
     .section-title {
       font-size: 12px;
       font-weight: 700;
-      margin: 24px 0 10px;
+      margin: 32px 0 12px;
       text-transform: uppercase;
       letter-spacing: 0.05em;
     }
 
     .table-wrap {
       width: 100%;
+      margin-top: 10px;
     }
 
     table{
@@ -457,37 +470,11 @@ export function exportMonthlyReport(
       vertical-align:top;
       white-space:nowrap;
       line-height:1.35;
-      overflow-wrap:anywhere;
-      word-break:break-word;
     }
 
     .date-col {
       white-space: nowrap;
       min-width: 120px;
-    }
-
-    .totals {
-      margin-top: 18px;
-      border-top: 2px solid #000;
-      padding-top: 12px;
-      width: 100%;
-      box-sizing: border-box;
-    }
-
-    .total-row {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 12px;
-      max-width: 420px;
-      margin-left: auto;
-      font-size: 13px;
-      font-weight: 600;
-      margin-bottom: 5px;
-    }
-
-    .label {
-      letter-spacing: 0.04em;
-      color: #333;
     }
 
     .nothing-follows {
@@ -523,6 +510,15 @@ export function exportMonthlyReport(
         <span class="summary-value">${peso(totalCrewSalary)}</span>
       </div>
       <div class="summary-row">
+        <span class="summary-label">
+          Total Crew Payable<br>
+          <span style="font-size:10px;color:#9ca3af;font-weight:500;">
+            (After Advances & Reimb)
+          </span>
+        </span>
+        <span class="summary-value">${peso(totalPayable)}</span>
+      </div>
+      <div class="summary-row">
         <span class="summary-label">Total Expenses</span>
         <span class="summary-value">${peso(totalExpenses)}</span>
       </div>
@@ -534,10 +530,6 @@ export function exportMonthlyReport(
 
     <div class="summary-card">
       <div class="summary-row">
-        <span class="summary-label">Total Payable</span>
-        <span class="summary-value">${peso(totalPayable)}</span>
-      </div>
-      <div class="summary-row">
         <span class="summary-label">Expense Ratio</span>
         <span class="summary-value">${expenseRatio}%</span>
       </div>
@@ -546,23 +538,40 @@ export function exportMonthlyReport(
         <span class="summary-value">${crewCostRatio}%</span>
       </div>
       <div class="summary-row">
-        <span class="summary-label">Net Margin (After Salary & Expenses)</span>
+        <span class="summary-label">Net Margin</span>
         <span class="summary-value">${netMargin}%</span>
       </div>
       <div class="summary-row">
         <span class="summary-label">Avg per Trip</span>
         <span class="summary-value">${peso(avgPerTrip)}</span>
       </div>
-      <div style="margin-top:10px;padding-top:8px;border-top:1px solid #e5e7eb;font-size:9px;color:#9ca3af;line-height:1.5;">
+      <div class="summary-row">
+        <span class="summary-label">Profit per Trip</span>
+        <span class="summary-value">${peso(profitPerTrip)}</span>
+      </div>
+      <div class="summary-row">
+        <span class="summary-label">Break-even per Trip</span>
+        <span class="summary-value">${peso(breakEvenPerTrip)}</span>
+      </div>
+
+      <div style="margin-top:10px;padding-top:8px;border-top:1px solid #e5e7eb;font-size:9px;color:#9ca3af;line-height:1.4;">
+        <div><strong>Formulas:</strong></div>
         <div>Expense Ratio = Expenses / Gross × 100</div>
         <div>Crew Cost Ratio = Crew Salary / Gross × 100</div>
         <div>Net Margin = Net Income / Gross × 100</div>
+        <div>Avg per Trip = Gross / Total Trips</div>
+        <div>Profit per Trip = Net Income / Total Trips</div>
+        <div>Break-even per Trip = (Crew Salary + Expenses) / Total Trips</div>
       </div>
     </div>
 
     <div class="summary-card">
-      <div class="section-title" style="margin-top:4px;margin-bottom:2px;">Expense Breakdown</div>
-      <div class="muted" style="margin-bottom:8px;">Distribution by category</div>
+      <div class="section-title" style="margin-top:4px;margin-bottom:2px;">
+        Expense Breakdown
+      </div>
+      <div style="font-size:11px;color:#6b7280;margin-bottom:8px;">
+        Distribution by category
+      </div>
       ${expenseBreakdownHtml}
     </div>
   </div>
