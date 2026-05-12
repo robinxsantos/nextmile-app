@@ -45,15 +45,31 @@ function toLocalDateString(d: Date): string {
 
 const formatNumberWithComma = (value: string) => {
   if (!value) return "";
+
   const raw = value.replace(/,/g, "");
-  if (!raw) return "";
+
+  // 🔥 allow incomplete decimals like "1."
+  if (raw.endsWith(".")) return raw;
+
   const num = Number(raw);
   if (Number.isNaN(num)) return value;
-  return num.toLocaleString();
+
+  return num.toLocaleString(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  });
 };
 
-const sanitizeNumberInput = (value: string) =>
-  value.replace(/,/g, "").replace(/[^\d]/g, "");
+const sanitizeNumberInput = (value: string) => {
+  let cleaned = value.replace(/,/g, "").replace(/[^\d.]/g, "");
+
+  const parts = cleaned.split(".");
+  if (parts.length > 2) {
+    cleaned = parts[0] + "." + parts.slice(1).join("");
+  }
+
+  return cleaned;
+};
 
 export default function TripModal({
   open,
