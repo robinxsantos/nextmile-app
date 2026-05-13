@@ -345,9 +345,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   setSelectedTripIds: (ids) => set({ selectedTripIds: ids }),
   bulkTogglePaid: async (ids, paid) => {
     const state = get();
-    const originalRows = state.tripRows;
+    const originalTripRows = state.tripRows;
+    const originalExpenseRows = state.expenseRows;
 
-    // Optimistic update
+    // optimistic update
     set({
       tripRows: state.tripRows.map((t) =>
         ids.includes(t._id)
@@ -364,14 +365,52 @@ export const useAppStore = create<AppState>((set, get) => ({
     });
 
     try {
+      // 1) update paid status in backend
       await api.patch("/trips/bulk-paid", { ids, paid });
+
+      // 2) sync reimbursement expenses directly
+      for (const id of ids) {
+        const trip = originalTripRows.find((r) => r._id === id);
+        if (!trip) continue;
+
+        const existingExpense = get().expenseRows.find(
+          (e) => e.tripId === trip._id,
+        );
+
+        // If marking unpaid, remove the reimbursement expense
+        if (!paid && existingExpense) {
+          await api.delete(`/expenses/${existingExpense._id}`);
+          continue;
+        }
+
+        // If marking paid, create reimbursement expense when needed
+        if (paid && !existingExpense && trip.reimbursements > 0) {
+          await api.post("/expenses", {
+            truckId:
+              typeof trip.truck === "string" ? trip.truck : trip.truck?._id,
+            date: trip.dateIso,
+            category: "REIMBURSEMENT",
+            amount: trip.reimbursements,
+            description: `Crew reimbursement (${trip.shipmentNumber || "Trip"})`,
+            tripId: trip._id,
+          });
+        }
+      }
+
+      // 3) refresh once
+      await get().fetchExpenses();
       await get().fetchDashboard();
+
       toast.success(
         `${ids.length} trip(s) marked as ${paid ? "paid" : "unpaid"}`,
         { duration: 4000 },
       );
     } catch (err: unknown) {
-      set({ tripRows: originalRows, selectedTripIds: ids });
+      set({
+        tripRows: originalTripRows,
+        expenseRows: originalExpenseRows,
+        selectedTripIds: ids,
+      });
       toast.error(getErrorMessage(err, "Failed to update paid status"));
     }
   },
