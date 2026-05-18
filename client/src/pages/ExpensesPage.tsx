@@ -78,6 +78,7 @@ export default function ExpensesPage() {
     truckOptions,
     expensesMonth,
     setExpensesMonth,
+    fetchExpenseCategories,
     fetchExpenses,
     initApp,
     addExpense,
@@ -131,6 +132,10 @@ export default function ExpensesPage() {
   useEffect(() => {
     if (admin) fetchExpenses();
   }, [fetchExpenses, expensesMonth, admin]);
+
+  useEffect(() => {
+    if (admin) fetchExpenseCategories();
+  }, [expenseRows, admin, fetchExpenseCategories]);
 
   if (!admin) return null;
 
