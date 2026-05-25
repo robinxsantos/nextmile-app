@@ -191,7 +191,6 @@ export function exportMonthlyReport(
     (s, r) => s + Number(r.reportPayable || r.payable || 0),
     0,
   );
-  const totalExpenses = rows.reduce((s, r) => s + Number(r.expenses || 0), 0);
   const totalNet = rows.reduce(
     (s, r) => s + Number(r.reportNetIncome || r.netIncome || 0),
     0,
@@ -201,6 +200,7 @@ export function exportMonthlyReport(
     0,
   );
   const expenseSummary = getExpenseBreakdown(expenseRows);
+  const totalExpenses = expenseSummary.total;
 
   const expenseRatio =
     totalGross > 0 ? ((totalExpenses / totalGross) * 100).toFixed(1) : "0.0";
