@@ -165,9 +165,7 @@ export default function ExpensesPage() {
     }
 
     if (categoryFilter !== "ALL") {
-      rows = rows.filter(
-        (r) => r.category === categoryFilter || r.category === "REIMBURSEMENT", // 🔥 KEY FIX
-      );
+      rows = rows.filter((r) => r.category === categoryFilter);
     }
 
     return rows.sort(
@@ -818,7 +816,7 @@ export default function ExpensesPage() {
           {/* FOOTER */}
           <DialogFooter className="mt-4">
             <button
-              onClick={() => setDeleteModal(null)}
+              onClick={() => setExpenseModal(false)}
               className="px-4 py-2.5 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors"
             >
               Cancel
