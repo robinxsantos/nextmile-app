@@ -362,7 +362,7 @@ export default function DashboardPage() {
           date: trip.dateIso,
           category: "REIMBURSEMENT",
           amount: trip.reimbursements,
-          description: `Crew reimbursement (${trip.shipmentNumber || "Trip"})`,
+          description: `Crew Reimb. (${trip.shipmentNumber || "Trip"})`,
           tripId: trip._id,
         });
       }

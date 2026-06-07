@@ -391,7 +391,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             date: trip.dateIso,
             category: "REIMBURSEMENT",
             amount: trip.reimbursements,
-            description: `Crew reimbursement (${trip.shipmentNumber || "Trip"})`,
+            description: `Crew Reimb. (${trip.shipmentNumber || "Trip"})`,
             tripId: trip._id,
           });
         }
@@ -740,7 +740,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           date: newTrip.dateIso,
           category: "REIMBURSEMENT",
           amount: newTrip.reimbursements,
-          description: `Crew reimbursement (${newTrip.shipmentNumber || "Trip"})`,
+          description: `Crew Reimb. (${newTrip.shipmentNumber || "Trip"})`,
           tripId: newTrip._id,
         });
       }
