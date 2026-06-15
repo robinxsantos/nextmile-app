@@ -64,19 +64,21 @@ function calculateKpis(rows: any[], expenses: any[]) {
   let totalCrewSalary = 0;
 
   rows.forEach((r: any) => {
-    totalGross += r.grossIncome || 0;
-    totalTrips += r.trips || 0;
-    totalCrewSalary += r.crewSalary || 0;
+  totalGross += r.grossIncome || 0;
+  totalTrips += r.trips || 0;
+  totalCrewSalary += r.crewSalary || 0;
 
-    const originalPayable =
-      (r.crewSalary || 0) - (r.cashAdvance || 0) + (r.reimbursements || 0);
+  const payable =
+    (r.crewSalary || 0) - (r.cashAdvance || 0) + (r.reimbursements || 0);
 
-    if (r.paid) {
-      totalCashOutflow += originalPayable;
-    } else {
-      totalPayable += originalPayable;
-    }
-  });
+  const cashOutflow = payable + (r.cashAdvance || 0);
+
+  if (!r.paid) {
+    totalPayable += payable;
+  }
+
+  totalCashOutflow += cashOutflow;
+});
 
   const totalExpenses = expenses.reduce((sum: number, e: any) => {
     // ❗ exclude reimbursed expenses
@@ -316,7 +318,7 @@ router.get("/", async (req: Request, res: Response) => {
 
         expenses: r.expenses || 0,
         payable: r.paid ? 0 : originalPayable,
-        cashOutflow: r.paid ? originalPayable : 0,
+        cashOutflow: r.paid ? originalPayable + (r.cashAdvance || 0) : 0,
       };
     });
 
