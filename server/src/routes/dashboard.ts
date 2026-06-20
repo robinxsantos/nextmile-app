@@ -64,21 +64,22 @@ function calculateKpis(rows: any[], expenses: any[]) {
   let totalCrewSalary = 0;
 
   rows.forEach((r: any) => {
-  totalGross += r.grossIncome || 0;
-  totalTrips += r.trips || 0;
-  totalCrewSalary += r.crewSalary || 0;
+    totalGross += r.grossIncome || 0;
+    totalTrips += r.trips || 0;
+    totalCrewSalary += r.crewSalary || 0;
 
-  const payable =
-    (r.crewSalary || 0) - (r.cashAdvance || 0) + (r.reimbursements || 0);
+    const crewSalary = r.crewSalary || 0;
+    const cashAdvance = r.cashAdvance || 0;
+    const reimbursements = r.reimbursements || 0;
 
-  const cashOutflow = payable + (r.cashAdvance || 0);
+    const payable = crewSalary - cashAdvance + reimbursements;
 
-  if (!r.paid) {
-    totalPayable += payable;
-  }
-
-  totalCashOutflow += cashOutflow;
-});
+    if (r.paid) {
+      totalCashOutflow += payable + cashAdvance;
+    } else {
+      totalPayable += payable;
+    }
+  });
 
   const totalExpenses = expenses.reduce((sum: number, e: any) => {
     // ❗ exclude reimbursed expenses
@@ -305,8 +306,10 @@ router.get("/", async (req: Request, res: Response) => {
     const chartKeys = Object.keys(chartMap).sort();
 
     const chartData = rows.map((r) => {
-      const originalPayable =
-        (r.crewSalary || 0) - (r.cashAdvance || 0) + (r.reimbursements || 0);
+      const crewSalary = r.crewSalary || 0;
+      const cashAdvance = r.cashAdvance || 0;
+      const reimbursements = r.reimbursements || 0;
+      const payable = crewSalary - cashAdvance + reimbursements;
 
       return {
         label: r.dateText,
@@ -317,8 +320,8 @@ router.get("/", async (req: Request, res: Response) => {
         trips: r.trips || 0,
 
         expenses: r.expenses || 0,
-        payable: r.paid ? 0 : originalPayable,
-        cashOutflow: r.paid ? originalPayable + (r.cashAdvance || 0) : 0,
+        payable: r.paid ? 0 : payable,
+        cashOutflow: r.paid ? payable + cashAdvance : 0,
       };
     });
 
