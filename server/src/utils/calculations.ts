@@ -54,6 +54,7 @@ export function crewSalaryDefault(
 
 export function calculateTripFields(data: {
   rate: number;
+  vat: number;
   trips: number;
   crewSalary: number;
   cashAdvance: number;
@@ -65,9 +66,14 @@ export function calculateTripFields(data: {
   netIncome: number;
   payable: number;
 } {
-  const grossIncome = data.rate * data.trips;
-  const totalPayable = data.crewSalary - data.cashAdvance + data.reimbursements;
+  const grossPerTrip = data.rate + data.vat;
+  const grossIncome = grossPerTrip * data.trips;
+
+  const totalPayable =
+    data.crewSalary - data.cashAdvance + data.reimbursements;
+
   const payable = data.paid ? 0 : totalPayable;
+
   const netIncome = grossIncome - data.crewSalary - data.expenses;
 
   return { grossIncome, netIncome, payable };

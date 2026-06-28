@@ -79,6 +79,7 @@ export async function syncTripsForDate(
 
     const computed = calculateTripFields({
       rate: trip.rate,
+      vat: trip.vat,
       trips: trip.trips,
       crewSalary: trip.crewSalary,
       cashAdvance: trip.cashAdvance,
@@ -107,6 +108,7 @@ export function prepareTripData(data: {
   dayOff?: number;
   shipmentNumber?: string;
   rate?: number;
+  vat?: number;
   trips?: number;
   crewSalary?: number;
   cashAdvance?: number;
@@ -120,6 +122,7 @@ export function prepareTripData(data: {
 
   const status = normalizeStatus(data.status, date, data.dayOff ?? 0);
   const rate = data.rate || 0;
+  const vat = data.vat || 0;
   const trips = tripCountDefault(status, rate, data.trips);
   const crewSalary = crewSalaryDefault(status, rate, data.crewSalary);
   const cashAdvance = data.cashAdvance || 0;
@@ -129,6 +132,7 @@ export function prepareTripData(data: {
 
   const computed = calculateTripFields({
     rate,
+    vat,
     trips,
     crewSalary,
     cashAdvance,
@@ -143,6 +147,7 @@ export function prepareTripData(data: {
     status,
     shipmentNumber: data.shipmentNumber || "",
     rate,
+    vat,
     trips,
     crewSalary,
     cashAdvance,
@@ -174,6 +179,7 @@ export function formatTripResponse(trip: ITrip & { truck?: any }) {
     shipmentNumber: trip.shipmentNumber,
     verificationStatus: trip.verificationStatus,
     rate: trip.rate,
+    vat: trip.vat,
     trips: trip.trips,
     crewSalary: trip.crewSalary,
     cashAdvance: trip.cashAdvance,

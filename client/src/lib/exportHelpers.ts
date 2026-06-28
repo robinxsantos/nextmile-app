@@ -28,6 +28,7 @@ export function exportTripsCsv(rows: TripRow[], filename?: string) {
     "Status",
     labels.shipmentNumber,
     "Rate",
+    "VAT",
     "Trips",
     "Crew Salary",
     labels.cashAdvance,
@@ -49,6 +50,7 @@ export function exportTripsCsv(rows: TripRow[], filename?: string) {
         r.status,
         r.shipmentNumber,
         r.rate,
+        r.vat,
         r.trips,
         r.crewSalary,
         r.cashAdvance,
@@ -187,6 +189,10 @@ export function exportMonthlyReport(
   const labels = getColumnLabels();
   const totalTrips = rows.reduce((s, r) => s + Number(r.trips || 0), 0);
   const totalGross = rows.reduce((s, r) => s + Number(r.grossIncome || 0), 0);
+  const totalVat = rows.reduce(
+    (s, r) => s + Number(r.vat || 0),
+    0,
+  );
   const totalPayable = rows.reduce(
     (s, r) => s + Number(r.reportPayable || r.payable || 0),
     0,
@@ -273,6 +279,7 @@ export function exportMonthlyReport(
         <td class="date-col">${escHtml(r.dateText)}</td>
         <td>${escHtml(r.shipmentNumber)}</td>
         <td>${pesoOrBlank(r.rate)}</td>
+        <td>${pesoOrBlank(r.vat)}</td>
         <td>${pesoOrBlank(r.crewSalary)}</td>
         <td>${pesoOrBlank(r.cashAdvance)}</td>
         <td>
@@ -287,7 +294,6 @@ export function exportMonthlyReport(
         <td class="expense-breakdown">${expenseNoteHtml}</td>
         <td>${pesoOrBlank(r.grossIncome)}</td>
         <td>${pesoOrBlank(r.reportNetIncome ?? r.netIncome)}</td>
-        <td>${pesoOrBlank(r.reportPayable ?? r.payable)}</td>
       </tr>`;
     })
     .join("");
@@ -506,6 +512,10 @@ export function exportMonthlyReport(
         <span class="summary-value">${peso(totalGross)}</span>
       </div>
       <div class="summary-row">
+        <span class="summary-label">Total VAT</span>
+        <span class="summary-value">${peso(totalVat)}</span>
+      </div>
+      <div class="summary-row">
         <span class="summary-label">Total Crew Salary</span>
         <span class="summary-value">${peso(totalCrewSalary)}</span>
       </div>
@@ -583,6 +593,7 @@ export function exportMonthlyReport(
         <col style="width:9%">
         <col style="width:10%">
         <col style="width:7%">
+        <col style="width:6%">
         <col style="width:7%">
         <col style="width:7%">
         <col style="width:7%">
@@ -590,13 +601,13 @@ export function exportMonthlyReport(
         <col style="width:23%">
         <col style="width:6%">
         <col style="width:7%">
-        <col style="width:7%">
       </colgroup>
       <thead>
         <tr>
           <th>Date</th>
           <th>${labels.shipmentNumber}</th>
           <th>Rate</th>
+          <th>VAT</th>
           <th>Crew Salary</th>
           <th>${labels.cashAdvance}</th>
           <th>Reimb</th>
@@ -604,7 +615,6 @@ export function exportMonthlyReport(
           <th class="expense-breakdown">Expense Breakdown</th>
           <th>Gross</th>
           <th>Net</th>
-          <th>Payable</th>
         </tr>
       </thead>
       <tbody>

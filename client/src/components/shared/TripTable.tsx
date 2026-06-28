@@ -61,6 +61,7 @@ type ColumnKey =
   | "shipmentNumber"
   | "verification"
   | "rate"
+  | "vat"
   | "trips"
   | "crewSalary"
   | "cashAdvance"
@@ -524,6 +525,7 @@ export default function TripTable({
         const expenses = Number(r.expenses || 0);
 
         acc.rate += Number(r.rate || 0);
+        acc.vat += Number(r.vat || 0);
         acc.trips += Number(r.trips || 0);
         acc.crewSalary += Number(r.crewSalary || 0);
         acc.cashAdvance += Number(r.cashAdvance || 0);
@@ -553,6 +555,7 @@ export default function TripTable({
       },
       {
         rate: 0,
+        vat: 0,
         trips: 0,
         crewSalary: 0,
         cashAdvance: 0,
@@ -610,6 +613,12 @@ export default function TripTable({
       });
     if (show("rate"))
       cols.push({ key: "rate", label: "Rate", sortField: "rate" });
+    if (show("vat"))
+      cols.push({
+        key: "vat",
+        label: "VAT",
+        sortField: "vat",
+      });
     if (show("trips"))
       cols.push({ key: "trips", label: "Trips", sortField: "trips" });
     if (show("crewSalary"))
@@ -659,6 +668,9 @@ export default function TripTable({
 
             case "rate":
               return row.rate;
+
+            case "vat":
+              return row.vat;
 
             case "trips":
               return row.trips;
@@ -899,6 +911,18 @@ export default function TripTable({
           renderMoneyCell(r.rate)
         );
 
+      case "vat":
+        return onQuickEdit ? (
+          <EditableCell
+            rowId={r._id}
+            field="vat"
+            value={r.vat}
+            onSave={onQuickEdit}
+          />
+        ) : (
+          renderMoneyCell(r.vat)
+        );
+
       case "trips": {
         const v = Number(r.trips ?? 0);
         return onQuickEdit ? (
@@ -1103,6 +1127,8 @@ export default function TripTable({
     switch (key) {
       case "rate":
         return peso(totals.rate);
+      case "vat":
+        return peso(totals.vat);
       case "trips":
         return totals.trips;
       case "crewSalary":

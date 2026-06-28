@@ -21,6 +21,7 @@ export interface ITrip extends Document {
   expenses: number;
   createdAt: Date;
   updatedAt: Date;
+  vat: number;
 }
 
 const TripSchema = new Schema<ITrip>(
@@ -101,6 +102,10 @@ const TripSchema = new Schema<ITrip>(
       default: 0,
     },
     expenses: {
+      type: Number,
+      default: 0,
+    },
+    vat: {
       type: Number,
       default: 0,
     },

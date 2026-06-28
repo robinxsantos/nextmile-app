@@ -89,6 +89,7 @@ export default function TripModal({
     status: "Working Day",
     shipmentNumber: "",
     rate: "",
+    vat: "",
     trips: "",
     crewSalary: "",
     cashAdvance: "",
@@ -109,6 +110,7 @@ export default function TripModal({
       status: src.status || "Working Day",
       shipmentNumber: src.shipmentNumber || "",
       rate: String(src.rate || ""),
+      vat: String(src.vat || ""),
       trips: String(src.trips || ""),
       crewSalary: String(src.crewSalary || ""),
       cashAdvance: String(src.cashAdvance || ""),
@@ -138,6 +140,7 @@ export default function TripModal({
         status: "Working Day",
         shipmentNumber: "",
         rate: "",
+        vat: "",
         trips: "",
         crewSalary: "",
         cashAdvance: "",
@@ -174,10 +177,18 @@ export default function TripModal({
 
   const handleRateChange = (val: string) => {
     setForm((f) => {
-      const updated = { ...f, rate: val };
+      const rate = Number(val) || 0;
+
+      const updated = {
+        ...f,
+        rate: val,
+        vat: rate ? (rate * 0.12).toFixed(2) : "",
+      };
+
       if (f.status === "Working Day" && val) {
         if (!f.trips || f.trips === "0") updated.trips = "1";
       }
+
       return updated;
     });
   };
@@ -212,6 +223,7 @@ export default function TripModal({
         status: form.status,
         shipmentNumber: form.shipmentNumber,
         rate: admin ? Number(form.rate) || 0 : 0,
+        vat: admin ? Number(form.vat) || 0 : 0,
         trips: admin ? Number(form.trips) || 0 : 0,
         crewSalary: admin ? Number(form.crewSalary) || 0 : 0,
         cashAdvance: admin ? Number(form.cashAdvance) || 0 : 0,
@@ -243,6 +255,8 @@ export default function TripModal({
     : duplicateFrom
       ? `Duplicate Trip for ${selectedTruckName}`
       : `Add Trip for ${selectedTruckName}`;
+
+      console.log("🔥 TripModal VERSION WITH VAT");
 
   const readOnlyForDriver = !admin;
 
@@ -366,6 +380,20 @@ export default function TripModal({
                 inputClass +
                 (readOnlyForDriver ? " opacity-60 cursor-not-allowed" : "")
               }
+            />
+          </div>
+
+          {/* VAT */}
+          <div>
+            <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
+              VAT (₱)
+            </label>
+
+            <input
+              type="text"
+              value={formatNumberWithComma(form.vat)}
+              readOnly
+              className={inputClass + " bg-muted"}
             />
           </div>
 
