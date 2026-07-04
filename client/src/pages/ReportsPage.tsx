@@ -3,7 +3,10 @@ import { useAppStore } from "../store/useAppStore";
 import FilterBar from "../components/shared/FilterBar";
 import TripTable from "../components/shared/TripTable";
 import ExpenseBreakdownModal from "../components/shared/ExpenseBreakdownModal";
-import { exportMonthlyReport } from "../lib/exportHelpers";
+import {
+  exportMonthlyReport,
+  exportClientMonthlyReport,
+} from "../lib/exportHelpers";
 import { Download, BarChart3, Columns3 } from "lucide-react";
 import EmptyState from "../components/shared/EmptyState";
 export default function ReportsPage() {
@@ -161,6 +164,37 @@ export default function ReportsPage() {
     exportMonthlyReport(reportRows, truckLabel, periodText, expenseRows);
   };
 
+  const handleClientReport = () => {
+    const truckLabel = selectedTruckName || "All Trucks";
+
+    const monthNames: Record<string, string> = {
+      ALL: "Whole Year",
+      "1": "January",
+      "2": "February",
+      "3": "March",
+      "4": "April",
+      "5": "May",
+      "6": "June",
+      "7": "July",
+      "8": "August",
+      "9": "September",
+      "10": "October",
+      "11": "November",
+      "12": "December",
+    };
+
+    const year = new Date().getFullYear();
+
+    const reportMonth = monthNames[reportsMonth] || "Whole Year";
+
+    const periodText =
+      reportsMonth === "ALL"
+        ? `WHOLE YEAR ${year}`
+        : `${reportMonth.toUpperCase()} ${year}`;
+
+    exportClientMonthlyReport(reportRows, truckLabel, periodText, expenseRows);
+  };
+
   return (
     <div>
       <div className="mb-4">
@@ -183,12 +217,23 @@ export default function ReportsPage() {
           monthValue={reportsMonth}
           onMonthChange={setReportsMonth}
           actions={
-            <button
-              onClick={handleDownloadReport}
-              className="h-10 px-4 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors flex items-center gap-2"
-            >
-              <Download size={16} /> Download Report
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleDownloadReport}
+                className="h-10 px-4 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors flex items-center gap-2"
+              >
+                <Download size={16} />
+                Export Internal Report
+              </button>
+
+              <button
+                onClick={handleClientReport}
+                className="h-10 px-4 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors flex items-center gap-2"
+              >
+                <Download size={16} />
+                Export Client Report
+              </button>
+            </div>
           }
         />
       </div>

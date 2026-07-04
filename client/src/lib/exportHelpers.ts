@@ -185,14 +185,12 @@ export function exportMonthlyReport(
   truckLabel: string,
   periodText: string,
   expenseRows: { category?: string; amount?: number }[] = [],
+  clientMode = false,
 ) {
   const labels = getColumnLabels();
   const totalTrips = rows.reduce((s, r) => s + Number(r.trips || 0), 0);
   const totalGross = rows.reduce((s, r) => s + Number(r.grossIncome || 0), 0);
-  const totalVat = rows.reduce(
-    (s, r) => s + Number(r.vat || 0),
-    0,
-  );
+  const totalVat = rows.reduce((s, r) => s + Number(r.vat || 0), 0);
   const totalPayable = rows.reduce(
     (s, r) => s + Number(r.reportPayable || r.payable || 0),
     0,
@@ -538,6 +536,9 @@ export function exportMonthlyReport(
       </div>
     </div>
 
+    ${
+      !clientMode
+        ? `
     <div class="summary-card">
       <div class="summary-row">
         <span class="summary-label">Expense Ratio</span>
@@ -574,7 +575,13 @@ export function exportMonthlyReport(
         <div>Break-even per Trip = (Crew Salary + Expenses) / Total Trips</div>
       </div>
     </div>
+    `
+        : ""
+    }
 
+    ${
+      !clientMode
+        ? `
     <div class="summary-card">
       <div class="section-title" style="margin-top:4px;margin-bottom:2px;">
         Expense Breakdown
@@ -584,6 +591,9 @@ export function exportMonthlyReport(
       </div>
       ${expenseBreakdownHtml}
     </div>
+    `
+        : ""
+    }
   </div>
 
   <div class="section-title">Detailed Report</div>
@@ -639,4 +649,12 @@ export function exportMonthlyReport(
     win.document.write(html);
     win.document.close();
   }
+}
+export function exportClientMonthlyReport(
+  rows: TripRow[],
+  truckLabel: string,
+  periodText: string,
+  expenseRows: { category?: string; amount?: number }[] = [],
+) {
+  return exportMonthlyReport(rows, truckLabel, periodText, expenseRows, true);
 }
