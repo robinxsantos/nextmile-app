@@ -483,7 +483,7 @@ export default function ExpensesPage() {
                     <th
                       key={header.id}
                       className={cn(
-                        "sticky top-0 z-40 bg-muted/60 backdrop-blur border-b border-border text-xs font-semibold text-muted-foreground px-3 py-3 whitespace-nowrap",
+                        "sticky top-0 z-20 bg-muted/60 backdrop-blur border-b border-border text-xs font-semibold text-muted-foreground px-3 py-3 whitespace-nowrap",
                         header.column.id === "reimbursed"
                           ? "text-center"
                           : "text-left",
