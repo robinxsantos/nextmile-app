@@ -209,7 +209,7 @@ export default function ReportsPage() {
           </div>
         </div>
       </div>
-      <div className="sticky top-0 z-40 bg-background">
+      <div className="sticky top-0 z-20 bg-background">
         <FilterBar
           showRange={false}
           showTruck={false}
