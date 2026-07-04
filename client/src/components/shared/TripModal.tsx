@@ -90,6 +90,7 @@ export default function TripModal({
     shipmentNumber: "",
     rate: "",
     vat: "",
+    autoVat: true,
     trips: "",
     crewSalary: "",
     cashAdvance: "",
@@ -111,6 +112,7 @@ export default function TripModal({
       shipmentNumber: src.shipmentNumber || "",
       rate: String(src.rate || ""),
       vat: String(src.vat || ""),
+      autoVat: true,
       trips: String(src.trips || ""),
       crewSalary: String(src.crewSalary || ""),
       cashAdvance: String(src.cashAdvance || ""),
@@ -141,6 +143,7 @@ export default function TripModal({
         shipmentNumber: "",
         rate: "",
         vat: "",
+        autoVat: true,
         trips: "",
         crewSalary: "",
         cashAdvance: "",
@@ -182,11 +185,13 @@ export default function TripModal({
       const updated = {
         ...f,
         rate: val,
-        vat: rate ? (rate * 0.12).toFixed(2) : "",
+        vat: f.autoVat ? (rate ? (rate * 0.12).toFixed(2) : "") : f.vat,
       };
 
       if (f.status === "Working Day" && val) {
-        if (!f.trips || f.trips === "0") updated.trips = "1";
+        if (!f.trips || f.trips === "0") {
+          updated.trips = "1";
+        }
       }
 
       return updated;
@@ -256,7 +261,7 @@ export default function TripModal({
       ? `Duplicate Trip for ${selectedTruckName}`
       : `Add Trip for ${selectedTruckName}`;
 
-      console.log("🔥 TripModal VERSION WITH VAT");
+  console.log("🔥 TripModal VERSION WITH VAT");
 
   const readOnlyForDriver = !admin;
 
@@ -385,15 +390,49 @@ export default function TripModal({
 
           {/* VAT */}
           <div>
-            <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
-              VAT (₱)
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-semibold text-muted-foreground">
+                VAT (₱)
+              </label>
+
+              <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.autoVat}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+
+                    setForm((prev) => ({
+                      ...prev,
+                      autoVat: checked,
+                      vat: checked
+                        ? ((Number(prev.rate || 0) || 0) * 0.12).toFixed(2)
+                        : prev.vat,
+                    }));
+                  }}
+                />
+                Auto-compute VAT (12%)
+              </label>
+            </div>
 
             <input
               type="text"
+              inputMode="numeric"
               value={formatNumberWithComma(form.vat)}
-              readOnly
-              className={inputClass + " bg-muted"}
+              onChange={(e) => {
+                if (form.autoVat) return;
+
+                const raw = sanitizeNumberInput(e.target.value);
+                setForm({ ...form, vat: raw });
+              }}
+              placeholder="0"
+              readOnly={form.autoVat}
+              disabled={readOnlyForDriver}
+              className={
+                inputClass +
+                (form.autoVat ? " bg-muted" : "") +
+                (readOnlyForDriver ? " opacity-60 cursor-not-allowed" : "")
+              }
             />
           </div>
 
@@ -460,7 +499,7 @@ export default function TripModal({
           </div>
 
           {/* REIMBURSE */}
-          <div className="col-span-2">
+          <div>
             <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
               Reimbursements (₱)
             </label>

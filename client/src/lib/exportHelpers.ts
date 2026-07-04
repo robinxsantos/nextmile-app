@@ -518,15 +518,6 @@ export function exportMonthlyReport(
         <span class="summary-value">${peso(totalCrewSalary)}</span>
       </div>
       <div class="summary-row">
-        <span class="summary-label">
-          Total Crew Payable<br>
-          <span style="font-size:10px;color:#9ca3af;font-weight:500;">
-            (After Advances & Reimb)
-          </span>
-        </span>
-        <span class="summary-value">${peso(totalPayable)}</span>
-      </div>
-      <div class="summary-row">
         <span class="summary-label">Total Expenses</span>
         <span class="summary-value">${peso(totalExpenses)}</span>
       </div>
