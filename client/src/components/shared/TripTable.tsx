@@ -573,10 +573,11 @@ export default function TripTable({
 
   const netValueFor = (r: TripRow) => {
     const gross = Number(r.grossIncome || 0);
+    const vat = Number(r.vat || 0);
     const salary = Number(r.crewSalary || 0);
     const expenses = Number(r.expenses || 0);
 
-    return gross - salary - expenses;
+    return gross - vat - salary - expenses;
   };
   const payableValueFor = (r: TripRow) =>
     reportMode ? (r.reportPayable ?? r.payable) : r.payable;

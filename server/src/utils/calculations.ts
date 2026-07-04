@@ -69,12 +69,11 @@ export function calculateTripFields(data: {
   const grossPerTrip = data.rate + data.vat;
   const grossIncome = grossPerTrip * data.trips;
 
-  const totalPayable =
-    data.crewSalary - data.cashAdvance + data.reimbursements;
+  const totalPayable = data.crewSalary - data.cashAdvance + data.reimbursements;
 
   const payable = data.paid ? 0 : totalPayable;
 
-  const netIncome = grossIncome - data.crewSalary - data.expenses;
+  const netIncome = grossIncome - data.vat - data.crewSalary - data.expenses;
 
   return { grossIncome, netIncome, payable };
 }
