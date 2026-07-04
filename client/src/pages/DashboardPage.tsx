@@ -525,7 +525,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="sticky top-0 z-40 bg-background">
+      <div className="sticky top-0 z-20 bg-background">
         <FilterBar
           showTruck={admin}
           allowedRangePresets={admin ? undefined : (["CC", "LC"] as const)}
