@@ -357,7 +357,6 @@ export function exportMonthlyReport(
       font-size: 22px;
       font-weight: 700;
       margin-bottom: 6px;
-      letter-spacing: 0.04em;
     }
 
     .subtitle {

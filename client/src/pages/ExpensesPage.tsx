@@ -60,12 +60,11 @@ const DEFAULT_CATEGORIES = [
   "FUEL",
   "MAINT.",
   "TOLL",
-  "PARKING",
   "INSURANCE",
   "REGISTRATION",
 ];
 
-const REIMBURSABLE_CATEGORIES = new Set(["FUEL", "TOLL", "PARKING"]);
+const REIMBURSABLE_CATEGORIES = new Set(["FUEL", "TOLL", "PARKING/PASSWAY"]);
 
 function isReimbursableCategory(category?: string) {
   return REIMBURSABLE_CATEGORIES.has((category || "").trim().toUpperCase());

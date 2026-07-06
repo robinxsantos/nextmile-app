@@ -98,6 +98,7 @@ export interface TripRow {
   shipmentNumber: string;
   verificationStatus?: "Verified" | "Pending" | "For Confirmation";
   rate: number;
+  vat: number;
   trips: number;
   crewSalary: number;
   cashAdvance: number;
@@ -272,7 +273,7 @@ const getStoredTheme = (): "light" | "dark" => {
   }
 };
 
-const REIMBURSABLE_CATEGORIES = new Set(["FUEL", "TOLL", "PARKING"]);
+const REIMBURSABLE_CATEGORIES = new Set(["FUEL", "TOLL", "PARKING/PASSWAY"]);
 
 export const useAppStore = create<AppState>((set, get) => ({
   // UI
@@ -391,7 +392,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             date: trip.dateIso,
             category: "REIMBURSEMENT",
             amount: trip.reimbursements,
-            description: `Crew Reimb. (${trip.shipmentNumber || "Trip"})`,
+            description: `Crew Reimb.`,
             tripId: trip._id,
           });
         }
@@ -740,7 +741,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           date: newTrip.dateIso,
           category: "REIMBURSEMENT",
           amount: newTrip.reimbursements,
-          description: `Crew Reimb. (${newTrip.shipmentNumber || "Trip"})`,
+          description: `Crew Reimb.`,
           tripId: newTrip._id,
         });
       }

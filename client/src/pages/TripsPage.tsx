@@ -202,7 +202,7 @@ export default function TripsPage() {
           date: trip.dateIso,
           category: "REIMBURSEMENT",
           amount: trip.reimbursements,
-          description: `Crew Reimb. (${trip.shipmentNumber || "Trip"})`,
+          description: `Crew Reimb.`,
           tripId: trip._id,
         });
       }
