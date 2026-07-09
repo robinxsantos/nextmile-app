@@ -12,6 +12,7 @@ import {
   Search,
   Download,
   FileText,
+  FileDown,
   AlertTriangle,
   CheckCheck,
   XCircle,
@@ -317,6 +318,30 @@ export default function TripsPage() {
   const handleBulkDelete = async () => {
     await bulkDeleteTrips(selectedTripIds);
     setBulkDeleteModal(false);
+  };
+
+  const downloadCsvTemplate = () => {
+    const csv = [
+      "Date,Shipment Number,Rate,Crew Salary",
+      "2026-08-01,1307001,3900,1900",
+      "2026-08-02,1307002,3900,1900",
+    ].join("\n");
+
+    const blob = new Blob([csv], {
+      type: "text/csv;charset=utf-8;",
+    });
+
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "Trips_Import_Template.csv";
+
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+
+    URL.revokeObjectURL(url);
   };
 
   const handleCsvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -811,6 +836,14 @@ export default function TripsPage() {
                 >
                   Choose CSV File
                 </label>
+                <button
+                  type="button"
+                  onClick={downloadCsvTemplate}
+                  className="mt-3 inline-flex w-full items-center justify-center gap-2 text-sm font-medium text-primary hover:underline"
+                >
+                  <FileDown size={16} />
+                  Download CSV Template
+                </button>
                 {selectedCsvFile && (
                   <div className="mt-3 text-sm text-muted-foreground flex items-center justify-center gap-2">
                     <FileText size={16} />
