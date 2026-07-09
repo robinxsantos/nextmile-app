@@ -18,6 +18,8 @@ import {
   Trash2,
   Route,
   Columns3,
+  CircleCheckBig,
+  CopyCheck,
 } from "lucide-react";
 import ExpenseBreakdownModal from "../components/shared/ExpenseBreakdownModal";
 import { AnimatePresence, motion } from "framer-motion";
@@ -76,6 +78,7 @@ export default function TripsPage() {
     bulkDeleteTrips,
     quickEditTrip,
     importTrips,
+    previewImportTrips,
   } = useAppStore();
   const { isAdmin } = useAuthStore();
   const admin = isAdmin();
@@ -86,7 +89,15 @@ export default function TripsPage() {
   const [tripModal, setTripModal] = useState(false);
   const [importModal, setImportModal] = useState(false);
   const [confirmImport, setConfirmImport] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState(0);
   const [csvRows, setCsvRows] = useState<any[]>([]);
+  const [selectedCsvFile, setSelectedCsvFile] = useState<File | null>(null);
+  const [previewResult, setPreviewResult] = useState<{
+    total: number;
+    newTrips: number;
+    duplicates: number;
+  } | null>(null);
   const [editRow, setEditRow] = useState<TripRow | null>(null);
   const [duplicateFrom, setDuplicateFrom] = useState<TripRow | null>(null);
   const [deleteModal, setDeleteModal] = useState<TripRow | null>(null);
@@ -137,6 +148,7 @@ export default function TripsPage() {
     }
   });
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const csvInputRef = useRef<HTMLInputElement>(null);
 
   useKeyboardShortcuts({
     onNewTrip: () => handleAddTrip(),
@@ -310,12 +322,13 @@ export default function TripsPage() {
   const handleCsvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setSelectedCsvFile(file);
 
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
 
-      complete: (results) => {
+      complete: async (results) => {
         const rows = results.data as any[];
 
         if (rows.length === 0) {
@@ -340,6 +353,12 @@ export default function TripsPage() {
         }
 
         setCsvRows(rows);
+
+        if (!selectedTruck) return;
+
+        const preview = await previewImportTrips(selectedTruck, rows);
+
+        setPreviewResult(preview);
       },
     });
   };
@@ -754,21 +773,31 @@ export default function TripsPage() {
           </DialogContent>
         </Dialog>
 
-        <Dialog open={importModal} onOpenChange={setImportModal}>
-          <DialogContent className="sm:max-w-[600px]">
+        <Dialog
+          open={importModal}
+          onOpenChange={(open) => {
+            setImportModal(open);
+
+            if (!open) {
+              setCsvRows([]);
+              setPreviewResult(null);
+              setSelectedCsvFile(null);
+
+              if (csvInputRef.current) {
+                csvInputRef.current.value = "";
+              }
+            }
+          }}
+        >
+          <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Import Trips from CSV</DialogTitle>
             </DialogHeader>
 
             <div className="py-10 text-center">
-              <div className="text-lg font-semibold">🚛 CSV Import</div>
-
-              <p className="text-sm text-muted-foreground mt-2">
-                Upload your CSV file to automatically create trips.
-              </p>
-
-              <div className="mt-6 rounded-lg border border-dashed border-border p-8 text-center">
+              <div className="rounded-lg border border-dashed border-border p-6 text-center">
                 <input
+                  ref={csvInputRef}
                   type="file"
                   accept=".csv"
                   onChange={handleCsvUpload}
@@ -782,18 +811,48 @@ export default function TripsPage() {
                 >
                   Choose CSV File
                 </label>
+                {selectedCsvFile && (
+                  <div className="mt-3 text-sm text-muted-foreground flex items-center justify-center gap-2">
+                    <FileText size={16} />
+                    <span className="font-medium text-foreground">
+                      {selectedCsvFile.name}
+                    </span>
+                    <span>({(selectedCsvFile.size / 1024).toFixed(1)} KB)</span>
+                  </div>
+                )}
 
                 <p className="mt-3 text-xs text-muted-foreground">
                   Supported file types: .csv
                 </p>
                 {csvRows.length > 0 && (
                   <div className="mt-6">
-                    <div className="mb-2 text-sm font-semibold">
-                      Found {csvRows.length} trip
-                      {csvRows.length !== 1 ? "s" : ""}
-                    </div>
+                    {previewResult && (
+                      <div className="mb-4 rounded-lg border border-border bg-muted/30 p-3">
+                        <div className="text-center text-base font-semibold">
+                          {previewResult.total}{" "}
+                          {previewResult.total === 1 ? "Trip" : "Trips"} Found
+                        </div>
 
-                    <div className="max-h-[320px] overflow-auto rounded-md border">
+                        <div className="mt-3 flex items-center justify-center gap-10 text-sm">
+                          <div className="flex items-center gap-2 text-green-600">
+                            <CircleCheckBig size={18} />
+                            <span>
+                              New: <strong>{previewResult.newTrips}</strong>
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2 text-amber-600">
+                            <CopyCheck size={18} />
+                            <span>
+                              Duplicates:{" "}
+                              <strong>{previewResult.duplicates}</strong>
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="max-h-[260px] overflow-auto rounded-md border">
                       <table className="w-full text-sm">
                         <thead className="bg-muted sticky top-0">
                           <tr>
@@ -836,7 +895,14 @@ export default function TripsPage() {
 
             <DialogFooter>
               <button
-                onClick={() => setImportModal(false)}
+                onClick={() => {
+                  setImportModal(false);
+                  setCsvRows([]);
+                  setPreviewResult(null);
+                  if (csvInputRef.current) {
+                    csvInputRef.current.value = "";
+                  }
+                }}
                 className="px-4 py-2 rounded-md border border-border"
               >
                 Cancel
@@ -874,6 +940,24 @@ export default function TripsPage() {
               </div>
             </div>
 
+            {importing && (
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>Importing trips...</span>
+                  <span>{importProgress}%</span>
+                </div>
+
+                <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full bg-green-600 transition-all duration-300"
+                    style={{
+                      width: `${importProgress}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
             <DialogFooter>
               <button
                 onClick={() => setConfirmImport(false)}
@@ -883,13 +967,15 @@ export default function TripsPage() {
               </button>
 
               <button
+                disabled={importing || previewResult?.newTrips === 0}
                 onClick={async () => {
                   if (!selectedTruck) return;
+                  setImporting(true);
+                  setImportProgress(10);
 
                   try {
                     const result = await importTrips(selectedTruck, csvRows);
-
-                    console.log(result);
+                    setImportProgress(100);
 
                     if (result.duplicates > 0) {
                       toast.success(
@@ -900,15 +986,26 @@ export default function TripsPage() {
                         `Successfully imported ${result.imported} trip${result.imported === 1 ? "" : "s"}`,
                       );
                     }
-
-                    console.log(result);
+                    await fetchDashboard();
+                    await new Promise((resolve) => setTimeout(resolve, 800));
+                    setConfirmImport(false);
+                    setImportModal(false);
+                    setCsvRows([]);
                   } catch (err: any) {
                     toast.error(err.message);
+                  } finally {
+                    setImporting(false);
+                    setImportProgress(0);
+                    setSelectedCsvFile(null);
                   }
                 }}
-                className="px-6 py-2 rounded-md bg-foreground text-background"
+                className="px-6 py-2 rounded-md bg-foreground text-background disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Confirm Import
+                {importing
+                  ? "Importing..."
+                  : previewResult?.newTrips === 0
+                    ? "Already Imported"
+                    : `Import ${previewResult?.newTrips ?? 0} Trip${previewResult?.newTrips === 1 ? "" : "s"}`}
               </button>
             </DialogFooter>
           </DialogContent>

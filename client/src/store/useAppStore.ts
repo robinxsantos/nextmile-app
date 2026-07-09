@@ -768,6 +768,19 @@ export const useAppStore = create<AppState>((set, get) => ({
       throw err;
     }
   },
+  previewImportTrips: async (truckId: string, rows: any[]) => {
+    try {
+      const res = await api.post("/trips/import-preview", {
+        truckId,
+        rows,
+      });
+
+      return res.data;
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, "Preview failed"));
+      throw err;
+    }
+  },
   updateTrip: async (id, tripData) => {
     try {
       await api.put(`/trips/${id}`, tripData);
