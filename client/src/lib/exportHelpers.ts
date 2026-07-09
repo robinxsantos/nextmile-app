@@ -206,6 +206,10 @@ export function exportMonthlyReport(
   const expenseSummary = getExpenseBreakdown(expenseRows);
   const totalExpenses = expenseSummary.total;
 
+  const parkingPasswayTotal = expenseRows
+    .filter((e) => (e.category || "").toUpperCase() === "PARKING/PASSWAY")
+    .reduce((sum, e) => sum + Number(e.amount || 0), 0);
+
   const expenseRatio =
     totalGross > 0 ? ((totalExpenses / totalGross) * 100).toFixed(1) : "0.0";
   const netMargin =
@@ -516,14 +520,36 @@ export function exportMonthlyReport(
         <span class="summary-label">Total Crew Salary</span>
         <span class="summary-value">${peso(totalCrewSalary)}</span>
       </div>
+      ${
+        clientMode
+          ? `
+      <div class="summary-row">
+        <span class="summary-label">Parking / Passway</span>
+        <span class="summary-value">${peso(parkingPasswayTotal)}</span>
+      </div>
+      `
+          : ""
+      }
+      ${
+        !clientMode
+          ? `
       <div class="summary-row">
         <span class="summary-label">Total Expenses</span>
         <span class="summary-value">${peso(totalExpenses)}</span>
       </div>
+      `
+          : ""
+      }
+      ${
+        !clientMode
+          ? `
       <div class="summary-row">
         <span class="summary-label">Net Income</span>
         <span class="summary-value">${peso(totalNet)}</span>
       </div>
+      `
+          : ""
+      }
     </div>
 
     ${

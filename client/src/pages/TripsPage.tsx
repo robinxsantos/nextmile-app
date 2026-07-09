@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from "react";
+import Papa from "papaparse";
 import { useAppStore, type TripRow } from "../store/useAppStore";
 import { useAuthStore } from "../store/useAuthStore";
 import FilterBar from "../components/shared/FilterBar";
@@ -30,6 +31,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { toast } from "sonner";
 
 const COLUMN_OPTIONS = [
   ["truck", "Truck"],
@@ -73,6 +75,7 @@ export default function TripsPage() {
     bulkTogglePaid,
     bulkDeleteTrips,
     quickEditTrip,
+    importTrips,
   } = useAppStore();
   const { isAdmin } = useAuthStore();
   const admin = isAdmin();
@@ -81,6 +84,9 @@ export default function TripsPage() {
     "ALL",
   );
   const [tripModal, setTripModal] = useState(false);
+  const [importModal, setImportModal] = useState(false);
+  const [confirmImport, setConfirmImport] = useState(false);
+  const [csvRows, setCsvRows] = useState<any[]>([]);
   const [editRow, setEditRow] = useState<TripRow | null>(null);
   const [duplicateFrom, setDuplicateFrom] = useState<TripRow | null>(null);
   const [deleteModal, setDeleteModal] = useState<TripRow | null>(null);
@@ -301,6 +307,47 @@ export default function TripsPage() {
     setBulkDeleteModal(false);
   };
 
+  const handleCsvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+
+      complete: (results) => {
+        const rows = results.data as any[];
+
+        if (rows.length === 0) {
+          toast.error("CSV file is empty.");
+          return;
+        }
+
+        const first = rows[0];
+
+        const requiredColumns = [
+          "Date",
+          "Shipment Number",
+          "Rate",
+          "Crew Salary",
+        ];
+
+        const missing = requiredColumns.filter((c) => !(c in first));
+
+        if (missing.length > 0) {
+          toast.error(`Missing required column(s): ${missing.join(", ")}`);
+          return;
+        }
+
+        setCsvRows(rows);
+      },
+    });
+  };
+
+  const handleImportCsv = () => {
+    setConfirmImport(true);
+  };
+
   return (
     <div>
       <div className="mb-4">
@@ -409,6 +456,13 @@ export default function TripsPage() {
                   className="h-10 px-3 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors flex items-center gap-2"
                 >
                   <Download size={16} /> CSV
+                </button>
+                <button
+                  onClick={() => setImportModal(true)}
+                  className="h-10 px-3 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors flex items-center gap-2"
+                >
+                  <Download size={16} />
+                  Import CSV
                 </button>
                 <button
                   onClick={handleExportPayslip}
@@ -695,6 +749,166 @@ export default function TripsPage() {
                 className="px-4 py-2 border rounded-md text-sm"
               >
                 OK
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={importModal} onOpenChange={setImportModal}>
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>Import Trips from CSV</DialogTitle>
+            </DialogHeader>
+
+            <div className="py-10 text-center">
+              <div className="text-lg font-semibold">🚛 CSV Import</div>
+
+              <p className="text-sm text-muted-foreground mt-2">
+                Upload your CSV file to automatically create trips.
+              </p>
+
+              <div className="mt-6 rounded-lg border border-dashed border-border p-8 text-center">
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={handleCsvUpload}
+                  className="hidden"
+                  id="trip-csv-upload"
+                />
+
+                <label
+                  htmlFor="trip-csv-upload"
+                  className="inline-flex cursor-pointer items-center rounded-md border border-border px-4 py-2 text-sm font-medium hover:bg-muted"
+                >
+                  Choose CSV File
+                </label>
+
+                <p className="mt-3 text-xs text-muted-foreground">
+                  Supported file types: .csv
+                </p>
+                {csvRows.length > 0 && (
+                  <div className="mt-6">
+                    <div className="mb-2 text-sm font-semibold">
+                      Found {csvRows.length} trip
+                      {csvRows.length !== 1 ? "s" : ""}
+                    </div>
+
+                    <div className="max-h-[320px] overflow-auto rounded-md border">
+                      <table className="w-full text-sm">
+                        <thead className="bg-muted sticky top-0">
+                          <tr>
+                            <th className="p-2 text-left">Date</th>
+                            <th className="p-2 text-left">Shipment</th>
+                            <th className="p-2 text-right">Rate</th>
+                            <th className="p-2 text-right">Crew Salary</th>
+                          </tr>
+                        </thead>
+
+                        <tbody>
+                          {csvRows.map((row, index) => (
+                            <tr key={index} className="border-t">
+                              <td className="p-2">
+                                {row["Date"] || row["DATE"]}
+                              </td>
+
+                              <td className="p-2">
+                                {row["Shipment Number"] ||
+                                  row["Shipment"] ||
+                                  row["SHIPMENT NUMBER"]}
+                              </td>
+
+                              <td className="p-2 text-right">
+                                {row["Rate"] || row["RATE"]}
+                              </td>
+
+                              <td className="p-2 text-right">
+                                {row["Crew Salary"] || row["CREW SALARY"]}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <DialogFooter>
+              <button
+                onClick={() => setImportModal(false)}
+                className="px-4 py-2 rounded-md border border-border"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={handleImportCsv}
+                disabled={csvRows.length === 0}
+                className="px-6 py-2 rounded-md bg-foreground text-background disabled:opacity-50"
+              >
+                Import {csvRows.length} Trip{csvRows.length === 1 ? "" : "s"}
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        <Dialog open={confirmImport} onOpenChange={setConfirmImport}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Import Trips?</DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                You're about to import{" "}
+                <strong>
+                  {csvRows.length} trip{csvRows.length === 1 ? "" : "s"}
+                </strong>
+                .
+              </p>
+
+              <div className="rounded-md border border-border bg-muted/30 p-4 text-sm">
+                <div>✅ CSV parsed successfully</div>
+                <div>✅ Required columns validated</div>
+                <div>✅ Ready for import</div>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <button
+                onClick={() => setConfirmImport(false)}
+                className="px-4 py-2 rounded-md border border-border"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={async () => {
+                  if (!selectedTruck) return;
+
+                  try {
+                    const result = await importTrips(selectedTruck, csvRows);
+
+                    console.log(result);
+
+                    if (result.duplicates > 0) {
+                      toast.success(
+                        `Imported ${result.imported} trip${result.imported === 1 ? "" : "s"} • Skipped ${result.duplicates} duplicate${result.duplicates === 1 ? "" : "s"}`,
+                      );
+                    } else {
+                      toast.success(
+                        `Successfully imported ${result.imported} trip${result.imported === 1 ? "" : "s"}`,
+                      );
+                    }
+
+                    console.log(result);
+                  } catch (err: any) {
+                    toast.error(err.message);
+                  }
+                }}
+                className="px-6 py-2 rounded-md bg-foreground text-background"
+              >
+                Confirm Import
               </button>
             </DialogFooter>
           </DialogContent>

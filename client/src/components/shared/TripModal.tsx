@@ -261,8 +261,6 @@ export default function TripModal({
       ? `Duplicate Trip for ${selectedTruckName}`
       : `Add Trip for ${selectedTruckName}`;
 
-  console.log("🔥 TripModal VERSION WITH VAT");
-
   const readOnlyForDriver = !admin;
 
   return (
