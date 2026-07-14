@@ -11,6 +11,7 @@ import {
   Plus,
   Search,
   Download,
+  Upload,
   FileText,
   FileDown,
   AlertTriangle,
@@ -499,13 +500,13 @@ export default function TripsPage() {
                   onClick={handleExportCsv}
                   className="h-10 px-3 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors flex items-center gap-2"
                 >
-                  <Download size={16} /> CSV
+                  <Download size={16} /> Export CSV
                 </button>
                 <button
                   onClick={() => setImportModal(true)}
                   className="h-10 px-3 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors flex items-center gap-2"
                 >
-                  <Download size={16} />
+                  <Upload size={16} />
                   Import CSV
                 </button>
                 <button

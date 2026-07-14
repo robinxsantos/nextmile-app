@@ -191,6 +191,10 @@ export function exportMonthlyReport(
   const totalTrips = rows.reduce((s, r) => s + Number(r.trips || 0), 0);
   const totalGross = rows.reduce((s, r) => s + Number(r.grossIncome || 0), 0);
   const totalVat = rows.reduce((s, r) => s + Number(r.vat || 0), 0);
+  const parkingPasswayTotal = expenseRows
+    .filter((e) => (e.category || "").toUpperCase() === "PARKING/PASSWAY")
+    .reduce((sum, e) => sum + Number(e.amount || 0), 0);
+  const totalReceivable = totalGross - totalVat + parkingPasswayTotal;
   const totalPayable = rows.reduce(
     (s, r) => s + Number(r.reportPayable || r.payable || 0),
     0,
@@ -205,10 +209,6 @@ export function exportMonthlyReport(
   );
   const expenseSummary = getExpenseBreakdown(expenseRows);
   const totalExpenses = expenseSummary.total;
-
-  const parkingPasswayTotal = expenseRows
-    .filter((e) => (e.category || "").toUpperCase() === "PARKING/PASSWAY")
-    .reduce((sum, e) => sum + Number(e.amount || 0), 0);
 
   const expenseRatio =
     totalGross > 0 ? ((totalExpenses / totalGross) * 100).toFixed(1) : "0.0";
@@ -516,16 +516,32 @@ export function exportMonthlyReport(
         <span class="summary-label">Total VAT</span>
         <span class="summary-value">${peso(totalVat)}</span>
       </div>
+      ${
+        !clientMode
+          ? `
       <div class="summary-row">
         <span class="summary-label">Total Crew Salary</span>
         <span class="summary-value">${peso(totalCrewSalary)}</span>
       </div>
+      `
+          : ""
+      }
       ${
         clientMode
           ? `
       <div class="summary-row">
         <span class="summary-label">Parking / Passway</span>
         <span class="summary-value">${peso(parkingPasswayTotal)}</span>
+      </div>
+      `
+          : ""
+      }
+      ${
+        clientMode
+          ? `
+      <div class="summary-row">
+        <span class="summary-label">Receivable</span>
+        <span class="summary-value">${peso(totalReceivable)}</span>
       </div>
       `
           : ""
