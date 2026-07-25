@@ -22,6 +22,7 @@ import {
   Columns3,
   CircleCheckBig,
   CopyCheck,
+  ChevronDown,
 } from "lucide-react";
 import ExpenseBreakdownModal from "../components/shared/ExpenseBreakdownModal";
 import { AnimatePresence, motion } from "framer-motion";
@@ -92,6 +93,9 @@ export default function TripsPage() {
   const [importModal, setImportModal] = useState(false);
   const [confirmImport, setConfirmImport] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [importMode, setImportMode] = useState<"add" | "update" | "upsert">(
+    "add",
+  );
   const [importProgress, setImportProgress] = useState(0);
   const [csvRows, setCsvRows] = useState<any[]>([]);
   const [selectedCsvFile, setSelectedCsvFile] = useState<File | null>(null);
@@ -845,6 +849,32 @@ export default function TripsPage() {
                   <FileDown size={16} />
                   Download CSV Template
                 </button>
+                <div className="mt-4 flex flex-col items-center">
+                  <label className="mb-2 block text-sm font-medium">
+                    Import Mode
+                  </label>
+
+                  <div className="relative w-64">
+                    <select
+                      value={importMode}
+                      onChange={(e) =>
+                        setImportMode(
+                          e.target.value as "add" | "update" | "upsert",
+                        )
+                      }
+                      className="h-10 w-full appearance-none rounded-md border border-border bg-background px-3 pr-10 text-sm"
+                    >
+                      <option value="add">Add New Only</option>
+                      <option value="update">Update Existing Only</option>
+                      <option value="upsert">Add New + Update Existing</option>
+                    </select>
+
+                    <ChevronDown
+                      size={16}
+                      className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                    />
+                  </div>
+                </div>
                 {selectedCsvFile && (
                   <div className="mt-3 text-sm text-muted-foreground flex items-center justify-center gap-2">
                     <FileText size={16} />
@@ -878,8 +908,12 @@ export default function TripsPage() {
                           <div className="flex items-center gap-2 text-amber-600">
                             <CopyCheck size={18} />
                             <span>
-                              Duplicates:{" "}
-                              <strong>{previewResult.duplicates}</strong>
+                              {importMode === "add"
+                                ? "Duplicates"
+                                : importMode === "update"
+                                  ? "Trips to Update"
+                                  : "Will Update"}
+                              : <strong>{previewResult.duplicates}</strong>
                             </span>
                           </div>
                         </div>
@@ -1008,7 +1042,11 @@ export default function TripsPage() {
                   setImportProgress(10);
 
                   try {
-                    const result = await importTrips(selectedTruck, csvRows);
+                    const result = await importTrips(
+                      selectedTruck,
+                      csvRows,
+                      importMode,
+                    );
                     setImportProgress(100);
 
                     if (result.duplicates > 0) {

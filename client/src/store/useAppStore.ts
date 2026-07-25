@@ -755,11 +755,16 @@ export const useAppStore = create<AppState>((set, get) => ({
       throw err;
     }
   },
-  importTrips: async (truckId: string, rows: any[]) => {
+  importTrips: async (
+    truckId: string,
+    rows: any[],
+    importMode: "add" | "update" | "upsert" = "add",
+  ) => {
     try {
       const res = await api.post("/trips/import", {
         truckId,
         rows,
+        importMode,
       });
 
       return res.data;

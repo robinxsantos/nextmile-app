@@ -186,6 +186,231 @@ router.get("/", async (req: AuthRequest, res: Response) => {
   }
 });
 
+// POST /api/trips/import-preview
+router.post(
+  "/import-preview",
+  requireAdmin,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { truckId, rows } = req.body;
+
+      if (!truckId) {
+        return res.status(400).json({
+          error: "Truck is required.",
+        });
+      }
+
+      if (!Array.isArray(rows) || rows.length === 0) {
+        return res.status(400).json({
+          error: "No rows to import.",
+        });
+      }
+
+      const truck = await Truck.findById(truckId);
+
+      if (!truck) {
+        return res.status(404).json({
+          error: "Truck not found.",
+        });
+      }
+
+      let imported = 0;
+      let duplicates = 0;
+
+      for (const row of rows) {
+        const tripDate = row["Date"] || row["DATE"];
+        const shipmentNumber = row["Shipment Number"] || row["SHIPMENT NUMBER"];
+
+        const rate = Number(row["Rate"] || row["RATE"] || 0);
+
+        const crewSalary = Number(
+          row["Crew Salary"] || row["CREW SALARY"] || 0,
+        );
+
+        if (!tripDate || !shipmentNumber || rate <= 0 || crewSalary <= 0) {
+          continue;
+        }
+
+        const parsedDate = new Date(tripDate);
+
+        const startOfDay = new Date(parsedDate);
+        startOfDay.setHours(0, 0, 0, 0);
+
+        const endOfDay = new Date(parsedDate);
+        endOfDay.setHours(23, 59, 59, 999);
+
+        const existingTrip = await Trip.findOne({
+          truck: truck._id,
+          shipmentNumber,
+          date: {
+            $gte: startOfDay,
+            $lte: endOfDay,
+          },
+        });
+
+        if (existingTrip) {
+          duplicates++;
+          continue;
+        }
+
+        imported++;
+      }
+
+      res.json({
+        ok: true,
+        total: rows.length,
+        newTrips: imported,
+        duplicates,
+      });
+    } catch (err: any) {
+      res.status(500).json({
+        error: err.message,
+      });
+    }
+  },
+);
+
+// POST /api/trips/import
+router.post(
+  "/import",
+  requireAdmin,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { truckId, rows, importMode = "add" } = req.body;
+
+      if (!truckId) {
+        return res.status(400).json({
+          error: "Truck is required.",
+        });
+      }
+
+      if (!Array.isArray(rows) || rows.length === 0) {
+        return res.status(400).json({
+          error: "No rows to import.",
+        });
+      }
+
+      const truck = await Truck.findById(truckId);
+
+      if (!truck) {
+        return res.status(404).json({
+          error: "Truck not found.",
+        });
+      }
+
+      let imported = 0;
+      let duplicates = 0;
+      const affectedDates = new Set<string>();
+
+      for (const row of rows) {
+        const tripDate = row["Date"] || row["DATE"];
+        const shipmentNumber = row["Shipment Number"] || row["SHIPMENT NUMBER"];
+
+        const rate = Number(row["Rate"] || row["RATE"] || 0);
+
+        const crewSalary = Number(
+          row["Crew Salary"] || row["CREW SALARY"] || 0,
+        );
+
+        if (!tripDate || !shipmentNumber || rate <= 0 || crewSalary <= 0) {
+          continue;
+        }
+
+        const parsedDate = new Date(tripDate);
+
+        const startOfDay = new Date(parsedDate);
+        startOfDay.setHours(0, 0, 0, 0);
+
+        const endOfDay = new Date(parsedDate);
+        endOfDay.setHours(23, 59, 59, 999);
+
+        const existingTrip = await Trip.findOne({
+          truck: truck._id,
+          shipmentNumber,
+          date: {
+            $gte: startOfDay,
+            $lte: endOfDay,
+          },
+        });
+
+        if (existingTrip) {
+          duplicates++;
+
+          // Add mode (current behavior)
+          if (importMode === "add") {
+            continue;
+          }
+
+          // Update / Upsert mode
+          const tripData = prepareTripData({
+            date: parsedDate,
+            status: "Working Day",
+            dayOff: truck.dayOff,
+            shipmentNumber,
+            rate,
+            vat: rate * 0.12,
+            trips: 1,
+            crewSalary,
+            cashAdvance: existingTrip.cashAdvance,
+            reimbursements: existingTrip.reimbursements,
+            expenses: existingTrip.expenses,
+            paid: existingTrip.paid,
+            note: existingTrip.note,
+          });
+
+          await Trip.findByIdAndUpdate(existingTrip._id, tripData);
+
+          affectedDates.add(parsedDate.toISOString().slice(0, 10));
+
+          continue;
+        }
+
+        if (importMode === "update") {
+          continue;
+        }
+
+        const tripData = prepareTripData({
+          date: parsedDate,
+          status: "Working Day",
+          dayOff: truck.dayOff,
+          shipmentNumber,
+          rate,
+          vat: rate * 0.12,
+          trips: 1,
+          crewSalary,
+          cashAdvance: 0,
+          reimbursements: 0,
+          expenses: 0,
+        });
+
+        await Trip.create({
+          truck: truck._id,
+          createdBy: req.user?._id,
+          ...tripData,
+        });
+
+        affectedDates.add(parsedDate.toISOString().slice(0, 10));
+
+        imported++;
+      }
+
+      for (const date of affectedDates) {
+        await syncTripsForDate(truck._id, new Date(date));
+      }
+
+      res.json({
+        ok: true,
+        imported,
+        duplicates,
+      });
+    } catch (err: any) {
+      res.status(500).json({
+        error: err.message,
+      });
+    }
+  },
+);
+
 // POST /api/trips
 router.post("/", validateTripData, async (req: AuthRequest, res: Response) => {
   try {
