@@ -17,6 +17,7 @@ import {
   Plus,
   Pencil,
   Trash2,
+  Wrench,
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import {
@@ -52,6 +53,10 @@ const CUTOFF_TYPE_OPTIONS = [
   { value: "weekly", label: "Weekly" },
   { value: "monthly", label: "Monthly" },
 ];
+const BILLING_TYPE_OPTIONS = [
+  { value: "subcontracted", label: "Subcontracted" },
+  { value: "direct", label: "Direct" },
+];
 
 const MONTH_DAY_OPTIONS = Array.from({ length: 31 }, (_, i) => ({
   value: String(i + 1),
@@ -73,17 +78,37 @@ export default function TrucksPage() {
     addTruck,
     updateTruck,
     deleteTruck,
+    addChangeOilRecord,
+    updateChangeOilRecord,
+    deleteChangeOilRecord,
   } = useAppStore();
   const [truckModal, setTruckModal] = useState(false);
   const [editRow, setEditRow] = useState<TruckRow | null>(null);
   const [deleteModal, setDeleteModal] = useState<TruckRow | null>(null);
   const [loading, setLoading] = useState(false);
+  const [changeOilModal, setChangeOilModal] = useState<TruckRow | null>(null);
+
+  const [changeOilForm, setChangeOilForm] = useState({
+    date: new Date().toISOString().slice(0, 10),
+    odometer: "",
+    notes: "",
+  });
+
+  const [changeOilLoading, setChangeOilLoading] = useState(false);
+  const [editingOilRecordId, setEditingOilRecordId] = useState<string | null>(
+    null,
+  );
+
+  const [deleteOilRecordId, setDeleteOilRecordId] = useState<string | null>(
+    null,
+  );
   const [form, setForm] = useState({
     truckName: "",
     status: "Active",
     cutoffType: "weekly",
+    billingType: "subcontracted",
+    billedTo: "",
     client: "",
-    lastChangeOil: "",
     cutoffStart: "1",
     cutoffEnd: "6",
     payday: "6",
@@ -101,8 +126,9 @@ export default function TrucksPage() {
       truckName: "",
       status: "Active",
       cutoffType: "weekly",
+      billingType: "subcontracted",
+      billedTo: "",
       client: "",
-      lastChangeOil: "",
       cutoffStart: "1",
       cutoffEnd: "6",
       payday: "6",
@@ -117,11 +143,9 @@ export default function TrucksPage() {
       truckName: row.truckName,
       status: row.status,
       cutoffType: row.cutoffType || "weekly",
+      billingType: row.billingType || "subcontracted",
+      billedTo: row.billedTo || "",
       client: row.client ?? row.notes ?? "",
-      lastChangeOil:
-        row.lastChangeOil !== undefined && row.lastChangeOil !== null
-          ? String(row.lastChangeOil)
-          : "",
       cutoffStart: String(row.cutoffStart),
       cutoffEnd: String(row.cutoffEnd),
       payday: String(row.payday),
@@ -136,16 +160,15 @@ export default function TrucksPage() {
       return;
     }
 
-    if (!form.client.trim()) {
-      toast.error("Client is required.", { duration: 6000 });
+    if (form.billingType === "subcontracted" && !form.billedTo.trim()) {
+      toast.error("Billed To is required for subcontracted trucks.", {
+        duration: 6000,
+      });
       return;
     }
 
-    const lastChangeOilNum = Number(form.lastChangeOil);
-    if (!Number.isFinite(lastChangeOilNum) || lastChangeOilNum < 0) {
-      toast.error("Last Change Oil must be a valid number.", {
-        duration: 6000,
-      });
+    if (!form.client.trim()) {
+      toast.error("Client is required.", { duration: 6000 });
       return;
     }
 
@@ -155,9 +178,13 @@ export default function TrucksPage() {
         truckName: form.truckName.trim(),
         status: form.status,
         cutoffType: form.cutoffType,
+
+        billingType: form.billingType,
+        billedTo:
+          form.billingType === "subcontracted" ? form.billedTo.trim() : "",
+
         client: form.client.trim(),
         notes: form.client.trim(),
-        lastChangeOil: lastChangeOilNum,
         cutoffStart: Number(form.cutoffStart),
         cutoffEnd: Number(form.cutoffEnd),
         payday: Number(form.payday),
@@ -176,6 +203,165 @@ export default function TrucksPage() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const openChangeOilHistory = (row: TruckRow) => {
+    setChangeOilModal(row);
+
+    setChangeOilForm({
+      date: new Date().toISOString().slice(0, 10),
+      odometer:
+        row.lastChangeOil !== undefined && row.lastChangeOil !== null
+          ? String(row.lastChangeOil)
+          : "",
+      notes: "",
+    });
+  };
+
+  const handleAddChangeOilRecord = async () => {
+    if (!changeOilModal) return;
+
+    if (!changeOilForm.date) {
+      toast.error("Change oil date is required.");
+      return;
+    }
+
+    const odometer = Number(changeOilForm.odometer.replace(/,/g, ""));
+
+    if (!Number.isFinite(odometer) || odometer < 0) {
+      toast.error("Odometer must be a valid number.");
+      return;
+    }
+
+    setChangeOilLoading(true);
+
+    try {
+      await addChangeOilRecord(changeOilModal._id, {
+        date: changeOilForm.date,
+        odometer,
+        notes: changeOilForm.notes.trim(),
+      });
+
+      const refreshedTruck = useAppStore
+        .getState()
+        .truckRows.find((truck) => truck._id === changeOilModal._id);
+
+      if (refreshedTruck) {
+        setChangeOilModal(refreshedTruck);
+      }
+
+      setChangeOilForm({
+        date: new Date().toISOString().slice(0, 10),
+        odometer: String(odometer),
+        notes: "",
+      });
+    } catch {
+      // Toast is already handled by the store.
+    } finally {
+      setChangeOilLoading(false);
+    }
+  };
+
+  const handleEditChangeOilRecord = (record: {
+    _id: string;
+    date: string;
+    odometer: number | null;
+    notes: string;
+  }) => {
+    setEditingOilRecordId(record._id);
+
+    setChangeOilForm({
+      date: new Date(record.date).toISOString().slice(0, 10),
+      odometer:
+        record.odometer !== null && record.odometer !== undefined
+          ? String(record.odometer)
+          : "",
+      notes: record.notes || "",
+    });
+  };
+
+  const handleUpdateChangeOilRecord = async () => {
+    if (!changeOilModal || !editingOilRecordId) return;
+
+    const odometer = Number(changeOilForm.odometer.replace(/,/g, ""));
+
+    if (!changeOilForm.date) {
+      toast.error("Change oil date is required.");
+      return;
+    }
+
+    if (!Number.isFinite(odometer) || odometer < 0) {
+      toast.error("Odometer must be a valid number.");
+      return;
+    }
+
+    setChangeOilLoading(true);
+
+    try {
+      await updateChangeOilRecord(changeOilModal._id, editingOilRecordId, {
+        date: changeOilForm.date,
+        odometer,
+        notes: changeOilForm.notes.trim(),
+      });
+
+      const refreshedTruck = useAppStore
+        .getState()
+        .truckRows.find((truck) => truck._id === changeOilModal._id);
+
+      if (refreshedTruck) {
+        setChangeOilModal(refreshedTruck);
+      }
+
+      setEditingOilRecordId(null);
+
+      setChangeOilForm({
+        date: new Date().toISOString().slice(0, 10),
+        odometer: refreshedTruck?.lastChangeOil
+          ? String(refreshedTruck.lastChangeOil)
+          : "",
+        notes: "",
+      });
+    } finally {
+      setChangeOilLoading(false);
+    }
+  };
+
+  const handleDeleteChangeOilRecord = async () => {
+    if (!changeOilModal || !deleteOilRecordId) return;
+
+    setChangeOilLoading(true);
+
+    try {
+      await deleteChangeOilRecord(changeOilModal._id, deleteOilRecordId);
+
+      const refreshedTruck = useAppStore
+        .getState()
+        .truckRows.find((truck) => truck._id === changeOilModal._id);
+
+      if (refreshedTruck) {
+        setChangeOilModal(refreshedTruck);
+      }
+
+      // If the deleted record was being edited, exit edit mode
+      if (editingOilRecordId === deleteOilRecordId) {
+        setEditingOilRecordId(null);
+
+        setChangeOilForm({
+          date: new Date().toISOString().slice(0, 10),
+          odometer:
+            refreshedTruck?.lastChangeOil != null
+              ? String(refreshedTruck.lastChangeOil)
+              : "",
+          notes: "",
+        });
+      }
+
+      setDeleteOilRecordId(null);
+    } catch {
+      // Store already shows the error toast
+    } finally {
+      setChangeOilLoading(false);
     }
   };
 
@@ -334,6 +520,13 @@ export default function TrucksPage() {
                       <td className="sticky right-0 z-[5] bg-white dark:bg-slate-900 text-center text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)]">
                         <div className="flex items-center justify-center gap-1">
                           <button
+                            onClick={() => openChangeOilHistory(r)}
+                            title="Change Oil"
+                            className="w-[34px] h-[34px] rounded-md inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-muted hover:text-foreground transition-all"
+                          >
+                            <Wrench size={14} />
+                          </button>
+                          <button
                             onClick={() => openEdit(r)}
                             className="w-[34px] h-[34px] rounded-md inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-muted hover:text-foreground transition-all"
                           >
@@ -420,6 +613,13 @@ export default function TrucksPage() {
                   </div>
 
                   <div className="flex gap-2 pt-3 border-t border-slate-200 dark:border-slate-700">
+                    <button
+                      onClick={() => openChangeOilHistory(r)}
+                      className="h-9 px-3 rounded-md inline-flex items-center justify-center gap-1.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-muted hover:text-foreground transition-all text-xs font-semibold"
+                    >
+                      <Wrench size={14} />
+                      Change Oil
+                    </button>
                     <button
                       onClick={() => openEdit(r)}
                       className="flex-1 h-9 rounded-md inline-flex items-center justify-center gap-1.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-blue-500/10 hover:text-blue-600 transition-all text-xs font-semibold"
@@ -536,40 +736,64 @@ export default function TrucksPage() {
               </div>
 
               <div>
+                <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
+                  Billing Type
+                </label>
+
+                <UiSelect
+                  value={form.billingType}
+                  onValueChange={(val) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      billingType: val,
+                      billedTo: val === "direct" ? "" : prev.billedTo,
+                    }))
+                  }
+                >
+                  <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    {BILLING_TYPE_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </UiSelect>
+              </div>
+
+              {form.billingType === "subcontracted" && (
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground mb-1 block">
+                    Billed To
+                  </label>
+
+                  <input
+                    type="text"
+                    value={form.billedTo}
+                    onChange={(e) =>
+                      setForm({ ...form, billedTo: e.target.value })
+                    }
+                    placeholder="e.g. StarTrak Trucking Services"
+                    className={inputClass}
+                  />
+                </div>
+              )}
+
+              <div>
                 <label className="text-xs font-semibold text-muted-foreground mb-1 block">
                   Client
                 </label>
+
                 <input
                   type="text"
                   value={form.client}
                   onChange={(e) => setForm({ ...form, client: e.target.value })}
-                  placeholder="Client name"
+                  placeholder="e.g. Pepsi"
                   className={inputClass}
                 />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground mb-1 block">
-                  Last Change Oil
-                </label>
-
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={formatNumberWithComma(form.lastChangeOil)}
-                    onChange={(e) => {
-                      const raw = e.target.value.replace(/,/g, "");
-                      if (!/^\d*$/.test(raw)) return;
-                      setForm({ ...form, lastChangeOil: raw });
-                    }}
-                    placeholder="e.g. 100,000"
-                    className={`${inputClass} pr-12`}
-                  />
-
-                  <div className="absolute inset-y-0 right-3 flex items-center text-xs font-semibold text-muted-foreground">
-                    KM
-                  </div>
-                </div>
               </div>
 
               {/* 🔥 KEEP YOUR WEEKLY / MONTHLY BLOCK EXACTLY */}
@@ -681,6 +905,305 @@ export default function TrucksPage() {
                 className="px-6 py-2.5 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition disabled:opacity-50"
               >
                 {loading ? "Saving..." : editRow ? "Update" : "Save"}
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* CHANGE OIL HISTORY */}
+        <Dialog
+          open={!!changeOilModal}
+          onOpenChange={(open) => {
+            if (!open) setChangeOilModal(null);
+          }}
+        >
+          <DialogContent className="sm:max-w-[700px]">
+            <DialogHeader>
+              <DialogTitle>
+                Change Oil History
+                {changeOilModal ? ` — ${changeOilModal.truckName}` : ""}
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-5">
+              {/* CURRENT */}
+              <div className="rounded-lg border border-border bg-muted/30 p-4">
+                <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Current Last Change Oil
+                </div>
+
+                <div className="mt-1 text-xl font-bold">
+                  {changeOilModal?.lastChangeOil != null
+                    ? `${Number(changeOilModal.lastChangeOil).toLocaleString()} km`
+                    : "No record"}
+                </div>
+              </div>
+
+              {/* ADD RECORD */}
+              <div>
+                <div className="text-sm font-bold mb-3">
+                  Add Change Oil Record
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground mb-1 block">
+                      Date
+                    </label>
+
+                    <input
+                      type="date"
+                      value={changeOilForm.date}
+                      onChange={(e) =>
+                        setChangeOilForm((prev) => ({
+                          ...prev,
+                          date: e.target.value,
+                        }))
+                      }
+                      className={inputClass}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground mb-1 block">
+                      Odometer
+                    </label>
+
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={formatNumberWithComma(changeOilForm.odometer)}
+                        onChange={(e) => {
+                          const raw = e.target.value.replace(/,/g, "");
+
+                          if (!/^\d*$/.test(raw)) return;
+
+                          setChangeOilForm((prev) => ({
+                            ...prev,
+                            odometer: raw,
+                          }));
+                        }}
+                        placeholder="e.g. 510,250"
+                        className={`${inputClass} pr-12`}
+                      />
+
+                      <div className="absolute inset-y-0 right-3 flex items-center text-xs font-semibold text-muted-foreground">
+                        KM
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="text-xs font-semibold text-muted-foreground mb-1 block">
+                      Notes
+                    </label>
+
+                    <input
+                      type="text"
+                      value={changeOilForm.notes}
+                      onChange={(e) =>
+                        setChangeOilForm((prev) => ({
+                          ...prev,
+                          notes: e.target.value,
+                        }))
+                      }
+                      placeholder="e.g. Change oil + oil filter"
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end items-center gap-3 mt-3">
+                  {editingOilRecordId && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingOilRecordId(null);
+
+                        setChangeOilForm({
+                          date: new Date().toISOString().slice(0, 10),
+                          odometer:
+                            changeOilModal?.lastChangeOil != null
+                              ? String(changeOilModal.lastChangeOil)
+                              : "",
+                          notes: "",
+                        });
+                      }}
+                      disabled={changeOilLoading}
+                      className="h-10 px-4 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors disabled:opacity-50"
+                    >
+                      Cancel Edit
+                    </button>
+                  )}
+                  <button
+                    onClick={
+                      editingOilRecordId
+                        ? handleUpdateChangeOilRecord
+                        : handleAddChangeOilRecord
+                    }
+                    disabled={changeOilLoading}
+                    className="h-10 px-4 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {editingOilRecordId ? (
+                      <Pencil size={16} />
+                    ) : (
+                      <Plus size={16} />
+                    )}
+
+                    {changeOilLoading
+                      ? "Saving..."
+                      : editingOilRecordId
+                        ? "Update Record"
+                        : "Add Record"}
+                  </button>
+                </div>
+              </div>
+
+              {/* HISTORY */}
+              <div>
+                <div className="text-sm font-bold mb-3">History</div>
+
+                <div className="rounded-lg border border-border overflow-hidden">
+                  {!changeOilModal?.changeOilHistory?.length ? (
+                    <div className="py-8 px-4 text-center text-sm text-muted-foreground">
+                      No change oil history yet.
+                    </div>
+                  ) : (
+                    <div className="max-h-[260px] overflow-auto">
+                      <table className="w-full text-sm">
+                        <thead className="sticky top-0 bg-muted">
+                          <tr>
+                            <th className="px-3 py-2 text-left text-xs font-semibold">
+                              Date
+                            </th>
+
+                            <th className="px-3 py-2 text-right text-xs font-semibold">
+                              Odometer
+                            </th>
+
+                            <th className="px-3 py-2 text-left text-xs font-semibold">
+                              Notes
+                            </th>
+                            <th className="px-3 py-2 text-center text-xs font-semibold">
+                              Actions
+                            </th>
+                          </tr>
+                        </thead>
+
+                        <tbody>
+                          {[...(changeOilModal.changeOilHistory || [])]
+                            .sort(
+                              (a, b) =>
+                                new Date(b.date).getTime() -
+                                new Date(a.date).getTime(),
+                            )
+                            .map((record, index) => (
+                              <tr
+                                key={record._id}
+                                className="border-t border-border"
+                              >
+                                <td className="px-3 py-2 whitespace-nowrap">
+                                  {new Date(record.date).toLocaleDateString(
+                                    "en-US",
+                                    {
+                                      month: "short",
+                                      day: "numeric",
+                                      year: "numeric",
+                                    },
+                                  )}
+                                </td>
+
+                                <td className="px-3 py-2 text-right whitespace-nowrap font-semibold">
+                                  {record.odometer != null
+                                    ? `${Number(record.odometer).toLocaleString()} km`
+                                    : "—"}
+                                </td>
+
+                                <td className="px-3 py-2">
+                                  {record.notes || "—"}
+                                </td>
+                                <td className="px-3 py-2">
+                                  <div className="flex items-center justify-center gap-1">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleEditChangeOilRecord(record)
+                                      }
+                                      title="Edit record"
+                                      className="w-8 h-8 rounded-md inline-flex items-center justify-center border border-border hover:bg-muted transition-colors"
+                                    >
+                                      <Pencil size={13} />
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setDeleteOilRecordId(record._id)
+                                      }
+                                      title="Delete record"
+                                      className="w-8 h-8 rounded-md inline-flex items-center justify-center border border-border hover:bg-red-500/10 hover:text-red-500 transition-colors"
+                                    >
+                                      <Trash2 size={13} />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <button
+                onClick={() => setChangeOilModal(null)}
+                className="px-4 py-2.5 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors"
+              >
+                Close
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* DELETE CHANGE OIL RECORD */}
+        <Dialog
+          open={!!deleteOilRecordId}
+          onOpenChange={(open) => {
+            if (!open && !changeOilLoading) {
+              setDeleteOilRecordId(null);
+            }
+          }}
+        >
+          <DialogContent className="sm:max-w-[400px]">
+            <DialogHeader>
+              <DialogTitle>Delete change oil record?</DialogTitle>
+            </DialogHeader>
+
+            <p className="text-sm text-muted-foreground">
+              This record will be permanently deleted from the change oil
+              history.
+            </p>
+
+            <DialogFooter className="mt-4">
+              <button
+                type="button"
+                onClick={() => setDeleteOilRecordId(null)}
+                disabled={changeOilLoading}
+                className="px-4 py-2.5 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={handleDeleteChangeOilRecord}
+                disabled={changeOilLoading}
+                className="px-5 py-2.5 rounded-md bg-red-500 text-white text-sm font-medium hover:bg-red-600 transition-colors disabled:opacity-50"
+              >
+                {changeOilLoading ? "Deleting..." : "Delete"}
               </button>
             </DialogFooter>
           </DialogContent>

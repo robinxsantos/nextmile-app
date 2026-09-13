@@ -178,6 +178,9 @@ export function validateTruckData(
     truckName,
     status,
     cutoffType = "weekly",
+    billingType = "subcontracted",
+    billedTo,
+    client,
     cutoffStart,
     cutoffEnd,
     payday,
@@ -192,6 +195,17 @@ export function validateTruckData(
   }
   if (!["weekly", "monthly"].includes(cutoffType)) {
     errors.push("Cutoff type must be weekly or monthly");
+  }
+  if (!["subcontracted", "direct"].includes(billingType)) {
+    errors.push("Billing type must be subcontracted or direct");
+  }
+
+  if (billingType === "subcontracted" && !billedTo?.trim()) {
+    errors.push("Billed To is required for subcontracted trucks");
+  }
+
+  if (!client?.trim()) {
+    errors.push("Client is required");
   }
 
   const isMonthly = cutoffType === "monthly";
@@ -256,6 +270,11 @@ export function validateTruckData(
   if (req.body.client) {
     req.body.client = sanitizeString(req.body.client);
   }
+
+  if (req.body.billedTo) {
+    req.body.billedTo = sanitizeString(req.body.billedTo);
+  }
+
   if (req.body.notes) {
     req.body.notes = sanitizeString(req.body.notes);
   }

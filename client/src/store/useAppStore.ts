@@ -134,17 +134,32 @@ export interface TruckRow {
   truckName: string;
   status: string;
   cutoffType: "weekly" | "monthly";
+
+  billingType?: "subcontracted" | "direct";
+  billedTo?: string;
   client?: string;
+
   lastChangeOil?: number | null;
+
+  changeOilHistory?: {
+    _id: string;
+    date: string;
+    odometer: number | null;
+    notes: string;
+  }[];
+
   notes?: string;
+
   cutoffStart: number;
   cutoffEnd: number;
   payday: number;
   dayOff: number;
+
   cutoffStartText: string;
   cutoffEndText: string;
   paydayText: string;
   dayOffText: string;
+
   dateAdded: string;
 }
 
@@ -261,6 +276,27 @@ interface AppState {
   addTruck: (data: Record<string, unknown>) => Promise<void>;
   updateTruck: (id: string, data: Record<string, unknown>) => Promise<void>;
   deleteTruck: (id: string) => Promise<void>;
+
+  addChangeOilRecord: (
+    truckId: string,
+    data: {
+      date: string;
+      odometer: number;
+      notes: string;
+    },
+  ) => Promise<void>;
+
+  updateChangeOilRecord: (
+    truckId: string,
+    recordId: string,
+    data: {
+      date: string;
+      odometer: number;
+      notes: string;
+    },
+  ) => Promise<void>;
+
+  deleteChangeOilRecord: (truckId: string, recordId: string) => Promise<void>;
 }
 
 const getStoredTheme = (): "light" | "dark" => {
@@ -942,6 +978,58 @@ export const useAppStore = create<AppState>((set, get) => ({
       await get().fetchDashboard();
     } catch (err: unknown) {
       toast.error(getErrorMessage(err, "Failed to update truck"));
+      throw err;
+    }
+  },
+  addChangeOilRecord: async (truckId, data) => {
+    try {
+      await api.post(`/trucks/${truckId}/change-oil`, data);
+
+      await get().fetchTrucks();
+
+      toast.success("Change oil record added successfully", {
+        duration: 4000,
+      });
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, "Failed to add change oil record"), {
+        duration: 6000,
+      });
+
+      throw err;
+    }
+  },
+  updateChangeOilRecord: async (truckId, recordId, data) => {
+    try {
+      await api.put(`/trucks/${truckId}/change-oil/${recordId}`, data);
+
+      await get().fetchTrucks();
+
+      toast.success("Change oil record updated successfully", {
+        duration: 4000,
+      });
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, "Failed to update change oil record"), {
+        duration: 6000,
+      });
+
+      throw err;
+    }
+  },
+
+  deleteChangeOilRecord: async (truckId, recordId) => {
+    try {
+      await api.delete(`/trucks/${truckId}/change-oil/${recordId}`);
+
+      await get().fetchTrucks();
+
+      toast.success("Change oil record deleted", {
+        duration: 4000,
+      });
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, "Failed to delete change oil record"), {
+        duration: 6000,
+      });
+
       throw err;
     }
   },

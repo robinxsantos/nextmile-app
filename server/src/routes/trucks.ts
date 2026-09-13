@@ -8,6 +8,23 @@ import { requireAdmin } from "../middleware/auth.js";
 
 const router = Router();
 
+async function recalculateLastChangeOil(truckId: string) {
+  const truck = await Truck.findById(truckId);
+
+  if (!truck) return null;
+
+  const history = [...(truck.changeOilHistory || [])].sort(
+    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+  );
+
+  truck.lastChangeOil =
+    history.length > 0 ? Number(history[0].odometer ?? 0) : null;
+
+  await truck.save();
+
+  return truck;
+}
+
 // GET /api/trucks - List all trucks
 router.get("/", async (_req: Request, res: Response) => {
   try {
@@ -22,7 +39,15 @@ router.get("/", async (_req: Request, res: Response) => {
         status: t.status,
         cutoffType: t.cutoffType || "weekly",
         client: t.client || t.notes || "",
+
+        billingType: t.billingType || "subcontracted",
+
+        billedTo: t.billedTo || "",
+
         lastChangeOil: t.lastChangeOil ?? null,
+
+        changeOilHistory: t.changeOilHistory || [],
+
         notes: t.notes,
         cutoffStart: t.cutoffStart,
         cutoffEnd: t.cutoffEnd,
@@ -62,7 +87,8 @@ router.post(
         status,
         cutoffType = "weekly",
         client,
-        lastChangeOil,
+        billingType = "subcontracted",
+        billedTo,
         notes,
         cutoffStart,
         cutoffEnd,
@@ -89,10 +115,10 @@ router.post(
         status: status || "Active",
         cutoffType,
         client: client?.trim() || notes?.trim() || "",
-        lastChangeOil:
-          lastChangeOil !== undefined && lastChangeOil !== null
-            ? Number(lastChangeOil)
-            : null,
+
+        billingType: billingType === "direct" ? "direct" : "subcontracted",
+
+        billedTo: billingType === "direct" ? "" : billedTo?.trim() || "",
         notes: notes || "",
         cutoffStart: cutoffStart ?? 1,
         cutoffEnd: cutoffEnd ?? 6,
@@ -119,7 +145,8 @@ router.put(
         status,
         cutoffType = "weekly",
         client,
-        lastChangeOil,
+        billingType = "subcontracted",
+        billedTo,
         notes,
         cutoffStart,
         cutoffEnd,
@@ -139,10 +166,10 @@ router.put(
           status: status || "Active",
           cutoffType,
           client: client?.trim() || notes?.trim() || "",
-          lastChangeOil:
-            lastChangeOil !== undefined && lastChangeOil !== null
-              ? Number(lastChangeOil)
-              : null,
+
+          billingType: billingType === "direct" ? "direct" : "subcontracted",
+
+          billedTo: billingType === "direct" ? "" : billedTo?.trim() || "",
           notes: notes || "",
           cutoffStart: cutoffStart ?? 1,
           cutoffEnd: cutoffEnd ?? 6,
@@ -158,6 +185,164 @@ router.put(
       }
 
       res.json(truck);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  },
+);
+
+// POST /api/trucks/:id/change-oil - Add change oil history record
+router.post(
+  "/:id/change-oil",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const { date, odometer, notes } = req.body;
+
+      if (!date) {
+        res.status(400).json({ error: "Change oil date is required." });
+        return;
+      }
+
+      const odometerNum = Number(odometer);
+
+      if (!Number.isFinite(odometerNum) || odometerNum < 0) {
+        res.status(400).json({ error: "Odometer must be a valid number." });
+        return;
+      }
+
+      const changeOilDate = new Date(date);
+
+      if (Number.isNaN(changeOilDate.getTime())) {
+        res.status(400).json({ error: "Invalid change oil date." });
+        return;
+      }
+
+      // Keep date stable regardless of timezone.
+      changeOilDate.setHours(12, 0, 0, 0);
+
+      const truck = await Truck.findByIdAndUpdate(
+        req.params.id,
+        {
+          $push: {
+            changeOilHistory: {
+              date: changeOilDate,
+              odometer: odometerNum,
+              notes: String(notes || "").trim(),
+            },
+          },
+        },
+        { new: true },
+      );
+
+      if (!truck) {
+        res.status(404).json({ error: "Truck not found." });
+        return;
+      }
+
+      const updatedTruck = await recalculateLastChangeOil(
+        String(req.params.id),
+      );
+
+      res.json(updatedTruck);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  },
+);
+
+// PUT /api/trucks/:id/change-oil/:recordId - Edit change oil record
+router.put(
+  "/:id/change-oil/:recordId",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const { date, odometer, notes } = req.body;
+
+      if (!date) {
+        res.status(400).json({ error: "Change oil date is required." });
+        return;
+      }
+
+      const odometerNum = Number(odometer);
+
+      if (!Number.isFinite(odometerNum) || odometerNum < 0) {
+        res.status(400).json({
+          error: "Odometer must be a valid number.",
+        });
+        return;
+      }
+
+      const changeOilDate = new Date(date);
+
+      if (Number.isNaN(changeOilDate.getTime())) {
+        res.status(400).json({ error: "Invalid change oil date." });
+        return;
+      }
+
+      changeOilDate.setHours(12, 0, 0, 0);
+
+      const truck = await Truck.findOneAndUpdate(
+        {
+          _id: req.params.id,
+          "changeOilHistory._id": req.params.recordId,
+        },
+        {
+          $set: {
+            "changeOilHistory.$.date": changeOilDate,
+            "changeOilHistory.$.odometer": odometerNum,
+            "changeOilHistory.$.notes": String(notes || "").trim(),
+          },
+        },
+        { new: true },
+      );
+
+      if (!truck) {
+        res.status(404).json({
+          error: "Truck or change oil record not found.",
+        });
+        return;
+      }
+
+      const updatedTruck = await recalculateLastChangeOil(
+        String(req.params.id),
+      );
+
+      res.json(updatedTruck);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  },
+);
+
+// DELETE /api/trucks/:id/change-oil/:recordId - Delete change oil record
+router.delete(
+  "/:id/change-oil/:recordId",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const truck = await Truck.findByIdAndUpdate(
+        req.params.id,
+        {
+          $pull: {
+            changeOilHistory: {
+              _id: req.params.recordId,
+            },
+          },
+        },
+        { new: true },
+      );
+
+      if (!truck) {
+        res.status(404).json({ error: "Truck not found." });
+        return;
+      }
+
+      const updatedTruck = await recalculateLastChangeOil(
+        String(req.params.id),
+      );
+
+      res.json(updatedTruck);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }

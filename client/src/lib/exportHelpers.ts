@@ -188,6 +188,8 @@ export function exportMonthlyReport(
   clientMode = false,
   deductFuel = false,
   clientName = "",
+  billedTo = "",
+  billingType: "subcontracted" | "direct" = "subcontracted",
 ) {
   const labels = getColumnLabels();
 
@@ -1009,8 +1011,22 @@ export function exportMonthlyReport(
 
   <div class="statement-info-grid">
     <div class="statement-info-left">
-      <div class="statement-meta-heading">CLIENT</div>
-      <div class="statement-client">${escHtml(clientName || "—")}</div>
+      ${
+        billingType === "subcontracted"
+          ? `
+            <div class="statement-meta-heading">BILLED TO</div>
+            <div class="statement-client">${escHtml(billedTo || "—")}</div>
+
+            <div style="margin-top:12px;">
+              <div class="statement-meta-heading">CLIENT</div>
+              <div class="statement-client">${escHtml(clientName || "—")}</div>
+            </div>
+          `
+          : `
+            <div class="statement-meta-heading">BILLED TO</div>
+            <div class="statement-client">${escHtml(clientName || "—")}</div>
+          `
+      }
 
       <div class="statement-details">
         <div class="statement-detail-row">
@@ -1047,7 +1063,7 @@ export function exportMonthlyReport(
         </div>
 
         <div class="summary-row">
-          <span class="summary-label">Less: Total VAT</span>
+          <span class="summary-label">Less: VAT</span>
           <span class="summary-value">${peso(totalVat)}</span>
         </div>
 
@@ -1331,6 +1347,8 @@ export function exportClientMonthlyReport(
   expenseRows: { category?: string; amount?: number }[] = [],
   deductFuel = false,
   clientName = "",
+  billedTo = "",
+  billingType: "subcontracted" | "direct" = "subcontracted",
 ) {
   return exportMonthlyReport(
     rows,
@@ -1340,5 +1358,7 @@ export function exportClientMonthlyReport(
     true,
     deductFuel,
     clientName,
+    billedTo,
+    billingType,
   );
 }

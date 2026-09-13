@@ -172,8 +172,14 @@ export default function ReportsPage() {
   const selectedTruckName =
     selectedTruckData?.truckName ?? selectedTruckOption?.truckName;
 
-  const selectedClient =
-    selectedTruckData?.client ?? selectedTruckData?.notes ?? "";
+  const selectedBillingType = selectedTruckData?.billingType ?? "subcontracted";
+
+  const selectedBilledTo =
+    selectedBillingType === "direct"
+      ? (selectedTruckData?.client ?? "")
+      : (selectedTruckData?.billedTo ?? "");
+
+  const selectedClient = selectedTruckData?.client ?? "";
 
   // Sorting state
   const [showColumnsMenu, setShowColumnsMenu] = useState(false);
@@ -240,6 +246,8 @@ export default function ReportsPage() {
       expenseRows,
       deductFuel,
       selectedClient,
+      selectedBilledTo,
+      selectedBillingType,
     );
   };
 

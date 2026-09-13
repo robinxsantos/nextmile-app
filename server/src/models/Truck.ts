@@ -5,7 +5,19 @@ export interface ITruck extends Document {
   status: "Active" | "Inactive";
   cutoffType: "weekly" | "monthly";
   client: string;
+
+  billingType: "subcontracted" | "direct";
+
+  billedTo: string;
+
   lastChangeOil: number | null;
+
+  changeOilHistory: {
+    date: Date;
+    odometer: number | null;
+    notes: string;
+  }[];
+
   notes: string;
   cutoffStart: number;
   cutoffEnd: number;
@@ -38,10 +50,45 @@ const TruckSchema = new Schema(
       default: "",
       trim: true,
     },
+
+    billingType: {
+      type: String,
+      enum: ["subcontracted", "direct"],
+      default: "subcontracted",
+    },
+
+    billedTo: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
     lastChangeOil: {
       type: Number,
       default: null,
       min: 0,
+    },
+
+    changeOilHistory: {
+      type: [
+        {
+          date: {
+            type: Date,
+            required: true,
+          },
+          odometer: {
+            type: Number,
+            default: null,
+            min: 0,
+          },
+          notes: {
+            type: String,
+            default: "",
+            trim: true,
+          },
+        },
+      ],
+      default: [],
     },
     notes: {
       type: String,
