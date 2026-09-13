@@ -256,19 +256,11 @@ export function exportMonthlyReport(
     });
 
   const formatStatementGenerated = (d: Date) => {
-    const date = d.toLocaleDateString("en-US", {
+    return d.toLocaleDateString("en-US", {
       year: "numeric",
       month: "long",
       day: "numeric",
     });
-
-    const time = d.toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
-
-    return `${date} • ${time}`;
   };
 
   // const formatDateLong = (value?: string) => {
@@ -310,27 +302,67 @@ export function exportMonthlyReport(
   const statementPeriodEnd =
     statementDates[statementDates.length - 1] ?? fallbackDate;
 
-  const customPeriodMatch = periodText.match(
-    /([A-Za-z]+)\s+\d{1,2},\s+(\d{4})\s+to\s+([A-Za-z]+)\s+\d{1,2},\s+(\d{4})/i,
+  const monthlyPeriodMatch = periodText.match(
+    /^Month of ([A-Za-z]+) (\d{4})$/i,
   );
 
-  const statementNumberDate =
-    customPeriodMatch && customPeriodMatch[3] && customPeriodMatch[4]
-      ? new Date(`${customPeriodMatch[3]} 1, ${customPeriodMatch[4]}`)
-      : statementPeriodEnd;
-
-  const statementYear = statementNumberDate.getFullYear();
-
-  const statementMonth = String(statementNumberDate.getMonth() + 1).padStart(
-    2,
-    "0",
+  const customPeriodMatch = periodText.match(
+    /^([A-Za-z]+)\s+(\d{1,2}),\s+(\d{4})\s+to\s+([A-Za-z]+)\s+(\d{1,2}),\s+(\d{4})$/i,
   );
 
   const statementTruck = String(truckLabel || "")
     .replace(/[^a-zA-Z0-9]/g, "")
     .toUpperCase();
 
-  const statementNumber = `INV-${statementYear}-${statementMonth}-${statementTruck}`;
+  let statementYear: number;
+  let statementPeriodCode: string;
+
+  if (monthlyPeriodMatch) {
+    // Example:
+    // Month of JUNE 2026
+    // → NXM-2026-0006-CCR5297
+
+    const monthDate = new Date(
+      `${monthlyPeriodMatch[1]} 1, ${monthlyPeriodMatch[2]}`,
+    );
+
+    statementYear = Number(monthlyPeriodMatch[2]);
+
+    const month = String(monthDate.getMonth() + 1).padStart(2, "0");
+
+    statementPeriodCode = `00${month}`;
+  } else if (customPeriodMatch) {
+    // Example:
+    // July 05, 2026 to July 10, 2026
+    // → NXM-2026-07050710-CCR5297
+
+    const startMonthDate = new Date(
+      `${customPeriodMatch[1]} 1, ${customPeriodMatch[3]}`,
+    );
+
+    const endMonthDate = new Date(
+      `${customPeriodMatch[4]} 1, ${customPeriodMatch[6]}`,
+    );
+
+    statementYear = Number(customPeriodMatch[3]);
+
+    const startMonth = String(startMonthDate.getMonth() + 1).padStart(2, "0");
+    const startDay = String(customPeriodMatch[2]).padStart(2, "0");
+
+    const endMonth = String(endMonthDate.getMonth() + 1).padStart(2, "0");
+    const endDay = String(customPeriodMatch[5]).padStart(2, "0");
+
+    statementPeriodCode = `${startMonth}${startDay}${endMonth}${endDay}`;
+  } else {
+    // Fallback in case periodText has an unexpected format
+    statementYear = statementPeriodEnd.getFullYear();
+
+    const month = String(statementPeriodEnd.getMonth() + 1).padStart(2, "0");
+
+    statementPeriodCode = `00${month}`;
+  }
+
+  const statementNumber = `NXM-${statementYear}-${statementPeriodCode}-${statementTruck}`;
 
   const formatStatementDate = (date: Date) =>
     date.toLocaleDateString("en-US", {
@@ -1263,7 +1295,7 @@ export function exportMonthlyReport(
       <tbody>
         ${
           clientRowHtml ||
-          '<tr><td colspan="5" style="text-align:center;color:#999;padding:20px">No rows</td></tr>'
+          '<tr><td colspan="5" style="text-align:center;color:#999;padding:20px">No Records</td></tr>'
         }
       </tbody>
     </table>
@@ -1312,7 +1344,7 @@ export function exportMonthlyReport(
   </div>
 
   <div class="nothing-follows">
-    ***** NOTHING FOLLOWS *****
+    ${clientMode ? "— END OF STATEMENT —" : "— END OF REPORT —"}
   </div>
 
   ${
