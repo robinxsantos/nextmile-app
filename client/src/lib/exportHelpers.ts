@@ -376,7 +376,7 @@ export function exportMonthlyReport(
     .join("");
 
   const clientRowHtml = rows
-    .filter((r) => r.status !== "Day Off")
+    .filter((r) => r.status === "Working Day")
     .map((r) => {
       return `<tr>
       <td class="date-col">${escHtml(
@@ -927,7 +927,7 @@ export function exportMonthlyReport(
     }
 
     .client-mode .statement-table .date-col {
-      text-align: left;
+      text-align: right;
       white-space: nowrap;
       min-width: 0;
     }
@@ -1206,8 +1206,8 @@ export function exportMonthlyReport(
         ? `
     <table class="statement-table">
       <colgroup>
-        <col style="width:22%">
-        <col style="width:24%">
+        <col style="width:18%">
+        <col style="width:28%">
         <col style="width:18%">
         <col style="width:18%">
         <col style="width:18%">
