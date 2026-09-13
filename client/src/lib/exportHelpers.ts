@@ -194,7 +194,13 @@ export function exportMonthlyReport(
   const parkingPasswayTotal = expenseRows
     .filter((e) => (e.category || "").toUpperCase() === "PARKING/PASSWAY")
     .reduce((sum, e) => sum + Number(e.amount || 0), 0);
-  const totalReceivable = totalGross - totalVat + parkingPasswayTotal;
+
+  const fuelTotal = expenseRows
+    .filter((e) => (e.category || "").toUpperCase() === "FUEL")
+    .reduce((sum, e) => sum + Number(e.amount || 0), 0);
+
+  const totalReceivable =
+    totalGross + parkingPasswayTotal - totalVat - fuelTotal;
   const totalPayable = rows.reduce(
     (s, r) => s + Number(r.reportPayable || r.payable || 0),
     0,
@@ -262,6 +268,23 @@ export function exportMonthlyReport(
   const rangeLabel =
     periodText && periodText.trim() ? periodText.trim() : "Selected Period";
 
+  const formatDateShort = (value: string) => {
+    if (!value) return "";
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+      return value;
+    }
+
+    return date.toLocaleDateString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
+
   const seenDates = new Set<string>();
 
   const rowHtml = rows
@@ -278,7 +301,7 @@ export function exportMonthlyReport(
         : "";
 
       return `<tr>
-        <td class="date-col">${escHtml(r.dateText)}</td>
+        <td class="date-col">${escHtml(formatDateShort(r.dateIso || r.dateText))}</td>
         <td>${escHtml(r.shipmentNumber)}</td>
         <td>${pesoOrBlank(r.rate)}</td>
         <td>${pesoOrBlank(r.vat)}</td>
@@ -295,7 +318,7 @@ export function exportMonthlyReport(
         <td>${pesoOrBlank(r.expenses)}</td>
         <td class="expense-breakdown">${expenseNoteHtml}</td>
         <td>${pesoOrBlank(r.grossIncome)}</td>
-        <td>${pesoOrBlank(r.reportNetIncome ?? r.netIncome)}</td>
+        <td>${clientMode ? "" : pesoOrBlank(r.reportNetIncome ?? r.netIncome)}</td>
       </tr>`;
     })
     .join("");
@@ -481,7 +504,8 @@ export function exportMonthlyReport(
 
     .date-col {
       white-space: nowrap;
-      min-width: 120px;
+      min-width: 100px;
+      text-align: left;
     }
 
     .nothing-follows {
@@ -512,10 +536,6 @@ export function exportMonthlyReport(
         <span class="summary-label">Gross Income</span>
         <span class="summary-value">${peso(totalGross)}</span>
       </div>
-      <div class="summary-row">
-        <span class="summary-label">Total VAT</span>
-        <span class="summary-value">${peso(totalVat)}</span>
-      </div>
       ${
         !clientMode
           ? `
@@ -536,6 +556,20 @@ export function exportMonthlyReport(
       `
           : ""
       }
+      ${
+        clientMode
+          ? `
+      <div class="summary-row">
+        <span class="summary-label">Less: Fuel</span>
+        <span class="summary-value">${peso(fuelTotal)}</span>
+      </div>
+      `
+          : ""
+      }
+      <div class="summary-row">
+        <span class="summary-label">Less: Total VAT</span>
+        <span class="summary-value">${peso(totalVat)}</span>
+      </div>
       ${
         clientMode
           ? `
@@ -632,7 +666,7 @@ export function exportMonthlyReport(
   <div class="table-wrap">
     <table>
       <colgroup>
-        <col style="width:9%">
+        <col style="width:8%">
         <col style="width:10%">
         <col style="width:7%">
         <col style="width:6%">

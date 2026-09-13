@@ -311,6 +311,13 @@ router.post(
         const crewSalary = Number(
           row["Crew Salary"] || row["CREW SALARY"] || 0,
         );
+        const cashAdvance = Number(
+          row["Cash Advance"] || row["CASH ADVANCE"] || 0,
+        );
+
+        const reimbursements = Number(
+          row["Reimbursements"] || row["REIMBURSEMENTS"] || 0,
+        );
 
         if (!tripDate || !shipmentNumber || rate <= 0 || crewSalary <= 0) {
           continue;
@@ -378,8 +385,8 @@ router.post(
           vat: rate * 0.12,
           trips: 1,
           crewSalary,
-          cashAdvance: 0,
-          reimbursements: 0,
+          cashAdvance,
+          reimbursements,
           expenses: 0,
         });
 

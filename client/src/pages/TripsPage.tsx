@@ -327,9 +327,9 @@ export default function TripsPage() {
 
   const downloadCsvTemplate = () => {
     const csv = [
-      "Date,Shipment Number,Rate,Crew Salary",
-      "2026-08-01,1307001,3900,1900",
-      "2026-08-02,1307002,3900,1900",
+      "Date,Shipment Number,Rate,Crew Salary,Cash Advance,Reimbursements",
+      "2026-08-01,1307001,3900,1900,500,250",
+      "2026-08-02,1307002,3900,1900,,",
     ].join("\n");
 
     const blob = new Blob([csv], {
@@ -928,6 +928,8 @@ export default function TripsPage() {
                             <th className="p-2 text-left">Shipment</th>
                             <th className="p-2 text-right">Rate</th>
                             <th className="p-2 text-right">Crew Salary</th>
+                            <th className="p-2 text-right">Cash Advance</th>
+                            <th className="p-2 text-right">Reimbursements</th>
                           </tr>
                         </thead>
 
@@ -950,6 +952,17 @@ export default function TripsPage() {
 
                               <td className="p-2 text-right">
                                 {row["Crew Salary"] || row["CREW SALARY"]}
+                              </td>
+                              <td className="p-2 text-right">
+                                {row["Cash Advance"] ||
+                                  row["CASH ADVANCE"] ||
+                                  "—"}
+                              </td>
+
+                              <td className="p-2 text-right">
+                                {row["Reimbursements"] ||
+                                  row["REIMBURSEMENTS"] ||
+                                  "—"}
                               </td>
                             </tr>
                           ))}
