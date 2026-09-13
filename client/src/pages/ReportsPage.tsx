@@ -218,8 +218,8 @@ export default function ReportsPage() {
     const reportMonth = monthNames[reportsMonth] || "Whole Year";
 
     return reportsMonth === "ALL"
-      ? `WHOLE YEAR ${year}`
-      : `${reportMonth.toUpperCase()} ${year}`;
+      ? `Whole Year ${year}`
+      : `Month of ${reportMonth.toUpperCase()} ${year}`;
   };
 
   const handleDownloadReport = () => {
