@@ -125,7 +125,7 @@ export function exportPayslip(
     .filter((r) => r.status === "Working Day")
     .map(
       (r) =>
-        `<tr><td>${escHtml(r.dateText)}</td><td>${escHtml(r.shipmentNumber)}</td><td>${pesoOrBlank(r.crewSalary)}</td><td>${pesoOrBlank(r.cashAdvance)}</td><td>
+        `<tr><td>${escHtml(r.dateText)}</td><<td class="shipment-col">${escHtml(r.shipmentNumber)}</td><td>${pesoOrBlank(r.crewSalary)}</td><td>${pesoOrBlank(r.cashAdvance)}</td><td>
   ${(() => {
     const reimbValue = Number(r.reimbursements || 0);
     if (reimbValue === 0) return "";
@@ -162,7 +162,7 @@ tbody tr:nth-child(even) td { background-color: #f9fafb; }
   </div>
 </div>
 <table>
-  <thead><tr><th class="date-col">Date</th><th>${labels.shipmentNumber}</th><th>Crew Salary</th><th>${labels.cashAdvance}</th><th>Reimbursements</th><th>Payable</th></tr></thead>
+  <thead><tr><th class="date-col">Date</th><<th class="shipment-col">${labels.shipmentNumber}</th><th>Crew Salary</th><th>${labels.cashAdvance}</th><th>Reimbursements</th><th>Payable</th></tr></thead>
   <tbody>${rowHtml || '<tr><td colspan="6" style="text-align:center;color:#999;padding:20px">No working days found</td></tr>'}</tbody>
 </table>
 <div class="totals">
@@ -187,6 +187,7 @@ export function exportMonthlyReport(
   expenseRows: { category?: string; amount?: number }[] = [],
   clientMode = false,
   deductFuel = false,
+  clientName = "",
 ) {
   const labels = getColumnLabels();
   const totalTrips = rows.reduce((s, r) => s + Number(r.trips || 0), 0);
@@ -242,6 +243,22 @@ export function exportMonthlyReport(
       hour12: true,
     });
 
+  const formatStatementGenerated = (d: Date) => {
+    const date = d.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+
+    const time = d.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+
+    return `${date} • ${time}`;
+  };
+
   // const formatDateLong = (value?: string) => {
   //   if (!value) return "";
   //   const d = new Date(value);
@@ -268,6 +285,40 @@ export function exportMonthlyReport(
 
   const rangeLabel =
     periodText && periodText.trim() ? periodText.trim() : "Selected Period";
+
+  const statementDates = rows
+    .map((r) => new Date(r.dateIso || r.dateText))
+    .filter((date) => !Number.isNaN(date.getTime()))
+    .sort((a, b) => a.getTime() - b.getTime());
+
+  const fallbackDate = new Date();
+
+  const statementPeriodStart = statementDates[0] ?? fallbackDate;
+
+  const statementPeriodEnd =
+    statementDates[statementDates.length - 1] ?? fallbackDate;
+
+  const statementYear = statementPeriodEnd.getFullYear();
+
+  const statementMonth = String(statementPeriodEnd.getMonth() + 1).padStart(
+    2,
+    "0",
+  );
+
+  const statementTruck = String(truckLabel || "")
+    .replace(/[^a-zA-Z0-9]/g, "")
+    .toUpperCase();
+
+  const statementNumber = `INV-${statementYear}-${statementMonth}-${statementTruck}`;
+
+  const formatStatementDate = (date: Date) =>
+    date.toLocaleDateString("en-US", {
+      month: "long",
+      day: "2-digit",
+      year: "numeric",
+    });
+
+  const statementPeriod = `${formatStatementDate(statementPeriodStart)} to ${formatStatementDate(statementPeriodEnd)}`;
 
   const formatDateShort = (value: string) => {
     if (!value) return "";
@@ -303,7 +354,7 @@ export function exportMonthlyReport(
 
       return `<tr>
         <td class="date-col">${escHtml(formatDateShort(r.dateIso || r.dateText))}</td>
-        <td>${escHtml(r.shipmentNumber)}</td>
+        <td class="shipment-col">${escHtml(r.shipmentNumber)}</td>
         <td>${pesoOrBlank(r.rate)}</td>
         <td>${pesoOrBlank(r.vat)}</td>
         <td>${pesoOrBlank(r.crewSalary)}</td>
@@ -324,6 +375,21 @@ export function exportMonthlyReport(
     })
     .join("");
 
+  const clientRowHtml = rows
+    .filter((r) => r.status !== "Day Off")
+    .map((r) => {
+      return `<tr>
+      <td class="date-col">${escHtml(
+        formatDateShort(r.dateIso || r.dateText),
+      )}</td>
+      <td class="shipment-col">${escHtml(r.shipmentNumber)}</td>
+      <td class="amount-col">${pesoOrBlank(r.rate)}</td>
+      <td class="amount-col">${pesoOrBlank(r.vat)}</td>
+      <td class="amount-col">${pesoOrBlank(r.grossIncome)}</td>
+    </tr>`;
+    })
+    .join("");
+
   const safeFilePart = (value: string) =>
     String(value || "")
       .trim()
@@ -332,7 +398,10 @@ export function exportMonthlyReport(
 
   const monthPart = safeFilePart(periodText);
   const truckPart = safeFilePart(truckLabel);
-  const reportTitle = `Monthly Report_${monthPart}_${truckPart}`;
+
+  const reportTitle = clientMode
+    ? statementNumber
+    : `Monthly Report_${monthPart}_${truckPart}`;
 
   const expenseBreakdownHtml =
     expenseSummary.entries.length > 0
@@ -361,8 +430,8 @@ export function exportMonthlyReport(
   <title>${escHtml(reportTitle)}</title>
   <style>
     @page {
-      size: A4 landscape;
-      margin: 14mm;
+      size: ${clientMode ? "A4 portrait" : "A4 landscape"};
+      margin: ${clientMode ? "12mm 12mm 16mm 12mm" : "14mm"};
     }
 
     body {
@@ -393,6 +462,205 @@ export function exportMonthlyReport(
       color: #000;
     }
 
+    .statement-meta {
+      display: grid;
+      grid-template-columns: 38% 62%;
+      gap: 0;
+      margin: 14px 0 18px;
+      font-size: 10.5px;
+    }
+
+    .statement-info-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 0.78fr);
+      gap: 24px;
+      align-items: start;
+      margin: 14px 0 20px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .statement-info-left {
+      min-width: 0;
+      padding-top: 2px;
+    }
+
+    .statement-info-right {
+      min-width: 0;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .statement-details {
+      margin-top: 34px;
+    }
+
+    .statement-detail-row {
+      display: grid;
+      grid-template-columns: 105px 1fr;
+      gap: 12px;
+      padding: 3px 0;
+      font-size: 10px;
+    }
+
+    .statement-detail-row span:last-child {
+      font-weight: 700;
+      color: #111827;
+    }
+
+    .client-account-summary {
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+
+    .client-account-summary .summary-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      padding: 6px 8px;
+      border-bottom: 1px solid #dbe1e7;
+      font-size: 10px;
+    }
+
+    .client-account-summary .summary-label {
+      font-weight: 600;
+      color: #111827;
+    }
+
+    .client-account-summary .summary-value {
+      font-weight: 700;
+      color: #111827;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .client-account-summary .statement-payable-row {
+      margin-top: 2px;
+      padding-top: 8px;
+      padding-bottom: 8px;
+      border-top: 2px solid #0f4c6e;
+      border-bottom: 2px solid #0f4c6e;
+    }
+
+    .client-account-summary .statement-payable-row .summary-label,
+    .client-account-summary .statement-payable-row .summary-value {
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .summary-grid.client-summary-hidden {
+      display: none;
+    }
+
+    .statement-meta-left {
+      min-width: 0;
+    }
+
+    .statement-meta-heading {
+      margin-bottom: 5px;
+      font-size: 9px;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .statement-client {
+      max-width: 220px;
+      font-size: 13px;
+      font-weight: 800;
+      color: #111827;
+      line-height: 1.35;
+    }
+
+    .statement-meta-right {
+      border-left: 1px solid #d1d5db;
+      padding-left: 18px;
+    }
+
+    .statement-meta-row {
+      display: grid;
+      grid-template-columns: 100px 1fr;
+      gap: 8px;
+      padding: 2px 0;
+      align-items: start;
+    }
+
+    .statement-meta-label {
+      font-weight: 700;
+      color: #64748b;
+    }
+
+    .statement-meta-right .statement-meta-row span:last-child {
+      font-weight: 600;
+      color: #111827;
+    }
+
+    .statement-meta-right .statement-meta-row:first-child span:last-child {
+      white-space: nowrap;
+    }
+
+    .statement-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 24px;
+      margin-bottom: 0;
+      padding-bottom: 12px;
+      border-bottom: 2px solid #0f4c6e;
+      text-align: left;
+    }
+
+    .statement-header-left {
+      min-width: 0;
+    }
+
+    .statement-kicker {
+      margin-bottom: 4px;
+      font-size: 9px;
+      font-weight: 800;
+      color: #0f4c6e;
+      letter-spacing: 0.14em;
+    }
+
+    .nextmile-red {
+      color: #dc2626;
+    }
+
+    .trucking-black {
+      color: #111827;
+    }
+
+    .statement-title {
+      font-size: 21px;
+      font-weight: 800;
+      color: #111827;
+      line-height: 1.15;
+    }
+
+    .statement-generated {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 2px;
+      padding-right: 4px;
+      font-size: 9px;
+      color: #475569;
+      white-space: nowrap;
+      box-sizing: border-box;
+    }
+
+    .statement-generated-label {
+      font-size: 8px;
+      font-weight: 800;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+     
+
     tbody tr:nth-child(even) td {
       background-color: #f9fafb;
     }
@@ -407,10 +675,113 @@ export function exportMonthlyReport(
         background-color: #f9fafb !important;
       }
 
-      .summary-grid {
+      .summary-grid,
+      .statement-meta,
+      .statement-ending,
+      .statement-total {
         break-inside: avoid;
       }
+
+      thead {
+        display: table-header-group;
+      }
+
+      tfoot {
+        display: table-footer-group;
+      }
+
+      tr {
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+
+      .statement-total {
+        break-before: avoid;
+        page-break-before: avoid;
+      }
+
+      .statement-ending {
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+
+      .nothing-follows {
+        break-before: avoid;
+        page-break-before: avoid;
+      }
+
+      .statement-page-footer {
+        display: none;
+      }
+
+      @media print {
+        .client-mode {
+          padding-bottom: 10mm;
+        }
+
+        .client-mode .statement-page-footer {
+          display: block;
+          position: fixed;
+          right: 2mm;
+          bottom: 2mm;
+          z-index: 9999;
+          font-size: 8px;
+          font-weight: 600;
+          line-height: 1;
+          color: #b0b7c0;
+          letter-spacing: 0.04em;
+          text-align: right;
+          white-space: nowrap;
+        }
+      }
+
+      .account-summary-title {
+        width: 100%;
+        box-sizing: border-box;
+        background: #0f4c6e;
+        color: #ffffff;
+        padding: 7px 9px;
+        font-size: 9px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .client-mode .summary-grid {
+        grid-template-columns: 1fr;
+        gap: 0;
+      }
+
+      .client-mode .summary-card {
+        border: none;
+        border-radius: 0;
+        padding: 0;
+        background: transparent;
+        height: auto;
+      }
+
+      .client-mode .summary-row {
+        padding: 5px 10px;
+        border-bottom: 1px solid #e5e7eb;
+        font-size: 10.5px;
+      }
+
+      .client-mode .summary-row:last-child {
+        margin-top: 2px;
+        padding-top: 7px;
+        padding-bottom: 7px;
+        border-top: 2px solid #0f4c6e;
+        border-bottom: 2px solid #0f4c6e;
+      }
+
+      .client-mode .summary-row:last-child .summary-label,
+      .client-mode .summary-row:last-child .summary-value {
+        font-size: 13px;
+        font-weight: 800;
+      }
     }
+
+
 
     .summary-grid {
       display: grid;
@@ -466,6 +837,15 @@ export function exportMonthlyReport(
       letter-spacing: 0.05em;
     }
 
+    .client-mode .section-title {
+      margin: 24px 0 8px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #cbd5e1;
+      font-size: 10px;
+      color: #334155;
+      letter-spacing: 0.08em;
+    }
+
     .table-wrap {
       width: 100%;
       margin-top: 10px;
@@ -506,7 +886,74 @@ export function exportMonthlyReport(
     .date-col {
       white-space: nowrap;
       min-width: 100px;
+      text-align: right;
+    }
+    .shipment-col {
+      text-align: center;
+    }
+      
+    .amount-col {
+      text-align: right;
+    }
+
+    .client-mode .statement-table th,
+    .client-mode .statement-table td {
+      font-size: 10.5px;
+    }
+
+    .client-mode .statement-table thead th {
+      padding: 8px;
+      font-size: 9px;
+      font-weight: 800;
+      color: #ffffff;
+      background: #0f4c6e;
+      border-bottom: none;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .client-mode .statement-table tbody td {
+      padding: 8px;
+      border-bottom: 1px solid #e5e7eb;
+      vertical-align: middle;
+    }
+
+    .client-mode .statement-table tbody tr:nth-child(even) td {
+      background: #f8fafc;
+    }
+
+    .client-mode .statement-table tbody tr:last-child td {
+      border-bottom: 2px solid #0f4c6e;
+    }
+
+    .client-mode .statement-table .date-col {
       text-align: left;
+      white-space: nowrap;
+      min-width: 0;
+    }
+
+    .statement-total {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 28px;
+      margin-top: 14px;
+      padding: 10px 12px;
+      border-top: 2px solid #0f4c6e;
+      border-bottom: 2px solid #0f4c6e;
+      font-size: 12px;
+    }
+
+    .statement-total-label {
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+
+    .statement-total-value {
+      min-width: 130px;
+      text-align: right;
+      font-size: 15px;
+      font-weight: 800;
     }
 
     .nothing-follows {
@@ -518,7 +965,91 @@ export function exportMonthlyReport(
     }
   </style>
 </head>
-<body>
+<body class="${clientMode ? "client-mode" : "internal-mode"}">
+  ${
+    clientMode
+      ? `
+  <div class="statement-header">
+    <div class="statement-header-left">
+      <div class="statement-kicker">
+        <span class="nextmile-red">NEXTMILE</span>
+        <span class="trucking-black">TRUCKING SERVICES</span>
+      </div>
+      <div class="statement-title">
+        Statement for ${escHtml(truckLabel)}
+      </div>
+    </div>
+
+    <div class="statement-generated">
+      <span class="statement-generated-label">Generated</span>
+      <span>${formatStatementGenerated(new Date())}</span>
+    </div>
+  </div>
+
+  <div class="statement-info-grid">
+    <div class="statement-info-left">
+      <div class="statement-meta-heading">CLIENT</div>
+      <div class="statement-client">${escHtml(clientName || "—")}</div>
+
+      <div class="statement-details">
+        <div class="statement-detail-row">
+          <span class="statement-meta-label">Statement No.</span>
+          <span>${escHtml(statementNumber)}</span>
+        </div>
+
+        <div class="statement-detail-row">
+          <span class="statement-meta-label">Statement Period</span>
+          <span>${escHtml(statementPeriod)}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="statement-info-right">
+      <div class="account-summary-title">
+        STATEMENT SUMMARY
+      </div>
+
+      <div class="client-account-summary">
+        <div class="summary-row">
+          <span class="summary-label">Total Trips</span>
+          <span class="summary-value">${totalTrips.toLocaleString()}</span>
+        </div>
+
+        <div class="summary-row">
+          <span class="summary-label">Gross Income</span>
+          <span class="summary-value">${peso(totalGross)}</span>
+        </div>
+
+        <div class="summary-row">
+          <span class="summary-label">Parking / Passway</span>
+          <span class="summary-value">${peso(parkingPasswayTotal)}</span>
+        </div>
+
+        <div class="summary-row">
+          <span class="summary-label">Less: Total VAT</span>
+          <span class="summary-value">${peso(totalVat)}</span>
+        </div>
+
+        ${
+          deductFuel
+            ? `
+        <div class="summary-row">
+          <span class="summary-label">Less: Diesel</span>
+          <span class="summary-value">${peso(fuelTotal)}</span>
+        </div>
+        `
+            : ""
+        }
+
+        <div class="summary-row statement-payable-row">
+          <span class="summary-label">TOTAL PAYABLE</span>
+          <span class="summary-value">${peso(totalReceivable)}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  `
+      : `
   <div class="header">
     <div class="title">Monthly Report for ${escHtml(truckLabel)}</div>
     <div class="subtitle">
@@ -526,8 +1057,10 @@ export function exportMonthlyReport(
       <strong>Generated:</strong> ${formatDateTime(new Date())}
     </div>
   </div>
+  `
+  }
 
-  <div class="summary-grid">
+  <div class="summary-grid ${clientMode ? "client-summary-hidden" : ""}">
     <div class="summary-card">
       <div class="summary-row">
         <span class="summary-label">Total Trips</span>
@@ -575,7 +1108,7 @@ export function exportMonthlyReport(
         clientMode
           ? `
       <div class="summary-row">
-        <span class="summary-label">Receivable</span>
+        <span class="summary-label">TOTAL PAYABLE</span>
         <span class="summary-value">${peso(totalReceivable)}</span>
       </div>
       `
@@ -663,8 +1196,42 @@ export function exportMonthlyReport(
     }
   </div>
 
-  <div class="section-title">Detailed Report</div>
+  <div class="section-title">
+    ${clientMode ? "STATEMENT DETAILS" : "Detailed Report"}
+  </div>
+
   <div class="table-wrap">
+    ${
+      clientMode
+        ? `
+    <table class="statement-table">
+      <colgroup>
+        <col style="width:22%">
+        <col style="width:24%">
+        <col style="width:18%">
+        <col style="width:18%">
+        <col style="width:18%">
+      </colgroup>
+
+      <thead>
+        <tr>
+          <th class="date-col">Date</th>
+          <th class="shipment-col">${labels.shipmentNumber}</th>
+          <th class="amount-col">Rate</th>
+          <th class="amount-col">VAT</th>
+          <th class="amount-col">Gross</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        ${
+          clientRowHtml ||
+          '<tr><td colspan="5" style="text-align:center;color:#999;padding:20px">No rows</td></tr>'
+        }
+      </tbody>
+    </table>
+    `
+        : `
     <table>
       <colgroup>
         <col style="width:8%">
@@ -679,10 +1246,11 @@ export function exportMonthlyReport(
         <col style="width:6%">
         <col style="width:7%">
       </colgroup>
+
       <thead>
         <tr>
-          <th>Date</th>
-          <th>${labels.shipmentNumber}</th>
+          <th class="date-col">Date</th>
+          <th class="shipment-col">${labels.shipmentNumber}</th>
           <th>Rate</th>
           <th>VAT</th>
           <th>Crew Salary</th>
@@ -694,13 +1262,31 @@ export function exportMonthlyReport(
           <th>Net</th>
         </tr>
       </thead>
+
       <tbody>
-        ${rowHtml || '<tr><td colspan="11" style="text-align:center;color:#999;padding:20px">No rows</td></tr>'}
+        ${
+          rowHtml ||
+          '<tr><td colspan="11" style="text-align:center;color:#999;padding:20px">No rows</td></tr>'
+        }
       </tbody>
     </table>
+    `
+    }
   </div>
 
-  <div class="nothing-follows">***** NOTHING FOLLOWS *****</div>
+  <div class="nothing-follows">
+    ***** NOTHING FOLLOWS *****
+  </div>
+
+  ${
+    clientMode
+      ? `
+  <div class="statement-page-footer">
+    ${escHtml(statementNumber)}
+  </div>
+  `
+      : ""
+  }
 
   <script>
     window.onload = function () {
@@ -723,6 +1309,7 @@ export function exportClientMonthlyReport(
   periodText: string,
   expenseRows: { category?: string; amount?: number }[] = [],
   deductFuel = false,
+  clientName = "",
 ) {
   return exportMonthlyReport(
     rows,
@@ -731,5 +1318,6 @@ export function exportClientMonthlyReport(
     expenseRows,
     true,
     deductFuel,
+    clientName,
   );
 }

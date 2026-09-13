@@ -18,6 +18,7 @@ export default function ReportsPage() {
     initApp,
     selectedTruck,
     truckOptions,
+    truckRows,
     expenseRows,
     fetchExpenses,
     setExpensesMonth,
@@ -125,9 +126,15 @@ export default function ReportsPage() {
     };
   }, []);
 
-  const selectedTruckName = truckOptions.find(
-    (t) => t._id === selectedTruck,
-  )?.truckName;
+  const selectedTruckOption = truckOptions.find((t) => t._id === selectedTruck);
+
+  const selectedTruckData = truckRows.find((t) => t._id === selectedTruck);
+
+  const selectedTruckName =
+    selectedTruckData?.truckName ?? selectedTruckOption?.truckName;
+
+  const selectedClient =
+    selectedTruckData?.client ?? selectedTruckData?.notes ?? "";
 
   // Sorting state
   const [showColumnsMenu, setShowColumnsMenu] = useState(false);
@@ -199,6 +206,7 @@ export default function ReportsPage() {
       periodText,
       expenseRows,
       deductFuel,
+      selectedClient,
     );
   };
 
@@ -247,7 +255,7 @@ export default function ReportsPage() {
                   onChange={(e) => setDeductFuel(e.target.checked)}
                   className="h-4 w-4"
                 />
-                LESS: Fuel
+                Apply Fuel Deduction
               </label>
             </div>
           }
