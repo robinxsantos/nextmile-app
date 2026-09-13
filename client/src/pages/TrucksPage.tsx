@@ -444,6 +444,7 @@ export default function TrucksPage() {
                 {[
                   "Status",
                   "Date Added",
+                  "Billed To",
                   "Client",
                   "Last Change Oil",
                   "Cutoff Start",
@@ -466,7 +467,7 @@ export default function TrucksPage() {
             <tbody>
               {truckRows.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="text-center py-12 text-slate-400">
+                  <td colSpan={11} className="text-center py-12 text-slate-400">
                     No trucks found
                   </td>
                 </tr>
@@ -494,8 +495,15 @@ export default function TrucksPage() {
                         {r.dateAdded}
                       </td>
                       <td className="text-center text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800">
+                        {r.billingType === "direct"
+                          ? "Direct"
+                          : r.billedTo || "—"}
+                      </td>
+
+                      <td className="text-center text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800">
                         {client}
                       </td>
+
                       <td className="text-center text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800">
                         {kmDisplay(r.lastChangeOil)}
                       </td>
@@ -579,6 +587,11 @@ export default function TrucksPage() {
                     >
                       {r.status}
                     </span>
+                  </div>
+
+                  <div className="text-xs text-slate-500 mb-1">
+                    Billed To:{" "}
+                    {r.billingType === "direct" ? "Direct" : r.billedTo || "—"}
                   </div>
 
                   {client && (
