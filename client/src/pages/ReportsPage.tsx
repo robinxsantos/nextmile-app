@@ -133,6 +133,7 @@ export default function ReportsPage() {
   const [showColumnsMenu, setShowColumnsMenu] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [deductFuel, setDeductFuel] = useState(true);
 
   const pageTitle = selectedTruckName
     ? `${selectedTruckName} Reports`
@@ -192,7 +193,13 @@ export default function ReportsPage() {
         ? `WHOLE YEAR ${year}`
         : `${reportMonth.toUpperCase()} ${year}`;
 
-    exportClientMonthlyReport(reportRows, truckLabel, periodText, expenseRows);
+    exportClientMonthlyReport(
+      reportRows,
+      truckLabel,
+      periodText,
+      expenseRows,
+      deductFuel,
+    );
   };
 
   return (
@@ -233,6 +240,15 @@ export default function ReportsPage() {
                 <Download size={16} />
                 Export Client Report
               </button>
+              <label className="h-10 px-3 rounded-md border border-border bg-background flex items-center gap-2 text-sm cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={deductFuel}
+                  onChange={(e) => setDeductFuel(e.target.checked)}
+                  className="h-4 w-4"
+                />
+                LESS: Fuel
+              </label>
             </div>
           }
         />

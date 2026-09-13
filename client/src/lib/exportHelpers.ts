@@ -186,6 +186,7 @@ export function exportMonthlyReport(
   periodText: string,
   expenseRows: { category?: string; amount?: number }[] = [],
   clientMode = false,
+  deductFuel = false,
 ) {
   const labels = getColumnLabels();
   const totalTrips = rows.reduce((s, r) => s + Number(r.trips || 0), 0);
@@ -200,7 +201,7 @@ export function exportMonthlyReport(
     .reduce((sum, e) => sum + Number(e.amount || 0), 0);
 
   const totalReceivable =
-    totalGross + parkingPasswayTotal - totalVat - fuelTotal;
+    totalGross + parkingPasswayTotal - totalVat - (deductFuel ? fuelTotal : 0);
   const totalPayable = rows.reduce(
     (s, r) => s + Number(r.reportPayable || r.payable || 0),
     0,
@@ -557,10 +558,10 @@ export function exportMonthlyReport(
           : ""
       }
       ${
-        clientMode
+        clientMode && deductFuel
           ? `
       <div class="summary-row">
-        <span class="summary-label">Less: Fuel</span>
+        <span class="summary-label">Less: Diesel</span>
         <span class="summary-value">${peso(fuelTotal)}</span>
       </div>
       `
@@ -721,6 +722,14 @@ export function exportClientMonthlyReport(
   truckLabel: string,
   periodText: string,
   expenseRows: { category?: string; amount?: number }[] = [],
+  deductFuel = false,
 ) {
-  return exportMonthlyReport(rows, truckLabel, periodText, expenseRows, true);
+  return exportMonthlyReport(
+    rows,
+    truckLabel,
+    periodText,
+    expenseRows,
+    true,
+    deductFuel,
+  );
 }
