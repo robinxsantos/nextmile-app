@@ -236,9 +236,9 @@ interface AppState {
   // Data fetching
   initApp: () => Promise<void>;
   fetchDashboard: () => Promise<void>;
-  fetchExpenses: () => Promise<void>;
+  fetchExpenses: (start?: string, end?: string) => Promise<void>;
   fetchTrucks: () => Promise<void>;
-  fetchReports: () => Promise<void>;
+  fetchReports: (start?: string, end?: string) => Promise<void>;
   recomputeParkingReimbursements: () => void;
 
   // Duplicate / last trip
@@ -608,15 +608,28 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
 
-  fetchExpenses: async () => {
+  fetchExpenses: async (start, end) => {
     const state = get();
+
     try {
       const params: Record<string, string> = {};
-      if (state.selectedTruck) params.truck = state.selectedTruck;
-      if (state.expensesMonth !== "ALL") params.month = state.expensesMonth;
+
+      if (state.selectedTruck) {
+        params.truck = state.selectedTruck;
+      }
+
+      // Custom range takes priority over month
+      if (start && end) {
+        params.start = start;
+        params.end = end;
+      } else if (state.expensesMonth !== "ALL") {
+        params.month = state.expensesMonth;
+      }
 
       const { data } = await api.get("/expenses", { params });
+
       set({ expenseRows: data.rows || [] });
+
       get().recomputeParkingReimbursements();
     } catch (err: unknown) {
       console.error("Failed to fetch expenses:", err);
@@ -656,15 +669,27 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
 
-  fetchReports: async () => {
+  fetchReports: async (start, end) => {
     const state = get();
+
     try {
       const params: Record<string, string> = {};
-      if (state.selectedTruck) params.truck = state.selectedTruck;
-      if (state.reportsMonth !== "ALL") params.month = state.reportsMonth;
+
+      if (state.selectedTruck) {
+        params.truck = state.selectedTruck;
+      }
+
+      if (start && end) {
+        params.start = start;
+        params.end = end;
+      } else if (state.reportsMonth !== "ALL") {
+        params.month = state.reportsMonth;
+      }
 
       const { data } = await api.get("/dashboard/reports", { params });
+
       const rawReportRows = data.rows || [];
+
       set({
         rawReportRows,
         reportRows: applyReimbursedParkingAdjustments(

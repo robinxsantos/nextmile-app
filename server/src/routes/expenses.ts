@@ -65,10 +65,11 @@ router.get("/by-date", async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/expenses?truck=&month=
+// GET /api/expenses?truck=&month=&start=&end=
 router.get("/", async (req: AuthRequest, res: Response) => {
   try {
-    const { truck, month } = req.query;
+    const { truck, month, start, end } = req.query;
+
     const filter: any = {};
 
     // Employees can only see their own expenses
@@ -81,9 +82,27 @@ router.get("/", async (req: AuthRequest, res: Response) => {
       filter.truck = truck;
     }
 
-    if (month && month !== "ALL") {
+    // Custom date range takes priority over month
+    if (start || end) {
+      filter.date = {};
+
+      if (start) {
+        const startDate = new Date(start as string);
+        startDate.setHours(0, 0, 0, 0);
+
+        filter.date.$gte = startDate;
+      }
+
+      if (end) {
+        const endDate = new Date(end as string);
+        endDate.setHours(23, 59, 59, 999);
+
+        filter.date.$lte = endDate;
+      }
+    } else if (month && month !== "ALL") {
       const year = new Date().getFullYear();
       const m = Number(month) - 1;
+
       filter.date = {
         $gte: new Date(year, m, 1),
         $lte: new Date(year, m + 1, 0, 23, 59, 59, 999),

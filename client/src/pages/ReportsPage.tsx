@@ -85,6 +85,15 @@ export default function ReportsPage() {
     }
   });
 
+  const [searchQuery, setSearchQuery] = useState("");
+  const [deductFuel, setDeductFuel] = useState(true);
+  const [reportPeriodType, setReportPeriodType] = useState<
+    "monthly" | "custom"
+  >("monthly");
+
+  const [customStartDate, setCustomStartDate] = useState("");
+  const [customEndDate, setCustomEndDate] = useState("");
+
   useEffect(() => {
     initApp();
   }, [initApp]);
@@ -95,16 +104,46 @@ export default function ReportsPage() {
   }, [setReportsMonth]);
 
   useEffect(() => {
+    if (reportPeriodType === "custom") {
+      if (!customStartDate || !customEndDate) return;
+
+      fetchReports(customStartDate, customEndDate);
+      return;
+    }
+
     fetchReports();
-  }, [fetchReports, reportsMonth, selectedTruck]);
+  }, [
+    fetchReports,
+    reportsMonth,
+    selectedTruck,
+    reportPeriodType,
+    customStartDate,
+    customEndDate,
+  ]);
 
   useEffect(() => {
     setExpensesMonth(reportsMonth);
   }, [reportsMonth, setExpensesMonth]);
 
   useEffect(() => {
-    if (selectedTruck) fetchExpenses();
-  }, [fetchExpenses, selectedTruck, reportsMonth]);
+    if (!selectedTruck) return;
+
+    if (reportPeriodType === "custom") {
+      if (!customStartDate || !customEndDate) return;
+
+      fetchExpenses(customStartDate, customEndDate);
+      return;
+    }
+
+    fetchExpenses();
+  }, [
+    fetchExpenses,
+    selectedTruck,
+    reportsMonth,
+    reportPeriodType,
+    customStartDate,
+    customEndDate,
+  ]);
 
   useEffect(() => {
     localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(visibleColumns));
@@ -139,15 +178,26 @@ export default function ReportsPage() {
   // Sorting state
   const [showColumnsMenu, setShowColumnsMenu] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [deductFuel, setDeductFuel] = useState(true);
 
   const pageTitle = selectedTruckName
     ? `${selectedTruckName} Reports`
     : "Reports";
 
-  const handleDownloadReport = () => {
-    const truckLabel = selectedTruckName || "All Trucks";
+  const formatCustomPeriodDate = (value: string) => {
+    const date = new Date(`${value}T00:00:00`);
+
+    return date.toLocaleDateString("en-US", {
+      month: "long",
+      day: "2-digit",
+      year: "numeric",
+    });
+  };
+
+  const getReportPeriodText = () => {
+    if (reportPeriodType === "custom" && customStartDate && customEndDate) {
+      return `${formatCustomPeriodDate(customStartDate)} to ${formatCustomPeriodDate(customEndDate)}`;
+    }
+
     const monthNames: Record<string, string> = {
       ALL: "Whole Year",
       "1": "January",
@@ -163,42 +213,25 @@ export default function ReportsPage() {
       "11": "November",
       "12": "December",
     };
+
     const year = new Date().getFullYear();
     const reportMonth = monthNames[reportsMonth] || "Whole Year";
-    const periodText =
-      reportsMonth === "ALL"
-        ? `WHOLE YEAR ${year}`
-        : `${reportMonth.toUpperCase()} ${year}`;
+
+    return reportsMonth === "ALL"
+      ? `WHOLE YEAR ${year}`
+      : `${reportMonth.toUpperCase()} ${year}`;
+  };
+
+  const handleDownloadReport = () => {
+    const truckLabel = selectedTruckName || "All Trucks";
+    const periodText = getReportPeriodText();
+
     exportMonthlyReport(reportRows, truckLabel, periodText, expenseRows);
   };
 
   const handleClientReport = () => {
     const truckLabel = selectedTruckName || "All Trucks";
-
-    const monthNames: Record<string, string> = {
-      ALL: "Whole Year",
-      "1": "January",
-      "2": "February",
-      "3": "March",
-      "4": "April",
-      "5": "May",
-      "6": "June",
-      "7": "July",
-      "8": "August",
-      "9": "September",
-      "10": "October",
-      "11": "November",
-      "12": "December",
-    };
-
-    const year = new Date().getFullYear();
-
-    const reportMonth = monthNames[reportsMonth] || "Whole Year";
-
-    const periodText =
-      reportsMonth === "ALL"
-        ? `WHOLE YEAR ${year}`
-        : `${reportMonth.toUpperCase()} ${year}`;
+    const periodText = getReportPeriodText();
 
     exportClientMonthlyReport(
       reportRows,
@@ -231,6 +264,12 @@ export default function ReportsPage() {
           showMonth
           monthValue={reportsMonth}
           onMonthChange={setReportsMonth}
+          reportPeriodType={reportPeriodType}
+          onReportPeriodTypeChange={setReportPeriodType}
+          customStartDate={customStartDate}
+          customEndDate={customEndDate}
+          onCustomStartDateChange={setCustomStartDate}
+          onCustomEndDateChange={setCustomEndDate}
           actions={
             <div className="flex items-center gap-2">
               <button

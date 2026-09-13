@@ -190,9 +190,19 @@ export function exportMonthlyReport(
   clientName = "",
 ) {
   const labels = getColumnLabels();
-  const totalTrips = rows.reduce((s, r) => s + Number(r.trips || 0), 0);
-  const totalGross = rows.reduce((s, r) => s + Number(r.grossIncome || 0), 0);
-  const totalVat = rows.reduce((s, r) => s + Number(r.vat || 0), 0);
+
+  const clientRows = clientMode
+    ? rows.filter((r) => r.status === "Working Day")
+    : rows;
+
+  const totalTrips = clientRows.reduce((s, r) => s + Number(r.trips || 0), 0);
+
+  const totalGross = clientRows.reduce(
+    (s, r) => s + Number(r.grossIncome || 0),
+    0,
+  );
+
+  const totalVat = clientRows.reduce((s, r) => s + Number(r.vat || 0), 0);
   const parkingPasswayTotal = expenseRows
     .filter((e) => (e.category || "").toUpperCase() === "PARKING/PASSWAY")
     .reduce((sum, e) => sum + Number(e.amount || 0), 0);
@@ -298,9 +308,18 @@ export function exportMonthlyReport(
   const statementPeriodEnd =
     statementDates[statementDates.length - 1] ?? fallbackDate;
 
-  const statementYear = statementPeriodEnd.getFullYear();
+  const customPeriodMatch = periodText.match(
+    /([A-Za-z]+)\s+\d{1,2},\s+(\d{4})\s+to\s+([A-Za-z]+)\s+\d{1,2},\s+(\d{4})/i,
+  );
 
-  const statementMonth = String(statementPeriodEnd.getMonth() + 1).padStart(
+  const statementNumberDate =
+    customPeriodMatch && customPeriodMatch[3] && customPeriodMatch[4]
+      ? new Date(`${customPeriodMatch[3]} 1, ${customPeriodMatch[4]}`)
+      : statementPeriodEnd;
+
+  const statementYear = statementNumberDate.getFullYear();
+
+  const statementMonth = String(statementNumberDate.getMonth() + 1).padStart(
     2,
     "0",
   );
@@ -318,7 +337,10 @@ export function exportMonthlyReport(
       year: "numeric",
     });
 
-  const statementPeriod = `${formatStatementDate(statementPeriodStart)} to ${formatStatementDate(statementPeriodEnd)}`;
+  const statementPeriod =
+    periodText && periodText.trim()
+      ? periodText.trim()
+      : `${formatStatementDate(statementPeriodStart)} to ${formatStatementDate(statementPeriodEnd)}`;
 
   const formatDateShort = (value: string) => {
     if (!value) return "";
@@ -375,8 +397,7 @@ export function exportMonthlyReport(
     })
     .join("");
 
-  const clientRowHtml = rows
-    .filter((r) => r.status === "Working Day")
+  const clientRowHtml = clientRows
     .map((r) => {
       return `<tr>
       <td class="date-col">${escHtml(

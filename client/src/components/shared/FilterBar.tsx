@@ -27,6 +27,14 @@ interface FilterBarProps {
   onMonthChange?: (val: string) => void;
   actions?: React.ReactNode;
   allowedRangePresets?: readonly RangePreset[];
+
+  reportPeriodType?: "monthly" | "custom";
+  onReportPeriodTypeChange?: (val: "monthly" | "custom") => void;
+
+  customStartDate?: string;
+  customEndDate?: string;
+  onCustomStartDateChange?: (val: string) => void;
+  onCustomEndDateChange?: (val: string) => void;
 }
 
 const RANGE_OPTIONS = [
@@ -64,6 +72,14 @@ export default function FilterBar({
   onMonthChange,
   actions,
   allowedRangePresets,
+
+  reportPeriodType,
+  onReportPeriodTypeChange,
+
+  customStartDate,
+  customEndDate,
+  onCustomStartDateChange,
+  onCustomEndDateChange,
 }: FilterBarProps) {
   const {
     truckOptions,
@@ -130,6 +146,66 @@ export default function FilterBar({
   return (
     <div className="border rounded-lg p-4 bg-background">
       <div className="flex flex-wrap gap-3 items-end">
+        {reportPeriodType && onReportPeriodTypeChange && (
+          <div className="min-w-[180px] flex-1 max-w-[220px]">
+            <label className="text-[0.72rem] font-bold tracking-wider uppercase text-muted-foreground mb-1.5 block">
+              Report Period
+            </label>
+
+            <Popover open={openRangePreset} onOpenChange={setOpenRangePreset}>
+              <PopoverTrigger asChild>
+                <button
+                  role="combobox"
+                  className="w-full h-[44px] justify-between rounded-md border border-border bg-background px-3 text-sm flex items-center"
+                >
+                  {reportPeriodType === "monthly" ? "Monthly" : "Custom Range"}
+
+                  <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
+                </button>
+              </PopoverTrigger>
+
+              <PopoverContent className="w-[220px] p-0">
+                <Command>
+                  <CommandGroup>
+                    <CommandItem
+                      value="Monthly"
+                      onSelect={() => {
+                        onReportPeriodTypeChange("monthly");
+                        setOpenRangePreset(false);
+                      }}
+                    >
+                      <Check
+                        className={`mr-2 h-4 w-4 ${
+                          reportPeriodType === "monthly"
+                            ? "opacity-100"
+                            : "opacity-0"
+                        }`}
+                      />
+                      Monthly
+                    </CommandItem>
+
+                    <CommandItem
+                      value="Custom Range"
+                      onSelect={() => {
+                        onReportPeriodTypeChange("custom");
+                        setOpenRangePreset(false);
+                      }}
+                    >
+                      <Check
+                        className={`mr-2 h-4 w-4 ${
+                          reportPeriodType === "custom"
+                            ? "opacity-100"
+                            : "opacity-0"
+                        }`}
+                      />
+                      Custom Range
+                    </CommandItem>
+                  </CommandGroup>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
+        )}
         {showRange && (
           <div className="min-w-[180px] flex-1 max-w-[220px]">
             <label className="text-[0.72rem] font-bold tracking-wider uppercase text-muted-foreground mb-1.5 block">
@@ -283,7 +359,7 @@ export default function FilterBar({
           </div>
         )}
 
-        {showMonth && (
+        {showMonth && reportPeriodType !== "custom" && (
           <div className="min-w-[180px] flex-1 max-w-[220px]">
             <label className="text-[0.72rem] font-bold tracking-wider uppercase text-muted-foreground mb-1.5 block">
               Range
@@ -328,6 +404,75 @@ export default function FilterBar({
                     ))}
                   </CommandGroup>
                 </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
+        )}
+
+        {showMonth && reportPeriodType === "custom" && (
+          <div className="min-w-[260px] flex-1 max-w-[320px]">
+            <label className="text-[0.72rem] font-bold tracking-wider uppercase text-muted-foreground mb-1.5 flex items-center gap-1">
+              <CalendarDays size={12} />
+              Period
+            </label>
+
+            <Popover open={openRange} onOpenChange={setOpenRange}>
+              <PopoverTrigger asChild>
+                <button className="w-full h-[44px] justify-between rounded-md border border-border bg-background px-3 text-sm flex items-center">
+                  {customStartDate && customEndDate
+                    ? `${format(new Date(`${customStartDate}T00:00:00`), "MMM d, yyyy")} - ${format(
+                        new Date(`${customEndDate}T00:00:00`),
+                        "MMM d, yyyy",
+                      )}`
+                    : "Select date range"}
+
+                  <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
+                </button>
+              </PopoverTrigger>
+
+              <PopoverContent className="w-auto p-0">
+                <Calendar
+                  mode="range"
+                  selected={
+                    customStartDate
+                      ? {
+                          from: new Date(`${customStartDate}T00:00:00`),
+                          to: customEndDate
+                            ? new Date(`${customEndDate}T00:00:00`)
+                            : undefined,
+                        }
+                      : undefined
+                  }
+                  onSelect={(range) => {
+                    if (!range?.from) {
+                      onCustomStartDateChange?.("");
+                      onCustomEndDateChange?.("");
+                      return;
+                    }
+
+                    const start = range.from;
+                    const end = range.to;
+
+                    onCustomStartDateChange?.(format(start, "yyyy-MM-dd"));
+
+                    const hasCompleteRange =
+                      end && end.getTime() !== start.getTime();
+
+                    if (hasCompleteRange) {
+                      onCustomEndDateChange?.(format(end, "yyyy-MM-dd"));
+                      setOpenRange(false);
+                    } else {
+                      onCustomEndDateChange?.("");
+                    }
+                  }}
+                  numberOfMonths={2}
+                  defaultMonth={
+                    customStartDate
+                      ? new Date(`${customStartDate}T00:00:00`)
+                      : new Date()
+                  }
+                  showOutsideDays
+                />
               </PopoverContent>
             </Popover>
           </div>

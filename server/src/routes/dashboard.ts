@@ -107,19 +107,47 @@ function calculateKpis(rows: any[], expenses: any[]) {
 function getPreviousPeriodRange(
   start: string | undefined,
   end: string | undefined,
-): { prevStart: Date; prevEnd: Date } | null {
+): { start: Date; end: Date } | null {
   if (!start || !end) return null;
 
   const startDate = new Date(start);
-  const endDate = new Date(end);
-  const durationMs = endDate.getTime() - startDate.getTime();
+  startDate.setHours(0, 0, 0, 0);
 
-  const prevEnd = new Date(startDate.getTime() - 1); // day before current start
+  const endDate = new Date(end);
+  endDate.setHours(23, 59, 59, 999);
+
+  // Inclusive number of calendar days in selected range
+  const DAY_MS = 24 * 60 * 60 * 1000;
+
+  const dayCount =
+    Math.floor(
+      (new Date(
+        endDate.getFullYear(),
+        endDate.getMonth(),
+        endDate.getDate(),
+      ).getTime() -
+        new Date(
+          startDate.getFullYear(),
+          startDate.getMonth(),
+          startDate.getDate(),
+        ).getTime()) /
+        DAY_MS,
+    ) + 1;
+
+  // Previous period ends the day before current period starts
+  const prevEnd = new Date(startDate);
+  prevEnd.setDate(prevEnd.getDate() - 1);
   prevEnd.setHours(23, 59, 59, 999);
-  const prevStart = new Date(prevEnd.getTime() - durationMs);
+
+  // Move back dayCount - 1 more days
+  const prevStart = new Date(prevEnd);
+  prevStart.setDate(prevStart.getDate() - (dayCount - 1));
   prevStart.setHours(0, 0, 0, 0);
 
-  return { prevStart, prevEnd };
+  return {
+    start: prevStart,
+    end: prevEnd,
+  };
 }
 
 // GET /api/dashboard?truck=&start=&end=
@@ -218,12 +246,15 @@ router.get("/", async (req: Request, res: Response) => {
           ? rawPreset
           : "ALL";
 
-      const prevRange = previousRangeForPreset(
-        preset,
-        truckConfig?.cutoffType ?? "weekly",
-        truckConfig?.cutoffStart ?? 1,
-        truckConfig?.cutoffEnd ?? 6,
-      );
+      const prevRange =
+        preset === "CUSTOM"
+          ? getPreviousPeriodRange(start as string, end as string)
+          : previousRangeForPreset(
+              preset,
+              truckConfig?.cutoffType ?? "weekly",
+              truckConfig?.cutoffStart ?? 1,
+              truckConfig?.cutoffEnd ?? 6,
+            );
 
       if (prevRange) {
         const prevTripFilter: any = {};
@@ -342,19 +373,38 @@ router.get("/", async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/dashboard/reports?truck=&month=
+// GET /api/dashboard/reports?truck=&month=&start=&end=
 router.get("/reports", async (req: Request, res: Response) => {
   try {
-    const { truck, month } = req.query;
+    const { truck, month, start, end } = req.query;
+
     const filter: any = {};
 
     if (truck) {
       filter.truck = truck;
     }
 
-    if (month && month !== "ALL") {
+    // Custom date range takes priority over month
+    if (start || end) {
+      filter.date = {};
+
+      if (start) {
+        const startDate = new Date(start as string);
+        startDate.setHours(0, 0, 0, 0);
+
+        filter.date.$gte = startDate;
+      }
+
+      if (end) {
+        const endDate = new Date(end as string);
+        endDate.setHours(23, 59, 59, 999);
+
+        filter.date.$lte = endDate;
+      }
+    } else if (month && month !== "ALL") {
       const year = new Date().getFullYear();
       const m = Number(month) - 1;
+
       filter.date = {
         $gte: new Date(year, m, 1),
         $lte: new Date(year, m + 1, 0, 23, 59, 59, 999),
@@ -365,7 +415,17 @@ router.get("/reports", async (req: Request, res: Response) => {
       .populate("truck", "truckName")
       .sort({ date: 1, createdAt: 1 });
 
-    const allExpenses = await Expense.find(filter);
+    const expenseFilter: any = {};
+
+    if (truck) {
+      expenseFilter.truck = truck;
+    }
+
+    if (filter.date) {
+      expenseFilter.date = filter.date;
+    }
+
+    const allExpenses = await Expense.find(expenseFilter);
 
     const formattedTrips = trips.map((t) => formatTripResponse(t as any));
     const enriched = attachExpenseNotes(formattedTrips, allExpenses);
