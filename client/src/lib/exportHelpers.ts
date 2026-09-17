@@ -1111,7 +1111,7 @@ export function exportMonthlyReport(
         }
 
         <div class="summary-row statement-payable-row">
-          <span class="summary-label">TOTAL PAYABLE</span>
+          <span class="summary-label">TOTAL</span>
           <span class="summary-value">${peso(totalReceivable)}</span>
         </div>
       </div>
