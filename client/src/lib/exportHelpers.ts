@@ -1295,7 +1295,7 @@ export function exportMonthlyReport(
       <tbody>
         ${
           clientRowHtml ||
-          '<tr><td colspan="5" style="text-align:center;color:#999;padding:20px">No Records</td></tr>'
+          '<tr><td colspan="5" style="text-align:center;color:#999;padding:20px">No rows</td></tr>'
         }
       </tbody>
     </table>

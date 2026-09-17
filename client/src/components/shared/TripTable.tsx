@@ -1,4 +1,5 @@
 import {
+  Fragment,
   useState,
   useRef,
   useEffect,
@@ -36,6 +37,9 @@ import {
   AlertCircle,
   HelpCircle,
   CheckCheck,
+  ChevronRight,
+  ChevronDown,
+  Receipt,
 } from "lucide-react";
 import EmptyState from "./EmptyState";
 import { Skeleton, SkeletonTableRow } from "./Skeleton";
@@ -99,6 +103,7 @@ export interface TripTableProps {
   }) => void;
   selectedTruck?: string;
   reportMode?: boolean;
+  expandableDetails?: boolean;
   selectable?: boolean;
   selectedIds?: string[];
   onSelectionChange?: (ids: string[]) => void;
@@ -486,6 +491,7 @@ export default function TripTable({
   selectedTruck = "",
   totalsRows,
   reportMode = false,
+  expandableDetails = false,
   selectable = false,
   selectedIds = [],
   onSelectionChange,
@@ -513,6 +519,23 @@ export default function TripTable({
   });
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(
+    () => new Set(),
+  );
+
+  const toggleExpandedRow = (id: string) => {
+    setExpandedRows((prev) => {
+      const next = new Set(prev);
+
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+
+      return next;
+    });
+  };
   const [editingLabel, setEditingLabel] = useState<string | null>(null);
   const [labelDraft, setLabelDraft] = useState("");
   const [columnLabels, setColumnLabels] = useState(getColumnLabels());
@@ -622,19 +645,36 @@ export default function TripTable({
       });
     if (show("trips"))
       cols.push({ key: "trips", label: "Trips", sortField: "trips" });
-    if (show("crewSalary"))
+    if (!expandableDetails && show("crewSalary"))
       cols.push({
         key: "crewSalary",
         label: "Crew Salary",
         sortField: "crewSalary",
       });
-    if (show("cashAdvance"))
-      cols.push({ key: "cashAdvance", label: columnLabels.cashAdvance });
-    if (show("reimbursements"))
-      cols.push({ key: "reimbursements", label: "Cr. Reimb." });
-    if (show("expenses")) cols.push({ key: "expenses", label: "Expenses" });
-    if (show("note"))
-      cols.push({ key: "note", label: "Note", className: "max-w-[120px]" });
+
+    if (!expandableDetails && show("cashAdvance"))
+      cols.push({
+        key: "cashAdvance",
+        label: columnLabels.cashAdvance,
+      });
+
+    if (!expandableDetails && show("reimbursements"))
+      cols.push({
+        key: "reimbursements",
+        label: "Cr. Reimb.",
+      });
+
+    if (!expandableDetails && show("expenses"))
+      cols.push({
+        key: "expenses",
+        label: "Expenses",
+      });
+
+    if (!expandableDetails && show("note"))
+      cols.push({
+        key: "note",
+        label: "Note",
+      });
     if (show("grossIncome"))
       cols.push({
         key: "grossIncome",
@@ -794,8 +834,66 @@ export default function TripTable({
       case "week":
         return r.week;
 
-      case "date":
-        return r.dateText;
+      case "date": {
+        const isExpanded = expandedRows.has(r._id);
+        const hasExpenses =
+          Boolean(r.hasExpenses) || Number(r.expenses || 0) > 0;
+
+        const shortDate = new Date(`${r.dateIso}T00:00:00`).toLocaleDateString(
+          "en-US",
+          {
+            weekday: "short",
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          },
+        );
+
+        return expandableDetails ? (
+          <div className="inline-flex items-center gap-2 whitespace-nowrap">
+            <button
+              type="button"
+              onClick={() => toggleExpandedRow(r._id)}
+              className="inline-flex items-center gap-1.5 font-medium hover:text-blue-600 transition-colors"
+              title={isExpanded ? "Hide details" : "Show details"}
+            >
+              {isExpanded ? (
+                <ChevronDown size={14} className="text-muted-foreground" />
+              ) : (
+                <ChevronRight size={14} className="text-muted-foreground" />
+              )}
+
+              {shortDate}
+            </button>
+
+            {hasExpenses && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex items-center justify-center text-blue-500 cursor-help">
+                      <Receipt size={14} />
+                    </span>
+                  </TooltipTrigger>
+
+                  <TooltipContent>
+                    <div className="text-xs">
+                      <div className="font-semibold">Expenses recorded</div>
+                      <div className="opacity-80">
+                        {peso(Number(r.expenses || 0))} total
+                      </div>
+                      <div className="opacity-60 mt-0.5">
+                        Expand this trip to view details
+                      </div>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </div>
+        ) : (
+          shortDate
+        );
+      }
 
       case "truck":
         return r.truckName || "—";
@@ -1038,10 +1136,7 @@ export default function TripTable({
         const netValue = netValueFor(r);
         return (
           <span
-            className={cn(
-              "font-semibold",
-              netValue < 0 ? "text-red-500" : "text-green-500",
-            )}
+            className={cn(netValue < 0 ? "text-red-500" : "text-green-500")}
           >
             {peso(netValue)}
           </span>
@@ -1049,11 +1144,7 @@ export default function TripTable({
       }
 
       case "payable":
-        return (
-          <span className="text-red-500 font-semibold">
-            {displayPayableFor(r)}
-          </span>
-        );
+        return <span className="text-red-500">{displayPayableFor(r)}</span>;
 
       case "paid": {
         const isLoading = loadingId === r._id;
@@ -1167,7 +1258,7 @@ export default function TripTable({
         <thead>
           <tr>
             {selectable && (
-              <th className="sticky top-[101px] z-50 bg-muted/60 backdrop-blur border-b border-slate-200 dark:border-slate-700 text-left text-xs font-semibold text-muted-foreground px-2.5 py-3 whitespace-nowrap">
+              <th className="sticky top-[101px] z-10 bg-muted/60 backdrop-blur border-b border-slate-200 dark:border-slate-700 text-left text-xs font-semibold text-muted-foreground px-2.5 py-3 whitespace-nowrap">
                 <input
                   type="checkbox"
                   checked={allSelected}
@@ -1191,7 +1282,7 @@ export default function TripTable({
                     column?.toggleSorting()
                   }
                   className={cn(
-                    "group sticky top-[101px] z-50 bg-muted/60 backdrop-blur border-b border-slate-200 dark:border-slate-700 text-xs font-semibold text-muted-foreground px-2.5 py-3 whitespace-nowrap cursor-pointer select-none transition-colors hover:bg-muted hover:text-foreground",
+                    "group sticky top-[101px] z-10 bg-muted/60 backdrop-blur border-b border-slate-200 dark:border-slate-700 text-xs font-semibold text-muted-foreground px-2.5 py-3 whitespace-nowrap cursor-pointer select-none transition-colors hover:bg-muted hover:text-foreground",
                     col.key === "paid" ? "text-center" : "text-left",
                     idx === 0 && !selectable && "left-0 z-20",
                     idx === 0 && selectable && "left-[40px] z-20",
@@ -1268,7 +1359,7 @@ export default function TripTable({
               );
             })}
             {showActions && (
-              <th className="sticky top-[101px] z-50 bg-muted/60 backdrop-blur border-b border-slate-200 dark:border-slate-700 text-left text-xs font-semibold text-muted-foreground px-2.5 py-3 whitespace-nowrap">
+              <th className="sticky top-[101px] z-10 bg-muted/60 backdrop-blur border-b border-slate-200 dark:border-slate-700 text-left text-xs font-semibold text-muted-foreground px-2.5 py-3 whitespace-nowrap">
                 Actions
               </th>
             )}
@@ -1297,78 +1388,268 @@ export default function TripTable({
             table.getRowModel().rows.map((row) => {
               const r = row.original;
               return (
-                <tr
-                  key={row.id}
-                  className={cn(
-                    "hover:bg-muted/50",
-                    r.status === "Holiday" && "bg-muted/30",
-                    r.status === "Day Off" &&
-                      "bg-slate-50/80 dark:bg-slate-800/30 text-slate-400",
-                    selectable && selectedIds.includes(r._id) && "bg-muted",
-                  )}
-                >
-                  {selectable && (
-                    <td className="sticky left-0 z-[5] bg-background text-left px-2.5 py-2.5 border-b border-border w-[40px] min-w-[40px] max-w-[40px]">
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.includes(r._id)}
-                        onChange={() => handleSelectRow(r._id)}
-                        className="w-4 h-4 rounded border-border text-blue-600 focus:ring-blue-500/20 cursor-pointer"
-                      />
-                    </td>
-                  )}
-                  {columns.map((col, idx) => (
-                    <td
-                      key={col.key}
-                      className={cn(
-                        "text-xs px-2.5 py-2.5 border-b border-border",
-                        col.key === "paid" ? "text-center" : "text-left",
-                        idx === 0 && !selectable && "sticky left-0 z-[5]",
-                        idx === 0 && selectable && "sticky left-[40px] z-[5]",
-                        col.className,
-                      )}
-                    >
-                      {renderCell(col.key, r)}
-                    </td>
-                  ))}
-                  {showActions && (
-                    <td className="text-left text-xs px-2.5 py-2.5 border-b border-border">
-                      <div className="flex items-center justify-center">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <button className="w-[34px] h-[34px] rounded-md inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-background text-slate-600 hover:bg-muted transition-all">
-                              <MoreVertical size={16} />
-                            </button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent
-                            align="end"
-                            className="w-[160px]"
-                          >
-                            {onEdit && (!canEditRow || canEditRow(r)) && (
-                              <DropdownMenuItem onClick={() => onEdit(r)}>
-                                <Pencil size={14} className="mr-2" /> Edit
-                              </DropdownMenuItem>
+                <Fragment key={row.id}>
+                  <tr
+                    className={cn(
+                      "hover:bg-muted/50",
+                      r.status === "Holiday" && "bg-muted/30",
+                      r.status === "Day Off" &&
+                        "bg-slate-50/80 dark:bg-slate-800/30 text-slate-400",
+                      selectable && selectedIds.includes(r._id) && "bg-muted",
+                    )}
+                  >
+                    {selectable && (
+                      <td className="sticky left-0 z-[5] bg-background text-left px-2.5 py-2.5 border-b border-border w-[40px] min-w-[40px] max-w-[40px]">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(r._id)}
+                          onChange={() => handleSelectRow(r._id)}
+                          className="w-4 h-4 rounded border-border text-blue-600 focus:ring-blue-500/20 cursor-pointer"
+                        />
+                      </td>
+                    )}
+                    {columns.map((col, idx) => (
+                      <td
+                        key={col.key}
+                        className={cn(
+                          "text-xs px-2.5 py-2.5 border-b border-border",
+                          col.key === "paid" ? "text-center" : "text-left",
+                          idx === 0 && !selectable && "sticky left-0 z-[5]",
+                          idx === 0 && selectable && "sticky left-[40px] z-[5]",
+                          col.className,
+                        )}
+                      >
+                        {renderCell(col.key, r)}
+                      </td>
+                    ))}
+                    {showActions && (
+                      <td className="text-left text-xs px-2.5 py-2.5 border-b border-border">
+                        <div className="flex items-center justify-center">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button className="w-[34px] h-[34px] rounded-md inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-background text-slate-600 hover:bg-muted transition-all">
+                                <MoreVertical size={16} />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent
+                              align="end"
+                              className="w-[160px]"
+                            >
+                              {onEdit && (!canEditRow || canEditRow(r)) && (
+                                <DropdownMenuItem onClick={() => onEdit(r)}>
+                                  <Pencil size={14} className="mr-2" /> Edit
+                                </DropdownMenuItem>
+                              )}
+                              {onDuplicate && (
+                                <DropdownMenuItem
+                                  onClick={() => onDuplicate(r)}
+                                >
+                                  <Copy size={14} className="mr-2" /> Duplicate
+                                </DropdownMenuItem>
+                              )}
+                              {onDelete &&
+                                (!canDeleteRow || canDeleteRow(r)) && (
+                                  <DropdownMenuItem
+                                    onClick={() => onDelete(r)}
+                                    variant="destructive"
+                                  >
+                                    <Trash2 size={14} className="mr-2" /> Delete
+                                  </DropdownMenuItem>
+                                )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </td>
+                    )}
+                    {!showActions && <td className="w-[1px] p-0" />}
+                  </tr>
+                  {expandableDetails && expandedRows.has(r._id) && (
+                    <tr>
+                      <td
+                        colSpan={colCount}
+                        className="border-b border-border bg-muted/60 px-4 py-3"
+                      >
+                        <div className="ml-4 border-l-2 border-foreground/20 pl-4">
+                          {/* Parent trip reference */}
+                          <div className="flex flex-wrap items-center gap-2 mb-3">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                              Trip Details
+                            </span>
+
+                            <span className="text-muted-foreground/40">•</span>
+
+                            <span className="text-xs font-semibold">
+                              {r.dateText}
+                            </span>
+
+                            {r.shipmentNumber && (
+                              <>
+                                <span className="text-muted-foreground/40">
+                                  •
+                                </span>
+
+                                <span className="text-xs text-muted-foreground">
+                                  {columnLabels.shipmentNumber}:{" "}
+                                  {r.shipmentNumber}
+                                </span>
+                              </>
                             )}
-                            {onDuplicate && (
-                              <DropdownMenuItem onClick={() => onDuplicate(r)}>
-                                <Copy size={14} className="mr-2" /> Duplicate
-                              </DropdownMenuItem>
-                            )}
-                            {onDelete && (!canDeleteRow || canDeleteRow(r)) && (
-                              <DropdownMenuItem
-                                onClick={() => onDelete(r)}
-                                variant="destructive"
+                          </div>
+
+                          {/* Detail values */}
+                          <div className="grid grid-cols-2 lg:grid-cols-5 gap-x-8 gap-y-4">
+                            <div>
+                              <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+                                Crew Salary
+                              </div>
+
+                              <div className="text-sm font-semibold">
+                                {peso(Number(r.crewSalary || 0))}
+                              </div>
+                            </div>
+
+                            <div>
+                              <div
+                                onDoubleClick={() => {
+                                  setEditingLabel("cashAdvance");
+                                  setLabelDraft(columnLabels.cashAdvance);
+                                }}
+                                className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1 cursor-pointer hover:text-foreground transition-colors"
+                                title="Double-click to rename"
                               >
-                                <Trash2 size={14} className="mr-2" /> Delete
-                              </DropdownMenuItem>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </td>
+                                {editingLabel === "cashAdvance" ? (
+                                  <input
+                                    value={labelDraft}
+                                    autoFocus
+                                    onChange={(e) =>
+                                      setLabelDraft(e.target.value)
+                                    }
+                                    onBlur={() => {
+                                      const updated = {
+                                        ...columnLabels,
+                                        cashAdvance:
+                                          labelDraft.trim() || "Allowance",
+                                      };
+
+                                      localStorage.setItem(
+                                        "column-labels",
+                                        JSON.stringify(updated),
+                                      );
+
+                                      setColumnLabels(updated);
+                                      setEditingLabel(null);
+                                    }}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") {
+                                        const updated = {
+                                          ...columnLabels,
+                                          cashAdvance:
+                                            labelDraft.trim() || "Allowance",
+                                        };
+
+                                        localStorage.setItem(
+                                          "column-labels",
+                                          JSON.stringify(updated),
+                                        );
+
+                                        setColumnLabels(updated);
+                                        setEditingLabel(null);
+                                      }
+
+                                      if (e.key === "Escape") {
+                                        setEditingLabel(null);
+                                      }
+                                    }}
+                                    onDoubleClick={(e) => e.stopPropagation()}
+                                    className="w-[120px] text-xs px-1.5 py-1 border rounded bg-background text-foreground normal-case"
+                                  />
+                                ) : (
+                                  columnLabels.cashAdvance
+                                )}
+                              </div>
+
+                              <div className="text-sm font-semibold">
+                                {peso(Number(r.cashAdvance || 0))}
+                              </div>
+                            </div>
+
+                            <div>
+                              <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+                                Crew Reimbursement
+                              </div>
+
+                              <div className="text-sm font-semibold flex items-center gap-1.5">
+                                {r.paid &&
+                                  Number(r.reimbursements || 0) > 0 && (
+                                    <CheckCheck
+                                      size={14}
+                                      className="text-green-500"
+                                    />
+                                  )}
+
+                                <span
+                                  className={cn(
+                                    r.paid &&
+                                      Number(r.reimbursements || 0) > 0 &&
+                                      "text-muted-foreground line-through",
+                                  )}
+                                >
+                                  {peso(Number(r.reimbursements || 0))}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div>
+                              <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+                                Expenses
+                              </div>
+
+                              <div className="text-sm font-semibold">
+                                {peso(Number(r.expenses || 0))}
+                              </div>
+                            </div>
+
+                            <div className="col-span-2 lg:col-span-1">
+                              <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+                                Expense Breakdown
+                              </div>
+
+                              {onExpenseClick &&
+                              (r.hasExpenses || r.expenses > 0 || r.note) ? (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const truckId =
+                                      typeof r.truck === "string"
+                                        ? r.truck
+                                        : r.truck &&
+                                            typeof r.truck === "object" &&
+                                            "_id" in r.truck
+                                          ? r.truck._id
+                                          : selectedTruck;
+
+                                    onExpenseClick({
+                                      truckId,
+                                      dateIso: r.dateIso,
+                                      dateText: r.dateText,
+                                    });
+                                  }}
+                                  className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline text-left"
+                                >
+                                  {r.note || "View expense details"}
+                                </button>
+                              ) : (
+                                <div className="text-sm font-medium">
+                                  {r.note || "—"}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
                   )}
-                  {!showActions && <td className="w-[1px] p-0" />}
-                </tr>
+                </Fragment>
               );
             })
           )}

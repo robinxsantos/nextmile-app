@@ -37,11 +37,6 @@ export default function ReportsPage() {
     ["shipmentNumber", "Shipment #"],
     ["rate", "Rate"],
     ["trips", "Trips"],
-    ["crewSalary", "Crew Salary"],
-    ["cashAdvance", "Cash Adv."],
-    ["reimbursements", "Cr. Reimb."],
-    ["expenses", "Expenses"],
-    ["note", "Note"],
     ["grossIncome", "Gross"],
     ["netIncome", "Net"],
     ["payable", "Payable"],
@@ -59,11 +54,6 @@ export default function ReportsPage() {
     shipmentNumber: true,
     rate: true,
     trips: false,
-    crewSalary: true,
-    cashAdvance: true,
-    reimbursements: true,
-    expenses: true,
-    note: true,
     grossIncome: true,
     netIncome: true,
     payable: true,
@@ -377,7 +367,7 @@ export default function ReportsPage() {
         <div className="mb-3">
           <input
             type="text"
-            placeholder="Search shipment..."
+            placeholder="Search Shipment Number..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full border border-border rounded-md px-3 py-2 text-sm"
@@ -385,6 +375,7 @@ export default function ReportsPage() {
         </div>
         <TripTable
           rows={reportRows}
+          expandableDetails
           totalsRows={reportRows}
           loading={false}
           showActions={false}

@@ -46,11 +46,6 @@ const COLUMN_OPTIONS = [
   ["shipmentNumber", "Shipment #"],
   ["rate", "Rate"],
   ["trips", "Trips"],
-  ["crewSalary", "Crew Salary"],
-  ["cashAdvance", "Cash Adv."],
-  ["reimbursements", "Cr. Reimb."],
-  ["expenses", "Expenses"],
-  ["note", "Note"],
   ["grossIncome", "Gross"],
   ["netIncome", "Net"],
   ["payable", "Payable"],
@@ -128,11 +123,6 @@ export default function TripsPage() {
     shipmentNumber: true,
     rate: true,
     trips: false,
-    crewSalary: true,
-    cashAdvance: true,
-    reimbursements: true,
-    expenses: true,
-    note: true,
     grossIncome: true,
     netIncome: true,
     payable: true,
@@ -412,7 +402,7 @@ export default function TripsPage() {
         </div>
       </div>
 
-      <div className="sticky top-0 z-20 bg-background">
+      <div className="sticky top-0 z-30 bg-background">
         <FilterBar
           showTruck={admin}
           showRange
@@ -475,7 +465,7 @@ export default function TripsPage() {
               <input
                 ref={searchInputRef}
                 type="text"
-                placeholder="Search Shipment Number... ( / )"
+                placeholder="Search Shipment Number..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full min-h-[44px] rounded-md border border-border bg-background text-sm pl-9 pr-3.5 focus:outline-none focus:border-ring transition-colors"
@@ -521,7 +511,7 @@ export default function TripsPage() {
                 </button>
               </>
             )}
-            <div ref={dropdownRef} className="relative">
+            <div ref={dropdownRef} className="relative z-[60]">
               <button
                 onClick={() => setShowColumnsMenu((v) => !v)}
                 className={cn(
@@ -535,7 +525,7 @@ export default function TripsPage() {
                 <Columns3 size={18} />
               </button>
               {showColumnsMenu && (
-                <div className="absolute right-0 mt-2 z-20 w-64 max-h-[320px] overflow-y-auto rounded-md border border-border bg-background p-2">
+                <div className="absolute right-0 mt-2 z-[70] w-64 max-h-[320px] overflow-y-auto rounded-md border border-border bg-background p-2 shadow-lg">
                   <div className="px-2 pb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                     Show Columns
                   </div>
@@ -580,6 +570,7 @@ export default function TripsPage() {
 
         <TripTable
           rows={tripRows}
+          expandableDetails
           totalsRows={tripRows}
           searchQuery={searchQuery}
           loading={loading}
@@ -642,7 +633,7 @@ export default function TripsPage() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 40 }}
             transition={{ duration: 0.25, ease: "easeOut" }}
-            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-20 w-[calc(100%-2rem)] max-w-lg"
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-2rem)] max-w-lg"
           >
             <div className="glass-card rounded-2xl border border-slate-200/80 dark:border-slate-700/80 shadow-[0_8px_32px_rgba(37,99,235,0.18)] dark:shadow-[0_8px_32px_rgba(37,99,235,0.25)] px-4 py-3 flex flex-col sm:flex-row items-center justify-center gap-2">
               <span className="text-sm font-semibold whitespace-nowrap">

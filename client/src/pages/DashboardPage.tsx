@@ -160,11 +160,6 @@ const COLUMN_OPTIONS = [
   ["rate", "Rate"],
   ["vat", "VAT"],
   ["trips", "Trips"],
-  ["crewSalary", "Crew Salary"],
-  ["cashAdvance", "Cash Adv."],
-  ["reimbursements", "Cr. Reimb."],
-  ["expenses", "Expenses"],
-  ["note", "Note"],
   ["grossIncome", "Gross"],
   ["netIncome", "Net"],
   ["payable", "Payable"],
@@ -228,11 +223,6 @@ export default function DashboardPage() {
     rate: true,
     vat: true,
     trips: false,
-    crewSalary: true,
-    cashAdvance: true,
-    reimbursements: true,
-    expenses: true,
-    note: true,
     grossIncome: true,
     netIncome: true,
     payable: true,
@@ -1012,7 +1002,7 @@ export default function DashboardPage() {
               <input
                 ref={searchInputRef}
                 type="text"
-                placeholder="Search Shipment Number... ( / )"
+                placeholder="Search Shipment Number..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full min-h-[44px] rounded-md border border-border bg-background text-sm pl-9 pr-3.5 focus:outline-none focus:border-ring transition-colors"
@@ -1089,6 +1079,7 @@ export default function DashboardPage() {
 
         <TripTable
           rows={tripRows}
+          expandableDetails
           totalsRows={tripRows}
           loading={loading}
           verificationFilter={verificationFilter}
