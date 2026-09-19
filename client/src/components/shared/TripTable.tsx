@@ -18,7 +18,7 @@ import {
   getFilteredRowModel,
   type ColumnFiltersState,
 } from "@tanstack/react-table";
-import { type TripRow } from "../../store/useAppStore";
+import { type TripRow, type ExpenseRow } from "../../store/useAppStore";
 import { peso, cn } from "../../lib/utils";
 import { getColumnLabels } from "../../lib/columnLabels";
 import {
@@ -90,6 +90,7 @@ type ColDesc = {
 
 export interface TripTableProps {
   rows: TripRow[];
+  expenseRows?: ExpenseRow[];
   loading?: boolean;
   showActions?: boolean;
   onTogglePaid?: (id: string) => Promise<void>;
@@ -481,6 +482,7 @@ function TripCard({
 
 export default function TripTable({
   rows,
+  expenseRows = [],
   loading = false,
   showActions = true,
   onTogglePaid,
@@ -540,6 +542,32 @@ export default function TripTable({
   const [labelDraft, setLabelDraft] = useState("");
   const [columnLabels, setColumnLabels] = useState(getColumnLabels());
   const totalsSource = totalsRows ?? rows;
+
+  const getExpensesForTrip = (trip: TripRow) => {
+    const tripIdMatches = expenseRows.filter(
+      (expense) => expense.tripId === trip._id,
+    );
+
+    if (tripIdMatches.length > 0) {
+      return tripIdMatches;
+    }
+
+    // Fallback for older expenses that don't have tripId.
+    // Only match truck + date to reduce accidental cross-truck matches.
+    const tripTruckId =
+      typeof trip.truck === "string" ? trip.truck : trip.truck?._id || "";
+
+    return expenseRows.filter((expense) => {
+      if (expense.tripId) return false;
+
+      const expenseTruckId =
+        typeof expense.truck === "string"
+          ? expense.truck
+          : expense.truck?._id || "";
+
+      return expenseTruckId === tripTruckId && expense.dateIso === trip.dateIso;
+    });
+  };
 
   const totals = useMemo(() => {
     return totalsSource.reduce(
@@ -1390,6 +1418,8 @@ export default function TripTable({
           ) : (
             table.getRowModel().rows.map((row) => {
               const r = row.original;
+              const tripExpenses = getExpensesForTrip(r);
+
               return (
                 <Fragment key={row.id}>
                   <tr
@@ -1489,32 +1519,58 @@ export default function TripTable({
                             <span className="text-muted-foreground/40">•</span>
 
                             <span className="text-xs font-semibold">
-                              {r.dateText}
+                              {new Date(
+                                `${r.dateIso}T00:00:00`,
+                              ).toLocaleDateString("en-US", {
+                                weekday: "short",
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
+                              })}
                             </span>
 
-                            {r.shipmentNumber && (
-                              <>
-                                <span className="text-muted-foreground/40">
-                                  •
-                                </span>
+                            <span className="text-muted-foreground/40">•</span>
 
-                                <span className="text-xs text-muted-foreground">
-                                  {columnLabels.shipmentNumber}:{" "}
-                                  {r.shipmentNumber}
-                                </span>
-                              </>
-                            )}
+                            <span className="text-xs text-muted-foreground">
+                              {columnLabels.shipmentNumber}:{" "}
+                              {r.shipmentNumber || "N/A"}
+                            </span>
+
+                            <span className="text-muted-foreground/40">•</span>
+
+                            <span
+                              className={cn(
+                                "inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border whitespace-nowrap",
+                                statusBadge(r.status),
+                              )}
+                            >
+                              {r.status || "N/A"}
+                            </span>
                           </div>
 
                           {/* Detail values */}
-                          <div className="grid grid-cols-2 lg:grid-cols-5 gap-x-8 gap-y-4">
+                          <div className="grid grid-cols-[220px_220px_minmax(280px,1fr)] gap-x-8 gap-y-3">
                             <div>
                               <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
                                 Crew Salary
                               </div>
-
                               <div className="text-xs font-normal">
                                 {peso(Number(r.crewSalary || 0))}
+                              </div>
+                            </div>
+
+                            <div>
+                              <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+                                Expense Amount
+                              </div>
+                              <div
+                                className={cn(
+                                  "text-xs font-normal",
+                                  Number(r.expenses || 0) > 0 &&
+                                    "text-blue-600 dark:text-blue-400",
+                                )}
+                              >
+                                {peso(Number(r.expenses || 0))}
                               </div>
                             </div>
 
@@ -1545,7 +1601,6 @@ export default function TripTable({
                                         "column-labels",
                                         JSON.stringify(updated),
                                       );
-
                                       setColumnLabels(updated);
                                       setEditingLabel(null);
                                     }}
@@ -1561,7 +1616,6 @@ export default function TripTable({
                                           "column-labels",
                                           JSON.stringify(updated),
                                         );
-
                                         setColumnLabels(updated);
                                         setEditingLabel(null);
                                       }
@@ -1583,7 +1637,54 @@ export default function TripTable({
                               </div>
                             </div>
 
-                            <div>
+                            <div className="col-start-3 row-start-1 row-span-3">
+                              <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+                                Expense Breakdown
+                              </div>
+
+                              {tripExpenses.length > 0 ? (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const truckId =
+                                      typeof r.truck === "string"
+                                        ? r.truck
+                                        : r.truck?._id || selectedTruck;
+
+                                    onExpenseClick?.({
+                                      truckId,
+                                      dateIso: r.dateIso,
+                                      dateText: r.dateText,
+                                    });
+                                  }}
+                                  className="flex flex-col gap-1.5 w-full max-w-[360px] text-left group"
+                                >
+                                  {tripExpenses.map((expense) => (
+                                    <div
+                                      key={expense._id}
+                                      className="grid grid-cols-[220px_auto] items-start gap-4 text-xs"
+                                    >
+                                      <span className="text-blue-500 group-hover:underline">
+                                        {expense.category}
+                                        {expense.description
+                                          ? `: ${expense.description}`
+                                          : ""}
+                                      </span>
+
+                                      <span className="text-foreground tabular-nums whitespace-nowrap">
+                                        {peso(Number(expense.amount || 0))}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </button>
+                              ) : (
+                                <div className="text-xs text-muted-foreground">
+                                  —
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="col-start-1 row-start-3">
                               <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
                                 Crew Reimbursement
                               </div>
@@ -1607,52 +1708,6 @@ export default function TripTable({
                                   {peso(Number(r.reimbursements || 0))}
                                 </span>
                               </div>
-                            </div>
-
-                            <div>
-                              <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
-                                Expenses
-                              </div>
-
-                              <div className="text-xs font-normal">
-                                {peso(Number(r.expenses || 0))}
-                              </div>
-                            </div>
-
-                            <div className="col-span-2 lg:col-span-1">
-                              <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
-                                Expense Breakdown
-                              </div>
-
-                              {onExpenseClick &&
-                              (r.hasExpenses || r.expenses > 0 || r.note) ? (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const truckId =
-                                      typeof r.truck === "string"
-                                        ? r.truck
-                                        : r.truck &&
-                                            typeof r.truck === "object" &&
-                                            "_id" in r.truck
-                                          ? r.truck._id
-                                          : selectedTruck;
-
-                                    onExpenseClick({
-                                      truckId,
-                                      dateIso: r.dateIso,
-                                      dateText: r.dateText,
-                                    });
-                                  }}
-                                  className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline text-left"
-                                >
-                                  {r.note || "View expense details"}
-                                </button>
-                              ) : (
-                                <div className="text-xs font-normal">
-                                  {r.note || "—"}
-                                </div>
-                              )}
                             </div>
                           </div>
                         </div>

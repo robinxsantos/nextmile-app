@@ -56,6 +56,7 @@ type ColumnKey = (typeof COLUMN_OPTIONS)[number][0];
 export default function TripsPage() {
   const {
     tripRows,
+    expenseRows,
     loading,
     selectedTruck,
     truckOptions,
@@ -570,6 +571,7 @@ export default function TripsPage() {
 
         <TripTable
           rows={tripRows}
+          expenseRows={expenseRows}
           expandableDetails
           totalsRows={tripRows}
           searchQuery={searchQuery}

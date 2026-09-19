@@ -170,6 +170,7 @@ type ColumnKey = (typeof COLUMN_OPTIONS)[number][0];
 export default function DashboardPage() {
   const {
     tripRows,
+    expenseRows,
     kpis,
     previousKpis,
     chartData,
@@ -1079,6 +1080,7 @@ export default function DashboardPage() {
 
         <TripTable
           rows={tripRows}
+          expenseRows={expenseRows}
           expandableDetails
           totalsRows={tripRows}
           loading={loading}

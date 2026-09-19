@@ -375,6 +375,7 @@ export default function ReportsPage() {
         </div>
         <TripTable
           rows={reportRows}
+          expenseRows={expenseRows}
           expandableDetails
           totalsRows={reportRows}
           loading={false}
