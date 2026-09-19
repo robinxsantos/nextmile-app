@@ -853,7 +853,10 @@ export default function TripTable({
           <div className="inline-flex items-center gap-2 whitespace-nowrap">
             <button
               type="button"
-              onClick={() => toggleExpandedRow(r._id)}
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleExpandedRow(r._id);
+              }}
               className="inline-flex items-center gap-1.5 font-medium hover:text-blue-600 transition-colors"
               title={isExpanded ? "Hide details" : "Show details"}
             >
@@ -1359,7 +1362,7 @@ export default function TripTable({
               );
             })}
             {showActions && (
-              <th className="sticky top-[101px] z-10 bg-muted/60 backdrop-blur border-b border-slate-200 dark:border-slate-700 text-left text-xs font-semibold text-muted-foreground px-2.5 py-3 whitespace-nowrap">
+              <th className="sticky top-[101px] z-10 bg-muted/60 backdrop-blur border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-muted-foreground px-2.5 py-3 whitespace-nowrap">
                 Actions
               </th>
             )}
@@ -1390,8 +1393,14 @@ export default function TripTable({
               return (
                 <Fragment key={row.id}>
                   <tr
+                    onClick={() => {
+                      if (expandableDetails) {
+                        toggleExpandedRow(r._id);
+                      }
+                    }}
                     className={cn(
                       "hover:bg-muted/50",
+                      expandableDetails && "cursor-pointer",
                       r.status === "Holiday" && "bg-muted/30",
                       r.status === "Day Off" &&
                         "bg-slate-50/80 dark:bg-slate-800/30 text-slate-400",
@@ -1423,8 +1432,8 @@ export default function TripTable({
                       </td>
                     ))}
                     {showActions && (
-                      <td className="text-left text-xs px-2.5 py-2.5 border-b border-border">
-                        <div className="flex items-center justify-center">
+                      <td className="text-center text-xs px-2.5 py-2.5 border-b border-border">
+                        <div className="flex items-center justify-center w-full">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <button className="w-[34px] h-[34px] rounded-md inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-background text-slate-600 hover:bg-muted transition-all">
@@ -1469,7 +1478,8 @@ export default function TripTable({
                         colSpan={colCount}
                         className="border-b border-border bg-muted/60 px-4 py-3"
                       >
-                        <div className="ml-4 border-l-2 border-foreground/20 pl-4">
+                        <div className="relative ml-4 pl-4">
+                          <span className="absolute left-0 top-0 bottom-0 w-[2px] rounded-full bg-red-500/70" />
                           {/* Parent trip reference */}
                           <div className="flex flex-wrap items-center gap-2 mb-3">
                             <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
@@ -1503,7 +1513,7 @@ export default function TripTable({
                                 Crew Salary
                               </div>
 
-                              <div className="text-sm font-semibold">
+                              <div className="text-xs font-normal">
                                 {peso(Number(r.crewSalary || 0))}
                               </div>
                             </div>
@@ -1568,7 +1578,7 @@ export default function TripTable({
                                 )}
                               </div>
 
-                              <div className="text-sm font-semibold">
+                              <div className="text-xs font-normal">
                                 {peso(Number(r.cashAdvance || 0))}
                               </div>
                             </div>
@@ -1578,7 +1588,7 @@ export default function TripTable({
                                 Crew Reimbursement
                               </div>
 
-                              <div className="text-sm font-semibold flex items-center gap-1.5">
+                              <div className="text-xs font-normal flex items-center gap-1.5">
                                 {r.paid &&
                                   Number(r.reimbursements || 0) > 0 && (
                                     <CheckCheck
@@ -1604,7 +1614,7 @@ export default function TripTable({
                                 Expenses
                               </div>
 
-                              <div className="text-sm font-semibold">
+                              <div className="text-xs font-normal">
                                 {peso(Number(r.expenses || 0))}
                               </div>
                             </div>
@@ -1634,12 +1644,12 @@ export default function TripTable({
                                       dateText: r.dateText,
                                     });
                                   }}
-                                  className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline text-left"
+                                  className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline text-left"
                                 >
                                   {r.note || "View expense details"}
                                 </button>
                               ) : (
-                                <div className="text-sm font-medium">
+                                <div className="text-xs font-normal">
                                   {r.note || "—"}
                                 </div>
                               )}
