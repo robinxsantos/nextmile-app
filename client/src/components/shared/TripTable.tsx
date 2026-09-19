@@ -415,7 +415,9 @@ function TripCard({
             <div className="text-slate-500">Note</div>
             {onExpenseClick && (r.hasExpenses || r.expenses > 0) ? (
               <button
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
+
                   const truckId =
                     typeof r.truck === "string"
                       ? r.truck
@@ -525,6 +527,10 @@ export default function TripTable({
     () => new Set(),
   );
 
+  const [highlightedExpenseRow, setHighlightedExpenseRow] = useState<
+    string | null
+  >(null);
+
   const toggleExpandedRow = (id: string) => {
     setExpandedRows((prev) => {
       const next = new Set(prev);
@@ -544,6 +550,7 @@ export default function TripTable({
   const totalsSource = totalsRows ?? rows;
 
   const getExpensesForTrip = (trip: TripRow) => {
+    // 1. Expenses explicitly linked to this exact trip
     const tripIdMatches = expenseRows.filter(
       (expense) => expense.tripId === trip._id,
     );
@@ -552,12 +559,11 @@ export default function TripTable({
       return tripIdMatches;
     }
 
-    // Fallback for older expenses that don't have tripId.
-    // Only match truck + date to reduce accidental cross-truck matches.
     const tripTruckId =
       typeof trip.truck === "string" ? trip.truck : trip.truck?._id || "";
 
-    return expenseRows.filter((expense) => {
+    // 2. Older/date-level expenses without tripId
+    const dateExpenses = expenseRows.filter((expense) => {
       if (expense.tripId) return false;
 
       const expenseTruckId =
@@ -567,6 +573,86 @@ export default function TripTable({
 
       return expenseTruckId === tripTruckId && expense.dateIso === trip.dateIso;
     });
+
+    if (dateExpenses.length === 0) {
+      return [];
+    }
+
+    // 3. Only the FIRST trip on that truck/date displays date-level expenses
+    const ownerTrip = rows.find((row) => {
+      const rowTruckId =
+        typeof row.truck === "string" ? row.truck : row.truck?._id || "";
+
+      return rowTruckId === tripTruckId && row.dateIso === trip.dateIso;
+    });
+
+    return ownerTrip?._id === trip._id ? dateExpenses : [];
+  };
+
+  const getExpenseOwnerForTrip = (trip: TripRow) => {
+    const tripTruckId =
+      typeof trip.truck === "string" ? trip.truck : trip.truck?._id || "";
+
+    // Get all trips for the same truck + date.
+    const sameDateTrips = rows.filter((row) => {
+      const rowTruckId =
+        typeof row.truck === "string" ? row.truck : row.truck?._id || "";
+
+      return rowTruckId === tripTruckId && row.dateIso === trip.dateIso;
+    });
+
+    // 1. Find a same-date trip that has an explicitly linked expense.
+    const linkedOwner = sameDateTrips.find((row) =>
+      expenseRows.some((expense) => expense.tripId === row._id),
+    );
+
+    if (linkedOwner) {
+      return linkedOwner;
+    }
+
+    // 2. Otherwise check for older date-level expenses without tripId.
+    const hasDateLevelExpenses = expenseRows.some((expense) => {
+      if (expense.tripId) return false;
+
+      const expenseTruckId =
+        typeof expense.truck === "string"
+          ? expense.truck
+          : expense.truck?._id || "";
+
+      return expenseTruckId === tripTruckId && expense.dateIso === trip.dateIso;
+    });
+
+    if (!hasDateLevelExpenses) {
+      return null;
+    }
+
+    // Old date-level expenses belong visually to the first trip of that date.
+    return sameDateTrips[0] ?? null;
+  };
+
+  const jumpToExpenseOwner = (ownerId: string) => {
+    setExpandedRows((prev) => {
+      const next = new Set(prev);
+      next.add(ownerId);
+      return next;
+    });
+
+    setHighlightedExpenseRow(ownerId);
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        document.getElementById(`trip-details-${ownerId}`)?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      });
+    });
+
+    window.setTimeout(() => {
+      setHighlightedExpenseRow((current) =>
+        current === ownerId ? null : current,
+      );
+    }, 1800);
   };
 
   const totals = useMemo(() => {
@@ -1420,6 +1506,11 @@ export default function TripTable({
               const r = row.original;
               const tripExpenses = getExpensesForTrip(r);
 
+              const expenseOwner = getExpenseOwnerForTrip(r);
+
+              const hasExpenseElsewhere =
+                expenseOwner && expenseOwner._id !== r._id;
+
               return (
                 <Fragment key={row.id}>
                   <tr
@@ -1431,6 +1522,8 @@ export default function TripTable({
                     className={cn(
                       "hover:bg-muted/50",
                       expandableDetails && "cursor-pointer",
+                      expandedRows.has(r._id) &&
+                        "relative z-[1] shadow-[0_5px_8px_-6px_rgba(0,0,0,0.35)]",
                       r.status === "Holiday" && "bg-muted/30",
                       r.status === "Day Off" &&
                         "bg-slate-50/80 dark:bg-slate-800/30 text-slate-400",
@@ -1508,7 +1601,14 @@ export default function TripTable({
                         colSpan={colCount}
                         className="border-b border-border bg-muted/60 px-4 py-3"
                       >
-                        <div className="relative ml-4 pl-4">
+                        <div
+                          id={`trip-details-${r._id}`}
+                          className={cn(
+                            "relative ml-4 pl-4 rounded-md transition-all duration-300",
+                            highlightedExpenseRow === r._id &&
+                              "bg-blue-500/15 ring-2 ring-blue-500/40 shadow-sm",
+                          )}
+                        >
                           <span className="absolute left-0 top-0 bottom-0 w-[2px] rounded-full bg-red-500/70" />
                           {/* Parent trip reference */}
                           <div className="flex flex-wrap items-center gap-2 mb-3">
@@ -1676,6 +1776,17 @@ export default function TripTable({
                                       </span>
                                     </div>
                                   ))}
+                                </button>
+                              ) : hasExpenseElsewhere && expenseOwner ? (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    jumpToExpenseOwner(expenseOwner._id);
+                                  }}
+                                  className="inline-flex items-center text-xs text-blue-500 hover:underline"
+                                >
+                                  View this date&apos;s expense breakdown →
                                 </button>
                               ) : (
                                 <div className="text-xs text-muted-foreground">
