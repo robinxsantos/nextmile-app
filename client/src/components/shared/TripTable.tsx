@@ -706,6 +706,8 @@ export default function TripTable({
   }, [totalsSource, reportMode]);
 
   const show = (key: ColumnKey) => visibleColumns[key] !== false;
+  const isNumericColumn = (key: ColumnKey) =>
+    ["rate", "vat", "grossIncome", "netIncome", "payable"].includes(key);
   const truckVisible = showTruckColumn && show("truck");
 
   const netValueFor = (r: TripRow) => {
@@ -1032,7 +1034,12 @@ export default function TripTable({
 
         const getIcon = () => {
           if (status === "Verified")
-            return <CheckCircle size={14} className="text-green-500" />;
+            return (
+              <CheckCircle
+                size={14}
+                className="text-blue-600 dark:text-blue-400"
+              />
+            );
           if (status === "Pending")
             return <AlertCircle size={14} className="text-orange-500" />;
           return <HelpCircle size={14} className="text-gray-400" />;
@@ -1048,7 +1055,8 @@ export default function TripTable({
                       <div
                         className={cn(
                           "flex items-center gap-1.5 w-full cursor-pointer rounded px-1 py-0.5 hover:brightness-50",
-                          status === "Verified" && "text-green-500",
+                          status === "Verified" &&
+                            "text-blue-600 dark:text-blue-400",
                           status === "Pending" && "text-orange-500",
                           status === "For Confirmation" && "text-gray-500",
                         )}
@@ -1075,7 +1083,7 @@ export default function TripTable({
                       >
                         <CheckCircle
                           size={14}
-                          className="mr-2 text-green-500"
+                          className="mr-2 text-blue-600 dark:text-blue-400"
                         />
                         Verified
                       </DropdownMenuItem>
@@ -1116,28 +1124,10 @@ export default function TripTable({
       }
 
       case "rate":
-        return onQuickEdit ? (
-          <EditableCell
-            rowId={r._id}
-            field="rate"
-            value={r.rate}
-            onSave={onQuickEdit}
-          />
-        ) : (
-          renderMoneyCell(r.rate)
-        );
+        return renderMoneyCell(r.rate);
 
       case "vat":
-        return onQuickEdit ? (
-          <EditableCell
-            rowId={r._id}
-            field="vat"
-            value={r.vat}
-            onSave={onQuickEdit}
-          />
-        ) : (
-          renderMoneyCell(r.vat)
-        );
+        return renderMoneyCell(r.vat);
 
       case "trips": {
         const v = Number(r.trips ?? 0);
@@ -1156,16 +1146,7 @@ export default function TripTable({
       }
 
       case "crewSalary":
-        return onQuickEdit ? (
-          <EditableCell
-            rowId={r._id}
-            field="crewSalary"
-            value={r.crewSalary}
-            onSave={onQuickEdit}
-          />
-        ) : (
-          renderMoneyCell(r.crewSalary)
-        );
+        return renderMoneyCell(r.crewSalary);
 
       case "cashAdvance":
         return renderMoneyCell(r.cashAdvance);
@@ -1253,7 +1234,11 @@ export default function TripTable({
         const netValue = netValueFor(r);
         return (
           <span
-            className={cn(netValue < 0 ? "text-red-500" : "text-green-500")}
+            className={cn(
+              netValue < 0
+                ? "text-red-500"
+                : "text-green-700 dark:text-green-400",
+            )}
           >
             {peso(netValue)}
           </span>
@@ -1400,13 +1385,24 @@ export default function TripTable({
                   }
                   className={cn(
                     "group sticky top-[101px] z-10 bg-muted/60 backdrop-blur border-b border-slate-200 dark:border-slate-700 text-xs font-semibold text-muted-foreground px-2.5 py-3 whitespace-nowrap cursor-pointer select-none transition-colors hover:bg-muted hover:text-foreground",
-                    col.key === "paid" ? "text-center" : "text-left",
+                    col.key === "paid"
+                      ? "text-center"
+                      : isNumericColumn(col.key)
+                        ? "text-right"
+                        : "text-left",
                     idx === 0 && !selectable && "left-0 z-20",
                     idx === 0 && selectable && "left-[40px] z-20",
                   )}
                 >
                   <div
-                    className="inline-flex items-center justify-center gap-1 transition-colors group-hover:text-foreground"
+                    className={cn(
+                      "flex w-full items-center gap-1 transition-colors group-hover:text-foreground",
+                      col.key === "paid"
+                        ? "justify-center"
+                        : isNumericColumn(col.key)
+                          ? "justify-end"
+                          : "justify-start",
+                    )}
                     onDoubleClick={() => {
                       if (
                         col.key === "shipmentNumber" ||
@@ -1502,7 +1498,7 @@ export default function TripTable({
               </td>
             </tr>
           ) : (
-            table.getRowModel().rows.map((row) => {
+            table.getRowModel().rows.map((row, rowIndex) => {
               const r = row.original;
               const tripExpenses = getExpensesForTrip(r);
 
@@ -1514,13 +1510,26 @@ export default function TripTable({
               return (
                 <Fragment key={row.id}>
                   <tr
-                    onClick={() => {
-                      if (expandableDetails) {
-                        toggleExpandedRow(r._id);
+                    onClick={(e) => {
+                      if (!expandableDetails) return;
+
+                      const target = e.target as HTMLElement;
+
+                      if (
+                        target.closest(
+                          "button, input, select, textarea, a, [role='menuitem'], [role='menu'], [data-no-row-expand]",
+                        )
+                      ) {
+                        return;
                       }
+
+                      toggleExpandedRow(r._id);
                     }}
                     className={cn(
-                      "hover:bg-muted/50",
+                      rowIndex % 2 === 1 && "bg-muted/50",
+                      expandedRows.has(r._id)
+                        ? "bg-blue-50/70 dark:bg-blue-950/20"
+                        : "hover:bg-blue-50/70 dark:hover:bg-blue-950/20",
                       expandableDetails && "cursor-pointer",
                       expandedRows.has(r._id) &&
                         "relative z-[1] shadow-[0_5px_8px_-6px_rgba(0,0,0,0.35)]",
@@ -1545,7 +1554,11 @@ export default function TripTable({
                         key={col.key}
                         className={cn(
                           "text-xs px-2.5 py-2.5 border-b border-border",
-                          col.key === "paid" ? "text-center" : "text-left",
+                          col.key === "paid"
+                            ? "text-center"
+                            : isNumericColumn(col.key)
+                              ? "text-right tabular-nums"
+                              : "text-left",
                           idx === 0 && !selectable && "sticky left-0 z-[5]",
                           idx === 0 && selectable && "sticky left-[40px] z-[5]",
                           col.className,
@@ -1845,9 +1858,14 @@ export default function TripTable({
                 <td
                   key={`total-${col.key}`}
                   className={cn(
-                    "sticky bottom-0 z-30 bg-muted border-t-2 border-border text-left text-xs px-2.5 py-3 font-bold",
+                    "sticky bottom-0 z-30 bg-muted border-t-2 border-border text-xs px-2.5 py-3 font-bold",
                     isFirst && !selectable && "left-0 z-[31]",
                     isFirst && selectable && "left-[40px] z-[31]",
+                    col.key === "paid"
+                      ? "text-center"
+                      : isNumericColumn(col.key)
+                        ? "text-right tabular-nums"
+                        : "text-left",
                     col.key === "netIncome" &&
                       (totals.netIncome < 0
                         ? "text-red-600 dark:text-red-400"
