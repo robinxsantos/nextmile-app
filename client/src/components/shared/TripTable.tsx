@@ -749,7 +749,6 @@ export default function TripTable({
       cols.push({
         key: "shipmentNumber",
         label: columnLabels.shipmentNumber,
-        className: "font-semibold",
       });
     if (show("rate"))
       cols.push({ key: "rate", label: "Rate", sortField: "rate" });

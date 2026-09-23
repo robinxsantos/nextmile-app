@@ -431,19 +431,28 @@ export function exportMonthlyReport(
     })
     .join("");
 
-  const clientRowHtml = clientRows
-    .map((r) => {
-      return `<tr>
-      <td class="date-col">${escHtml(
-        formatDateShort(r.dateIso || r.dateText),
-      )}</td>
-      <td class="shipment-col">${escHtml(r.shipmentNumber)}</td>
-      <td class="amount-col">${pesoOrBlank(r.rate)}</td>
-      <td class="amount-col">${pesoOrBlank(r.vat)}</td>
-      <td class="amount-col">${pesoOrBlank(r.grossIncome)}</td>
-    </tr>`;
-    })
-    .join("");
+  const CLIENT_ROWS_PER_PAGE = 23;
+
+  const clientRowPages: TripRow[][] = [];
+
+  for (let i = 0; i < clientRows.length; i += CLIENT_ROWS_PER_PAGE) {
+    clientRowPages.push(clientRows.slice(i, i + CLIENT_ROWS_PER_PAGE));
+  }
+
+  const renderClientRows = (pageRows: TripRow[]) =>
+    pageRows
+      .map((r) => {
+        return `<tr>
+        <td class="date-col">${escHtml(
+          formatDateShort(r.dateIso || r.dateText),
+        )}</td>
+        <td class="shipment-col">${escHtml(r.shipmentNumber)}</td>
+        <td class="amount-col">${pesoOrBlank(r.rate)}</td>
+        <td class="amount-col">${pesoOrBlank(r.vat)}</td>
+        <td class="amount-col">${pesoOrBlank(r.grossIncome)}</td>
+      </tr>`;
+      })
+      .join("");
 
   const safeFilePart = (value: string) =>
     String(value || "")
@@ -730,6 +739,11 @@ export function exportMonthlyReport(
         background-color: #f9fafb !important;
       }
 
+      .statement-table-page-break {
+        break-before: page;
+        page-break-before: always;
+      }
+
       .summary-grid,
       .statement-meta,
       .statement-ending,
@@ -977,7 +991,12 @@ export function exportMonthlyReport(
       background: #f8fafc;
     }
 
-    .client-mode .statement-table tbody tr:last-child td {
+    .client-mode
+      .statement-table-last-page
+      .statement-table
+      tbody
+      tr:last-child
+      td {
       border-bottom: 2px solid #0f4c6e;
     }
 
@@ -1272,34 +1291,46 @@ export function exportMonthlyReport(
   <div class="table-wrap">
     ${
       clientMode
-        ? `
-    <table class="statement-table">
-      <colgroup>
-        <col style="width:18%">
-        <col style="width:28%">
-        <col style="width:18%">
-        <col style="width:18%">
-        <col style="width:18%">
-      </colgroup>
+        ? clientRowPages
+            .map(
+              (pageRows, pageIndex) => `
+                <div class="statement-table-page ${
+                  pageIndex > 0 ? "statement-table-page-break" : ""
+                } ${
+                  pageIndex === clientRowPages.length - 1
+                    ? "statement-table-last-page"
+                    : ""
+                }">
+                  <table class="statement-table">
+                    <colgroup>
+                      <col style="width:18%">
+                      <col style="width:23%">
+                      <col style="width:18%">
+                      <col style="width:18%">
+                      <col style="width:23%">
+                    </colgroup>
 
-      <thead>
-        <tr>
-          <th class="date-col">Date</th>
-          <th class="shipment-col">${labels.shipmentNumber}</th>
-          <th class="amount-col">Rate</th>
-          <th class="amount-col">VAT</th>
-          <th class="amount-col">Gross</th>
-        </tr>
-      </thead>
+                    <thead>
+                      <tr>
+                        <th class="date-col">Date</th>
+                        <th class="shipment-col">${labels.shipmentNumber}</th>
+                        <th class="amount-col">Rate</th>
+                        <th class="amount-col">VAT</th>
+                        <th class="amount-col">Total (VAT Incl.)</th>
+                      </tr>
+                    </thead>
 
-      <tbody>
-        ${
-          clientRowHtml ||
-          '<tr><td colspan="5" style="text-align:center;color:#999;padding:20px">No rows</td></tr>'
-        }
-      </tbody>
-    </table>
-    `
+                    <tbody>
+                      ${
+                        renderClientRows(pageRows) ||
+                        '<tr><td colspan="5" style="text-align:center;color:#999;padding:20px">No rows</td></tr>'
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              `,
+            )
+            .join("")
         : `
     <table>
       <colgroup>
