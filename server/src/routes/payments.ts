@@ -1,5 +1,6 @@
 import { Router, Response } from "express";
 import multer from "multer";
+import sharp from "sharp";
 import fs from "fs";
 import { Payment } from "../models/Payment.js";
 import { Truck } from "../models/Truck.js";
@@ -133,6 +134,28 @@ router.post(
       }
 
       parsedDate.setHours(12, 0, 0, 0);
+
+      let uploadBuffer = file.buffer;
+      let uploadMimeType = file.mimetype;
+
+      const originalName = file.originalname.toLowerCase();
+
+      const isHeic =
+        file.mimetype === "image/heic" ||
+        file.mimetype === "image/heif" ||
+        originalName.endsWith(".heic") ||
+        originalName.endsWith(".heif");
+
+      if (isHeic) {
+        uploadBuffer = await sharp(file.buffer)
+          .jpeg({
+            quality: 85,
+            mozjpeg: true,
+          })
+          .toBuffer();
+
+        uploadMimeType = "image/jpeg";
+      }
 
       const extensionByMime: Record<string, string> = {
         "image/jpeg": ".jpg",

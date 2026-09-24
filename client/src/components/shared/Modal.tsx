@@ -62,7 +62,7 @@ export default function Modal({
           >
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 bg-background border-b border-slate-200 dark:border-slate-700">
-              <h3 className="font-medium tracking-tight text-lg">{title}</h3>
+              <h3 className="font-medium tracking-tight text-base">{title}</h3>
               <button
                 onClick={onClose}
                 className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"

@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { toast } from "sonner";
 import api from "../api/client";
+import heic2any from "heic2any";
 import { useAppStore } from "../store/useAppStore";
 import { peso, toInputDate } from "../lib/utils";
 import {
@@ -55,6 +56,7 @@ interface PaymentRow {
 const CATEGORY_OPTIONS: Option[] = [
   { value: "Cash Advance", label: "Cash Advance" },
   { value: "Salary", label: "Salary" },
+  { value: "Receipt", label: "Receipt" },
 ];
 
 const METHOD_OPTIONS: Option[] = [
@@ -68,6 +70,8 @@ export default function PaymentsPage() {
 
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [convertingFile, setConvertingFile] = useState(false);
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [category, setCategory] = useState(CATEGORY_OPTIONS[0].value);
   const [recipient, setRecipient] = useState("");
@@ -81,12 +85,11 @@ export default function PaymentsPage() {
   const [deleteModal, setDeleteModal] = useState<PaymentRow | null>(null);
   const [showTruckWarning, setShowTruckWarning] = useState(false);
   const [openDate, setOpenDate] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(
-    date ? new Date(`${date}T00:00:00`) : new Date(),
-  );
 
   const [editPayment, setEditPayment] = useState<PaymentRow | null>(null);
   const [editFile, setEditFile] = useState<File | null>(null);
+  const [isDraggingEditFile, setIsDraggingEditFile] = useState(false);
+  const [convertingEditFile, setConvertingEditFile] = useState(false);
   const [editCategory, setEditCategory] = useState(CATEGORY_OPTIONS[0].value);
   const [editRecipient, setEditRecipient] = useState("");
   const [editAmount, setEditAmount] = useState("");
@@ -170,6 +173,151 @@ export default function PaymentsPage() {
     setEditDate(toInputDate(new Date(p.date)));
     setEditNote(p.note || "");
     setEditFile(null);
+  };
+
+  const prepareImageFile = async (selectedFile: File): Promise<File> => {
+    const lowerName = selectedFile.name.toLowerCase();
+
+    const isHeic =
+      selectedFile.type === "image/heic" ||
+      selectedFile.type === "image/heif" ||
+      lowerName.endsWith(".heic") ||
+      lowerName.endsWith(".heif");
+
+    if (!isHeic) {
+      return selectedFile;
+    }
+
+    const converted = await heic2any({
+      blob: selectedFile,
+      toType: "image/jpeg",
+      quality: 0.85,
+    });
+
+    const jpegBlob = Array.isArray(converted) ? converted[0] : converted;
+
+    const jpegName = selectedFile.name.replace(/\.(heic|heif)$/i, ".jpg");
+
+    return new File([jpegBlob], jpegName, {
+      type: "image/jpeg",
+      lastModified: Date.now(),
+    });
+  };
+
+  const processCreateFile = async (selectedFile: File) => {
+    setConvertingFile(true);
+
+    try {
+      const preparedFile = await prepareImageFile(selectedFile);
+      setFile(preparedFile);
+
+      const lowerName = selectedFile.name.toLowerCase();
+
+      if (lowerName.endsWith(".heic") || lowerName.endsWith(".heif")) {
+        toast.success("HEIC converted to JPEG");
+      }
+    } catch (error) {
+      console.error("Image processing failed:", error);
+      setFile(null);
+      toast.error("Failed to process image");
+    } finally {
+      setConvertingFile(false);
+    }
+  };
+
+  const handleCreateFileChange = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const selectedFile = e.target.files?.[0];
+
+    if (!selectedFile) return;
+
+    await processCreateFile(selectedFile);
+
+    e.target.value = "";
+  };
+
+  const handleCreateFileDrop = async (e: React.DragEvent<HTMLLabelElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    setIsDraggingFile(false);
+
+    const droppedFile = e.dataTransfer.files?.[0];
+
+    if (!droppedFile) return;
+
+    const lowerName = droppedFile.name.toLowerCase();
+
+    const isSupported =
+      droppedFile.type.startsWith("image/") ||
+      lowerName.endsWith(".heic") ||
+      lowerName.endsWith(".heif");
+
+    if (!isSupported) {
+      toast.error("Please drop an image file");
+      return;
+    }
+
+    await processCreateFile(droppedFile);
+  };
+
+  const processEditFile = async (selectedFile: File) => {
+    setConvertingEditFile(true);
+
+    try {
+      const preparedFile = await prepareImageFile(selectedFile);
+      setEditFile(preparedFile);
+
+      const lowerName = selectedFile.name.toLowerCase();
+
+      if (lowerName.endsWith(".heic") || lowerName.endsWith(".heif")) {
+        toast.success("HEIC converted to JPEG");
+      }
+    } catch (error) {
+      console.error("Image processing failed:", error);
+      setEditFile(null);
+      toast.error("Failed to process image");
+    } finally {
+      setConvertingEditFile(false);
+    }
+  };
+
+  const handleEditFileChange = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const selectedFile = e.target.files?.[0];
+
+    if (!selectedFile) return;
+
+    await processEditFile(selectedFile);
+
+    e.target.value = "";
+  };
+
+  const handleEditFileDrop = async (e: React.DragEvent<HTMLLabelElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    setIsDraggingEditFile(false);
+
+    const droppedFile = e.dataTransfer.files?.[0];
+
+    if (!droppedFile) return;
+
+    const lowerName = droppedFile.name.toLowerCase();
+
+    const isSupported =
+      droppedFile.type.startsWith("image/") ||
+      lowerName.endsWith(".heic") ||
+      lowerName.endsWith(".heif");
+
+    if (!isSupported) {
+      toast.error("Please drop an image file");
+      return;
+    }
+
+    await processEditFile(droppedFile);
   };
 
   const handleUpload = async () => {
@@ -332,14 +480,14 @@ export default function PaymentsPage() {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
-              <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 block">
+              <label className="text-xs font-medium text-foreground mb-1.5 block">
                 Date
               </label>
               <Popover open={openDate} onOpenChange={setOpenDate}>
                 <PopoverTrigger asChild>
                   <button className="w-full h-11 px-3 flex items-center justify-between rounded-md border border-border bg-background text-sm">
-                    {selectedDate
-                      ? format(selectedDate, "MMM d, yyyy")
+                    {date
+                      ? format(new Date(`${date}T00:00:00`), "MMM d, yyyy")
                       : "Select date"}
                     <CalendarDays className="h-4 w-4 opacity-50" />
                   </button>
@@ -348,13 +496,11 @@ export default function PaymentsPage() {
                 <PopoverContent className="w-auto p-0">
                   <Calendar
                     mode="single"
-                    selected={selectedDate}
+                    selected={date ? new Date(`${date}T00:00:00`) : undefined}
                     onSelect={(d) => {
                       if (!d) return;
 
-                      setSelectedDate(d);
                       setDate(toInputDate(d));
-
                       setOpenDate(false);
                     }}
                     initialFocus
@@ -364,12 +510,12 @@ export default function PaymentsPage() {
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1 block">
+              <label className="text-xs font-medium text-foreground mb-1.5 block">
                 Category
               </label>
               <UiSelect
-                value={editCategory}
-                onValueChange={(val) => setEditCategory(val)}
+                value={category}
+                onValueChange={(val) => setCategory(val)}
               >
                 <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
                   <SelectValue />
@@ -386,13 +532,10 @@ export default function PaymentsPage() {
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1 block">
+              <label className="text-xs font-medium text-foreground mb-1.5 block">
                 Payment Method
               </label>
-              <UiSelect
-                value={editMethod}
-                onValueChange={(val) => setEditMethod(val)}
-              >
+              <UiSelect value={method} onValueChange={(val) => setMethod(val)}>
                 <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
                   <SelectValue />
                 </SelectTrigger>
@@ -408,7 +551,7 @@ export default function PaymentsPage() {
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1 block">
+              <label className="text-xs font-medium text-foreground mb-1.5 block">
                 Recipient
               </label>
               <input
@@ -421,7 +564,7 @@ export default function PaymentsPage() {
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1 block">
+              <label className="text-xs font-medium text-foreground mb-1.5 block">
                 Amount
               </label>
               <input
@@ -434,7 +577,7 @@ export default function PaymentsPage() {
             </div>
 
             <div className="col-span-2">
-              <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1 block">
+              <label className="text-xs font-medium text-foreground mb-1.5 block">
                 Note
               </label>
               <input
@@ -447,45 +590,79 @@ export default function PaymentsPage() {
             </div>
 
             <div className="col-span-2">
-              <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1 block">
+              <label className="text-xs font-medium text-foreground mb-1.5 block">
                 Upload Image
               </label>
-              <label className="group flex cursor-pointer flex-col items-center justify-center rounded-[16px] border-2 border-dashed border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-6 text-center transition-colors hover:border-blue-400 hover:bg-blue-50/40 dark:hover:bg-slate-800/50">
+              <label
+                onDragEnter={(e) => {
+                  e.preventDefault();
+                  setIsDraggingFile(true);
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDraggingFile(true);
+                }}
+                onDragLeave={(e) => {
+                  e.preventDefault();
+
+                  if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                    setIsDraggingFile(false);
+                  }
+                }}
+                onDrop={handleCreateFileDrop}
+                className={`group flex cursor-pointer flex-col items-center justify-center rounded-md border border-dashed px-4 py-6 text-center transition-colors ${
+                  isDraggingFile
+                    ? "border-foreground bg-muted"
+                    : "border-border bg-background hover:bg-muted/50"
+                }`}
+              >
                 <input
                   type="file"
-                  accept="image/*"
+                  accept="image/*,.heic,.heif"
                   className="hidden"
-                  onChange={(e) => setFile(e.target.files?.[0] || null)}
+                  onChange={handleCreateFileChange}
                 />
                 <Upload
                   size={24}
-                  className="mb-2 text-slate-400 group-hover:text-blue-500"
+                  className="mb-2 text-muted-foreground group-hover:text-foreground transition-colors"
                 />
-                {file ? (
+                {convertingFile ? (
                   <div className="space-y-1">
-                    <div className="font-semibold text-slate-800 dark:text-slate-100">
+                    <div className="text-sm font-medium text-foreground">
+                      Converting HEIC to JPEG...
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Please wait
+                    </div>
+                  </div>
+                ) : file ? (
+                  <div className="space-y-1">
+                    <div className="text-sm font-medium text-foreground">
                       {file.name}
                     </div>
-                    <div className="text-xs text-slate-500">
+
+                    <div className="text-xs text-muted-foreground">
                       {(file.size / 1024).toFixed(1)} KB
                     </div>
                   </div>
                 ) : (
                   <div className="space-y-1">
-                    <div className="font-semibold text-slate-700 dark:text-slate-200">
-                      Click to upload screenshot
+                    <div className="text-sm font-medium text-foreground">
+                      {isDraggingFile
+                        ? "Drop image here"
+                        : "Drop or choose an image"}
                     </div>
-                    <div className="text-xs text-slate-500">
-                      PNG, JPG, WEBP, GIF
+                    <div className="text-xs text-muted-foreground">
+                      JPG, PNG, WEBP, GIF, or HEIC
                     </div>
                   </div>
                 )}
               </label>
 
               {file && (
-                <div className="mt-3 rounded-[14px] border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 px-3 py-2 text-xs text-slate-600 dark:text-slate-300">
+                <div className="mt-3 rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
                   Filename preview:{" "}
-                  <span className="font-semibold text-slate-900 dark:text-slate-100">
+                  <span className="font-medium text-foreground">
                     {filePreviewLabel}
                   </span>
                 </div>
@@ -496,17 +673,21 @@ export default function PaymentsPage() {
           <div className="flex items-center justify-end gap-2.5 mt-5">
             <button
               onClick={resetCreateForm}
-              className="px-4 py-2.5 rounded-[14px] border border-slate-200 dark:border-slate-700 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-800"
+              className="h-9 px-4 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors"
             >
               Reset
             </button>
             <button
               onClick={handleUpload}
-              disabled={uploading}
+              disabled={uploading || convertingFile}
               className="px-6 py-2.5 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition flex items-center gap-2"
             >
               <Upload size={16} />
-              {uploading ? "Uploading..." : "Upload"}
+              {convertingFile
+                ? "Converting..."
+                : uploading
+                  ? "Uploading..."
+                  : "Upload"}
             </button>
           </div>
         </div>
@@ -515,7 +696,7 @@ export default function PaymentsPage() {
           <div className="p-3.5 pb-2 flex items-end justify-between gap-4">
             <div>
               <h2 className="text-base font-bold tracking-tight">
-                Uploaded Payment Proofs
+                Uploaded Payments
               </h2>
               <p className="text-sm text-muted-foreground">
                 Click View to open the image in a preview window.
@@ -523,29 +704,29 @@ export default function PaymentsPage() {
             </div>
           </div>
 
-          <div className="overflow-auto border-t border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-900 hidden md:block">
-            <table className="w-full border-separate border-spacing-0">
+          <div className="overflow-auto border-t border-border bg-background hidden md:block">
+            <table className="w-full text-sm">
               <thead>
                 <tr>
-                  <th className="sticky top-0 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-slate-600 dark:text-slate-300 px-3 py-3 whitespace-nowrap">
+                  <th className="sticky top-0 z-10 bg-muted/60 backdrop-blur border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-muted-foreground px-2.5 py-3">
                     Date
                   </th>
-                  <th className="sticky top-0 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-slate-600 dark:text-slate-300 px-3 py-3 whitespace-nowrap">
+                  <th className="sticky top-0 z-10 bg-muted/60 backdrop-blur border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-muted-foreground px-2.5 py-3">
                     Category
                   </th>
-                  <th className="sticky top-0 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-slate-600 dark:text-slate-300 px-3 py-3 whitespace-nowrap">
+                  <th className="sticky top-0 z-10 bg-muted/60 backdrop-blur border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-muted-foreground px-2.5 py-3">
                     Recipient
                   </th>
-                  <th className="sticky top-0 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-slate-600 dark:text-slate-300 px-3 py-3 whitespace-nowrap">
+                  <th className="sticky top-0 z-10 bg-muted/60 backdrop-blur border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-muted-foreground px-2.5 py-3">
                     Amount
                   </th>
-                  <th className="sticky top-0 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-slate-600 dark:text-slate-300 px-3 py-3 whitespace-nowrap">
+                  <th className="sticky top-0 z-10 bg-muted/60 backdrop-blur border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-muted-foreground px-2.5 py-3">
                     Payment Method
                   </th>
-                  <th className="sticky top-0 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-slate-600 dark:text-slate-300 px-3 py-3 whitespace-nowrap">
+                  <th className="sticky top-0 z-10 bg-muted/60 backdrop-blur border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-muted-foreground px-2.5 py-3">
                     Proof
                   </th>
-                  <th className="sticky top-0 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-slate-600 dark:text-slate-300 px-3 py-3 whitespace-nowrap">
+                  <th className="sticky top-0 z-10 bg-muted/60 backdrop-blur border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-muted-foreground px-2.5 py-3">
                     Actions
                   </th>
                 </tr>
@@ -570,47 +751,52 @@ export default function PaymentsPage() {
                   </tr>
                 ) : (
                   payments.map((p) => (
-                    <tr
-                      key={p._id}
-                      className="hover:bg-muted dark:hover:bg-slate-800/50"
-                    >
-                      <td className="text-center text-xs px-3 py-3 border-b border-slate-100 dark:border-slate-800 whitespace-nowrap">
+                    <tr key={p._id} className="hover:bg-muted/20">
+                      <td className="text-center text-xs px-2.5 py-2.5 border-b border-border">
                         {p.dateText}
                       </td>
-                      <td className="text-center text-xs px-3 py-3 border-b border-slate-100 dark:border-slate-800">
+
+                      <td className="text-center text-xs px-2.5 py-2.5 border-b border-border">
                         <span className="inline-block px-2.5 py-1 rounded-full text-[0.72rem] font-bold bg-muted text-foreground">
                           {p.category}
                         </span>
                       </td>
-                      <td className="text-center text-xs px-3 py-3 border-b border-slate-100 dark:border-slate-800">
+
+                      <td className="text-center text-xs px-2.5 py-2.5 border-b border-border">
                         {p.recipient || "—"}
                       </td>
-                      <td className="text-center text-xs px-3 py-3 border-b border-slate-100 dark:border-slate-800 font-semibold text-slate-900 dark:text-slate-100">
+
+                      <td className="text-center text-xs px-2.5 py-2.5 border-b border-border tabular-nums">
                         {peso(Number(p.amount || 0))}
                       </td>
-                      <td className="text-center text-xs px-3 py-3 border-b border-slate-100 dark:border-slate-800">
+
+                      <td className="text-center text-xs px-2.5 py-2.5 border-b border-border">
                         {p.method || "—"}
                       </td>
-                      <td className="text-center text-xs px-3 py-3 border-b border-slate-100 dark:border-slate-800">
+
+                      <td className="text-center text-xs px-2.5 py-2.5 border-b border-border">
                         <button
                           onClick={() => openPreview(p)}
-                          className="h-8 px-3 rounded-md inline-flex items-center justify-center gap-1.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-muted hover:border-blue-500/20 hover:text-blue-600 transition-all text-xs font-semibold"
+                          className="h-8 px-3 rounded-md inline-flex items-center justify-center gap-1.5 border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground transition-colors text-xs font-medium"
                         >
-                          <Eye size={14} /> View
+                          <Eye size={14} />
+                          View
                         </button>
                       </td>
-                      <td className="text-center text-xs px-3 py-3 border-b border-slate-100 dark:border-slate-800">
+
+                      <td className="text-center text-xs px-2.5 py-2.5 border-b border-border">
                         <div className="flex items-center justify-center gap-1.5">
                           <button
                             onClick={() => openEdit(p)}
-                            className="w-8 h-8 rounded-md inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-muted hover:border-blue-500/20 hover:text-blue-600 transition-all"
+                            className="w-8 h-8 rounded-md inline-flex items-center justify-center border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                             title="Edit"
                           >
                             <Pencil size={14} />
                           </button>
+
                           <button
                             onClick={() => setDeleteModal(p)}
-                            className="w-8 h-8 rounded-md inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-500 transition-all"
+                            className="w-8 h-8 rounded-md inline-flex items-center justify-center border border-border bg-background text-muted-foreground hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-500 transition-colors"
                             title="Delete"
                           >
                             <Trash2 size={14} />
@@ -712,6 +898,8 @@ export default function PaymentsPage() {
         onClose={() => {
           setEditPayment(null);
           setEditFile(null);
+          setIsDraggingEditFile(false);
+          setConvertingEditFile(false);
         }}
         title={
           editPayment
@@ -725,17 +913,23 @@ export default function PaymentsPage() {
               onClick={() => {
                 setEditPayment(null);
                 setEditFile(null);
+                setIsDraggingEditFile(false);
+                setConvertingEditFile(false);
               }}
-              className="px-4 py-2.5 rounded-[14px] border border-slate-200 dark:border-slate-700 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-800"
+              className="h-9 px-4 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors"
             >
               Cancel
             </button>
             <button
               onClick={handleUpdate}
-              disabled={savingEdit}
-              className="px-6 py-2.5 rounded-[14px] bg-gradient-to-br from-blue-600 to-blue-700 text-white text-sm font-semibold shadow-[0_10px_20px_rgba(37,99,235,0.18)] disabled:opacity-50"
+              disabled={savingEdit || convertingEditFile}
+              className="h-9 px-4 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {savingEdit ? "Saving..." : "Update"}
+              {convertingEditFile
+                ? "Converting..."
+                : savingEdit
+                  ? "Saving..."
+                  : "Update"}
             </button>
           </>
         }
@@ -743,7 +937,7 @@ export default function PaymentsPage() {
         {editPayment && (
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
-              <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 block">
+              <label className="text-xs font-medium text-foreground mb-1.5 block">
                 Date
               </label>
               <Popover>
@@ -777,7 +971,7 @@ export default function PaymentsPage() {
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1 block">
+              <label className="text-xs font-medium text-foreground mb-1.5 block">
                 Category
               </label>
               <UiSelect
@@ -799,7 +993,7 @@ export default function PaymentsPage() {
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1 block">
+              <label className="text-xs font-medium text-foreground mb-1.5 block">
                 Method
               </label>
               <UiSelect
@@ -821,7 +1015,7 @@ export default function PaymentsPage() {
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1 block">
+              <label className="text-xs font-medium text-foreground mb-1.5 block">
                 Recipient
               </label>
               <input
@@ -833,7 +1027,7 @@ export default function PaymentsPage() {
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1 block">
+              <label className="text-xs font-medium text-foreground mb-1.5 block">
                 Amount
               </label>
               <input
@@ -845,7 +1039,7 @@ export default function PaymentsPage() {
             </div>
 
             <div className="col-span-2">
-              <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1 block">
+              <label className="text-xs font-medium text-foreground mb-1.5 block">
                 Note
               </label>
               <input
@@ -857,45 +1051,79 @@ export default function PaymentsPage() {
             </div>
 
             <div className="col-span-2">
-              <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1 block">
+              <label className="text-xs font-medium text-foreground mb-1.5 block">
                 Replace Proof Image (optional)
               </label>
-              <label className="group flex cursor-pointer flex-col items-center justify-center rounded-[16px] border-2 border-dashed border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-5 text-center transition-colors hover:border-blue-400 hover:bg-blue-50/40 dark:hover:bg-slate-800/50">
+
+              <label
+                onDragEnter={(e) => {
+                  e.preventDefault();
+                  setIsDraggingEditFile(true);
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDraggingEditFile(true);
+                }}
+                onDragLeave={(e) => {
+                  e.preventDefault();
+
+                  if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                    setIsDraggingEditFile(false);
+                  }
+                }}
+                onDrop={handleEditFileDrop}
+                className={`group flex cursor-pointer flex-col items-center justify-center rounded-md border border-dashed px-4 py-5 text-center transition-colors ${
+                  isDraggingEditFile
+                    ? "border-foreground bg-muted"
+                    : "border-border bg-background hover:bg-muted/50"
+                }`}
+              >
                 <input
                   type="file"
-                  accept="image/*"
+                  accept="image/*,.heic,.heif"
                   className="hidden"
-                  onChange={(e) => setEditFile(e.target.files?.[0] || null)}
+                  onChange={handleEditFileChange}
                 />
                 <Upload
                   size={22}
-                  className="mb-2 text-slate-400 group-hover:text-blue-500"
+                  className="mb-2 text-muted-foreground group-hover:text-foreground transition-colors"
                 />
-                {editFile ? (
+                {convertingEditFile ? (
                   <div className="space-y-1">
-                    <div className="font-semibold text-slate-800 dark:text-slate-100">
+                    <div className="text-sm font-medium text-foreground">
+                      Converting HEIC to JPEG...
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Please wait
+                    </div>
+                  </div>
+                ) : editFile ? (
+                  <div className="space-y-1">
+                    <div className="text-sm font-medium text-foreground">
                       {editFile.name}
                     </div>
-                    <div className="text-xs text-slate-500">
+                    <div className="text-xs text-muted-foreground">
                       {(editFile.size / 1024).toFixed(1)} KB
                     </div>
                   </div>
                 ) : (
                   <div className="space-y-1">
-                    <div className="font-semibold text-slate-700 dark:text-slate-200">
-                      Keep current proof if blank
+                    <div className="text-sm font-medium text-foreground">
+                      {isDraggingEditFile
+                        ? "Drop image here"
+                        : "Drop or choose a replacement image"}
                     </div>
-                    <div className="text-xs text-slate-500">
-                      PNG, JPG, WEBP, GIF
+                    <div className="text-xs text-muted-foreground">
+                      JPG, PNG, WEBP, GIF, or HEIC
                     </div>
                   </div>
                 )}
               </label>
 
               {editFile && (
-                <div className="mt-3 rounded-[14px] border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 px-3 py-2 text-xs text-slate-600 dark:text-slate-300">
+                <div className="mt-3 rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
                   Filename preview:{" "}
-                  <span className="font-semibold text-slate-900 dark:text-slate-100">
+                  <span className="font-medium text-foreground">
                     {editFilePreviewLabel}
                   </span>
                 </div>
@@ -928,7 +1156,7 @@ export default function PaymentsPage() {
                   setPreviewImageUrl(null);
                 }
               }}
-              className="px-4 py-2.5 rounded-[14px] border border-slate-200 dark:border-slate-700 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-800"
+              className="h-9 px-4 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors"
             >
               Close
             </button>
@@ -940,7 +1168,7 @@ export default function PaymentsPage() {
                   }
                 }}
                 disabled={!previewImageUrl}
-                className="px-4 py-2.5 rounded-[14px] bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="h-9 px-4 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Open in New Tab
               </button>
@@ -950,63 +1178,67 @@ export default function PaymentsPage() {
       >
         {previewPayment && (
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3 text-sm">
+            <div className="grid grid-cols-2 gap-x-8 gap-y-3">
               <div>
-                <div className="text-slate-500 text-xs font-semibold uppercase tracking-wider">
+                <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                   Date
                 </div>
-                <div className="font-semibold">{previewPayment.dateText}</div>
+                <div className="text-sm font-medium text-foreground">
+                  {previewPayment.dateText}
+                </div>
               </div>
               <div>
-                <div className="text-slate-500 text-xs font-semibold uppercase tracking-wider">
+                <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                   Category
                 </div>
-                <div className="font-semibold">{previewPayment.category}</div>
+                <div className="text-sm font-medium text-foreground">
+                  {previewPayment.category}
+                </div>
               </div>
               <div>
-                <div className="text-slate-500 text-xs font-semibold uppercase tracking-wider">
+                <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                   Recipient
                 </div>
-                <div className="font-semibold">
+                <div className="text-sm font-medium text-foreground">
                   {previewPayment.recipient || "—"}
                 </div>
               </div>
               <div>
-                <div className="text-slate-500 text-xs font-semibold uppercase tracking-wider">
+                <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                   Amount
                 </div>
-                <div className="font-semibold">
+                <div className="text-sm font-medium text-foreground">
                   {peso(Number(previewPayment.amount || 0))}
                 </div>
               </div>
               <div>
-                <div className="text-slate-500 text-xs font-semibold uppercase tracking-wider">
+                <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                   Method
                 </div>
-                <div className="font-semibold">
+                <div className="text-sm font-medium text-foreground">
                   {previewPayment.method || "—"}
                 </div>
               </div>
               <div>
-                <div className="text-slate-500 text-xs font-semibold uppercase tracking-wider">
+                <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                   Filename
                 </div>
-                <div className="font-semibold break-words">
+                <div className="text-sm font-medium text-foreground">
                   {previewPayment.filename}
                 </div>
               </div>
             </div>
 
             {previewPayment.note && (
-              <div className="rounded-[14px] border border-slate-200 dark:border-slate-700 p-3 text-sm">
-                <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">
+              <div className="rounded-md border border-border bg-muted/30 p-3 text-sm">
+                <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
                   Note
                 </div>
                 <div>{previewPayment.note}</div>
               </div>
             )}
 
-            <div className="rounded-[18px] border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 p-3">
+            <div className="rounded-md border border-border bg-muted/20 p-3 flex items-center justify-center">
               {previewLoading ? (
                 <div className="h-[320px] flex items-center justify-center text-sm text-muted-foreground">
                   Loading payment proof...
@@ -1015,7 +1247,7 @@ export default function PaymentsPage() {
                 <img
                   src={previewImageUrl}
                   alt={previewPayment.filename}
-                  className="w-full max-h-[68vh] object-contain rounded-[14px] bg-white"
+                  className="max-w-full max-h-[58vh] w-auto h-auto object-contain rounded-md bg-background"
                 />
               ) : (
                 <div className="h-[320px] flex items-center justify-center text-sm text-muted-foreground">
