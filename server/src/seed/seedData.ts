@@ -152,6 +152,7 @@ async function seed() {
 
       const computed = calculateTripFields({
         rate,
+        vat: 0,
         trips: tripCount,
         crewSalary,
         cashAdvance,
@@ -185,6 +186,7 @@ async function seed() {
         const shipment2 = `${prefix}-${monthNum}${dayNum}-${Math.floor(Math.random() * 900 + 100)}B`;
         const computed2 = calculateTripFields({
           rate: rate2,
+          vat: 0,
           trips: 1,
           crewSalary: 1900,
           cashAdvance: 0,
@@ -411,6 +413,7 @@ async function seed() {
     if (firstTrip) {
       const computed = calculateTripFields({
         rate: firstTrip.rate,
+        vat: firstTrip.vat ?? 0,
         trips: firstTrip.trips,
         crewSalary: firstTrip.crewSalary,
         cashAdvance: firstTrip.cashAdvance,
