@@ -809,7 +809,7 @@ export default function TripTable({
       cols.push({ key: "netIncome", label: "Net", sortField: "netIncome" });
     if (show("payable"))
       cols.push({ key: "payable", label: "Payable", sortField: "payable" });
-    cols.push({ key: "paid", label: "Paid" });
+    cols.push({ key: "paid", label: "Crew Payment" });
     return cols;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [truckVisible, visibleColumns, columnLabels]);
@@ -1287,12 +1287,12 @@ export default function TripTable({
                 ) : effectivePaid ? (
                   <>
                     <Check size={12} />
-                    Paid
+                    Settled
                   </>
                 ) : (
                   <>
                     <X size={12} />
-                    Unpaid
+                    Unsettled
                   </>
                 )}
               </span>
@@ -1306,12 +1306,12 @@ export default function TripTable({
                 {effectivePaid ? (
                   <>
                     <X size={12} />
-                    Mark as Unpaid
+                    Set as Unsettled
                   </>
                 ) : (
                   <>
                     <Check size={12} />
-                    Mark as Paid
+                    Mark as Settled
                   </>
                 )}
               </span>
