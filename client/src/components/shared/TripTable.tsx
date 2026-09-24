@@ -18,7 +18,11 @@ import {
   getFilteredRowModel,
   type ColumnFiltersState,
 } from "@tanstack/react-table";
-import { type TripRow, type ExpenseRow } from "../../store/useAppStore";
+import {
+  useAppStore,
+  type TripRow,
+  type ExpenseRow,
+} from "../../store/useAppStore";
 import { peso, cn } from "../../lib/utils";
 import { getColumnLabels } from "../../lib/columnLabels";
 import {
@@ -530,6 +534,7 @@ export default function TripTable({
   const [highlightedExpenseRow, setHighlightedExpenseRow] = useState<
     string | null
   >(null);
+  const { truckOptions } = useAppStore();
 
   const toggleExpandedRow = (id: string) => {
     setExpandedRows((prev) => {
@@ -548,6 +553,10 @@ export default function TripTable({
   const [labelDraft, setLabelDraft] = useState("");
   const [columnLabels, setColumnLabels] = useState(getColumnLabels());
   const totalsSource = totalsRows ?? rows;
+
+  const selectedTruckName = truckOptions.find(
+    (t) => t._id === selectedTruck,
+  )?.truckName;
 
   const getExpensesForTrip = (trip: TripRow) => {
     // 1. Expenses explicitly linked to this exact trip
@@ -965,7 +974,7 @@ export default function TripTable({
         );
 
         return expandableDetails ? (
-          <div className="inline-flex items-center gap-2 whitespace-nowrap">
+          <div className="inline-flex items-center gap-2">
             <button
               type="button"
               onClick={(e) => {
@@ -1271,7 +1280,7 @@ export default function TripTable({
                 : "bg-muted border-border text-slate-400 hover:bg-green-500/10 hover:border-green-500/20 hover:text-green-500",
             )}
           >
-            <span className="relative flex items-center justify-center w-[110px] min-h-[16px]">
+            <span className="relative flex items-center justify-center min-w-[110px] min-h-[16px]">
               <span className="absolute inset-0 flex items-center justify-center gap-1.5 group-hover:opacity-0 group-hover:invisible transition-all">
                 {isLoading ? (
                   <Loader2 size={12} className="animate-spin" />
@@ -1347,7 +1356,7 @@ export default function TripTable({
     (selectable ? 1 : 0) + columns.length + (showActions ? 1 : 0);
 
   return (
-    <div className="border rounded-lg bg-background">
+    <div className="border rounded-lg bg-background overflow-x-auto">
       {/* Desktop table */}
       <table
         className={cn(
@@ -1359,7 +1368,7 @@ export default function TripTable({
         <thead>
           <tr>
             {selectable && (
-              <th className="sticky top-[101px] z-10 bg-muted/60 backdrop-blur border-b border-slate-200 dark:border-slate-700 text-left text-xs font-semibold text-muted-foreground px-2.5 py-3 whitespace-nowrap">
+              <th className="sticky top-0 z-10 bg-muted/60 backdrop-blur border-b border-slate-200 dark:border-slate-700 text-left text-xs font-semibold text-muted-foreground px-2.5 py-3 whitespace-nowrap">
                 <input
                   type="checkbox"
                   checked={allSelected}
@@ -1383,14 +1392,12 @@ export default function TripTable({
                     column?.toggleSorting()
                   }
                   className={cn(
-                    "group sticky top-[101px] z-10 bg-muted/60 backdrop-blur border-b border-slate-200 dark:border-slate-700 text-xs font-semibold text-muted-foreground px-2.5 py-3 whitespace-nowrap cursor-pointer select-none transition-colors hover:bg-muted hover:text-foreground",
+                    "group sticky top-0 z-10 bg-muted/60 backdrop-blur border-b border-slate-200 dark:border-slate-700 text-xs font-semibold text-muted-foreground px-2.5 py-3 cursor-pointer select-none transition-colors hover:bg-muted hover:text-foreground",
                     col.key === "paid"
                       ? "text-center"
                       : isNumericColumn(col.key)
                         ? "text-right"
                         : "text-left",
-                    idx === 0 && !selectable && "left-0 z-20",
-                    idx === 0 && selectable && "left-[40px] z-20",
                   )}
                 >
                   <div
@@ -1471,7 +1478,7 @@ export default function TripTable({
               );
             })}
             {showActions && (
-              <th className="sticky top-[101px] z-10 bg-muted/60 backdrop-blur border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-muted-foreground px-2.5 py-3 whitespace-nowrap">
+              <th className="sticky top-0 z-10 bg-muted/60 backdrop-blur border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-muted-foreground px-2.5 py-3 whitespace-nowrap">
                 Actions
               </th>
             )}
@@ -1490,8 +1497,8 @@ export default function TripTable({
                 {emptyState || (
                   <EmptyState
                     icon={Route}
-                    title="No trips found"
-                    description="No trip records match your current filters."
+                    title="No Trips Found!"
+                    description={`No trips recorded for ${selectedTruckName} on the selected date range.`}
                   />
                 )}
               </td>
@@ -1556,10 +1563,8 @@ export default function TripTable({
                           col.key === "paid"
                             ? "text-center"
                             : isNumericColumn(col.key)
-                              ? "text-right tabular-nums"
+                              ? "text-right tabular-nums whitespace-nowrap"
                               : "text-left",
-                          idx === 0 && !selectable && "sticky left-0 z-[5]",
-                          idx === 0 && selectable && "sticky left-[40px] z-[5]",
                           col.className,
                         )}
                       >

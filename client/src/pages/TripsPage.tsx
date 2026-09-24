@@ -607,17 +607,17 @@ export default function TripsPage() {
           emptyState={
             <EmptyState
               icon={Route}
-              title="No trips found"
+              title="No Trips Found!"
               description={
                 selectedTruck
-                  ? `No trips recorded for ${selectedTruckName}. Add your first trip to get started!`
+                  ? `No trips recorded for ${selectedTruckName} on the selected date range.`
                   : "Select a truck and add your first trip to start tracking."
               }
               action={
                 selectedTruck ? (
                   <button
                     onClick={handleAddTrip}
-                    className="px-4 py-2.5 rounded-[14px] bg-gradient-to-br from-blue-600 to-blue-700 text-white text-sm font-semibold shadow-[0_10px_20px_rgba(37,99,235,0.18)] hover:from-blue-700 hover:to-blue-800 transition-all flex items-center gap-1.5"
+                    className="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition"
                   >
                     <Plus size={16} /> Add Trip
                   </button>

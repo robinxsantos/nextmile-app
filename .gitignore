@@ -26,3 +26,5 @@ npm-debug.log*
 
 # Uploads
 server/uploads/
+
+backups/
