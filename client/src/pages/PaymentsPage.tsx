@@ -76,6 +76,8 @@ export default function PaymentsPage() {
   const [date, setDate] = useState(toInputDate(new Date()));
   const [note, setNote] = useState("");
   const [previewPayment, setPreviewPayment] = useState<PaymentRow | null>(null);
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
   const [deleteModal, setDeleteModal] = useState<PaymentRow | null>(null);
   const [showTruckWarning, setShowTruckWarning] = useState(false);
   const [openDate, setOpenDate] = useState(false);
@@ -108,6 +110,14 @@ export default function PaymentsPage() {
       setPayments([]);
     }
   }, [selectedTruck]);
+
+  useEffect(() => {
+    return () => {
+      if (previewImageUrl) {
+        URL.revokeObjectURL(previewImageUrl);
+      }
+    };
+  }, [previewImageUrl]);
 
   useEffect(() => {
     fetchPayments();
@@ -254,6 +264,26 @@ export default function PaymentsPage() {
     }
   };
 
+  const openPreview = async (payment: PaymentRow) => {
+    setPreviewPayment(payment);
+    setPreviewLoading(true);
+    setPreviewImageUrl(null);
+
+    try {
+      const response = await api.get(`/payments/${payment._id}/file`, {
+        responseType: "blob",
+      });
+
+      const objectUrl = URL.createObjectURL(response.data);
+      setPreviewImageUrl(objectUrl);
+    } catch {
+      toast.error("Failed to load payment proof");
+      setPreviewPayment(null);
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
   const confirmDelete = async () => {
     if (!deleteModal) return;
     try {
@@ -338,8 +368,8 @@ export default function PaymentsPage() {
                 Category
               </label>
               <UiSelect
-                value={category}
-                onValueChange={(val) => setCategory(val)}
+                value={editCategory}
+                onValueChange={(val) => setEditCategory(val)}
               >
                 <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
                   <SelectValue />
@@ -359,7 +389,10 @@ export default function PaymentsPage() {
               <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1 block">
                 Payment Method
               </label>
-              <UiSelect value={method} onValueChange={(val) => setMethod(val)}>
+              <UiSelect
+                value={editMethod}
+                onValueChange={(val) => setEditMethod(val)}
+              >
                 <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
                   <SelectValue />
                 </SelectTrigger>
@@ -560,7 +593,7 @@ export default function PaymentsPage() {
                       </td>
                       <td className="text-center text-xs px-3 py-3 border-b border-slate-100 dark:border-slate-800">
                         <button
-                          onClick={() => setPreviewPayment(p)}
+                          onClick={() => openPreview(p)}
                           className="h-8 px-3 rounded-md inline-flex items-center justify-center gap-1.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-muted hover:border-blue-500/20 hover:text-blue-600 transition-all text-xs font-semibold"
                         >
                           <Eye size={14} /> View
@@ -649,7 +682,7 @@ export default function PaymentsPage() {
 
                   <div className="flex gap-2 pt-3 mt-3 border-t border-slate-200 dark:border-slate-700">
                     <button
-                      onClick={() => setPreviewPayment(p)}
+                      onClick={() => openPreview(p)}
                       className="flex-1 h-9 rounded-xl inline-flex items-center justify-center gap-1.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-muted hover:text-blue-600 transition-all text-xs font-semibold"
                     >
                       <Eye size={14} /> View
@@ -748,8 +781,8 @@ export default function PaymentsPage() {
                 Category
               </label>
               <UiSelect
-                value={category}
-                onValueChange={(val) => setCategory(val)}
+                value={editCategory}
+                onValueChange={(val) => setEditCategory(val)}
               >
                 <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
                   <SelectValue />
@@ -769,7 +802,10 @@ export default function PaymentsPage() {
               <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1 block">
                 Method
               </label>
-              <UiSelect value={method} onValueChange={(val) => setMethod(val)}>
+              <UiSelect
+                value={editMethod}
+                onValueChange={(val) => setEditMethod(val)}
+              >
                 <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
                   <SelectValue />
                 </SelectTrigger>
@@ -871,26 +907,40 @@ export default function PaymentsPage() {
 
       <Modal
         open={!!previewPayment}
-        onClose={() => setPreviewPayment(null)}
+        onClose={() => {
+          setPreviewPayment(null);
+
+          if (previewImageUrl) {
+            URL.revokeObjectURL(previewImageUrl);
+            setPreviewImageUrl(null);
+          }
+        }}
         title={previewPayment ? `${previewPayment.category} Proof` : "Preview"}
         wide
         footer={
           <>
             <button
-              onClick={() => setPreviewPayment(null)}
+              onClick={() => {
+                setPreviewPayment(null);
+
+                if (previewImageUrl) {
+                  URL.revokeObjectURL(previewImageUrl);
+                  setPreviewImageUrl(null);
+                }
+              }}
               className="px-4 py-2.5 rounded-[14px] border border-slate-200 dark:border-slate-700 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-800"
             >
               Close
             </button>
             {previewPayment && (
               <button
-                onClick={() =>
-                  window.open(
-                    `/api/payments/${previewPayment._id}/file`,
-                    "_blank",
-                  )
-                }
-                className="px-4 py-2.5 rounded-[14px] bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700"
+                onClick={() => {
+                  if (previewImageUrl) {
+                    window.open(previewImageUrl, "_blank");
+                  }
+                }}
+                disabled={!previewImageUrl}
+                className="px-4 py-2.5 rounded-[14px] bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Open in New Tab
               </button>
@@ -957,11 +1007,21 @@ export default function PaymentsPage() {
             )}
 
             <div className="rounded-[18px] border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 p-3">
-              <img
-                src={`/api/payments/${previewPayment._id}/file`}
-                alt={previewPayment.filename}
-                className="w-full max-h-[68vh] object-contain rounded-[14px] bg-white"
-              />
+              {previewLoading ? (
+                <div className="h-[320px] flex items-center justify-center text-sm text-muted-foreground">
+                  Loading payment proof...
+                </div>
+              ) : previewImageUrl ? (
+                <img
+                  src={previewImageUrl}
+                  alt={previewPayment.filename}
+                  className="w-full max-h-[68vh] object-contain rounded-[14px] bg-white"
+                />
+              ) : (
+                <div className="h-[320px] flex items-center justify-center text-sm text-muted-foreground">
+                  Preview unavailable
+                </div>
+              )}
             </div>
           </div>
         )}

@@ -10,7 +10,8 @@ export interface IPayment extends Document {
   date: Date;
   filename: string;
   originalFilename: string;
-  filePath: string;
+  filePath?: string;
+  driveFileId?: string;
   fileSize: number;
   mimeType: string;
   note: string;
@@ -31,7 +32,8 @@ const PaymentSchema = new Schema<IPayment>(
     date: { type: Date, required: true },
     filename: { type: String, required: true },
     originalFilename: { type: String, required: true },
-    filePath: { type: String, required: true },
+    filePath: { type: String, default: "" },
+    driveFileId: { type: String, default: "" },
     fileSize: { type: Number, required: true },
     mimeType: { type: String, required: true },
     note: { type: String, default: "", trim: true },

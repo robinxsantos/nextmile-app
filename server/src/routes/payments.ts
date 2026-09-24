@@ -1,36 +1,21 @@
 import { Router, Response } from "express";
 import multer from "multer";
-import path from "path";
 import fs from "fs";
-import { fileURLToPath } from "url";
 import { Payment } from "../models/Payment.js";
 import { Truck } from "../models/Truck.js";
+import {
+  uploadPaymentFile,
+  getPaymentFile,
+  deletePaymentFile,
+} from "../lib/googleDrive.js";
 import {
   requireAuth,
   requireAdmin,
   type AuthRequest,
 } from "../middleware/auth.js";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Ensure uploads directory exists
-const uploadsDir = path.join(__dirname, "../../../uploads");
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
-
 // Configure multer
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    cb(null, uploadsDir);
-  },
-  filename: (_req, file, cb) => {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    const ext = path.extname(file.originalname);
-    cb(null, uniqueSuffix + ext);
-  },
-});
+const storage = multer.memoryStorage();
 
 const upload = multer({
   storage,
@@ -110,9 +95,12 @@ router.post(
   "/upload",
   upload.single("file"),
   async (req: AuthRequest, res: Response) => {
+    let uploadedDriveFileId = "";
+
     try {
       const { truckId, category, recipient, amount, method, date, note } =
         req.body;
+
       const file = req.file;
 
       if (!file) {
@@ -131,20 +119,44 @@ router.post(
       }
 
       const truck = await Truck.findById(truckId);
+
       if (!truck) {
         res.status(404).json({ error: "Truck not found" });
         return;
       }
 
       const parsedDate = date ? new Date(date) : new Date();
+
+      if (Number.isNaN(parsedDate.getTime())) {
+        res.status(400).json({ error: "Invalid date" });
+        return;
+      }
+
       parsedDate.setHours(12, 0, 0, 0);
 
-      const ext = path.extname(file.originalname);
+      const extensionByMime: Record<string, string> = {
+        "image/jpeg": ".jpg",
+        "image/png": ".png",
+        "image/gif": ".gif",
+        "image/webp": ".webp",
+      };
+
+      const ext = extensionByMime[file.mimetype] || "";
+
       const dateStr = `${parsedDate.getFullYear()}-${String(
         parsedDate.getMonth() + 1,
       ).padStart(2, "0")}-${String(parsedDate.getDate()).padStart(2, "0")}`;
 
-      const displayFilename = `${category} - ${dateStr}${ext}`;
+      const displayFilename = `${String(category).trim()} - ${dateStr}${ext}`;
+
+      // Upload the image buffer directly to Google Drive
+      const driveFile = await uploadPaymentFile(
+        file.buffer,
+        displayFilename,
+        file.mimetype,
+      );
+
+      uploadedDriveFileId = driveFile.id!;
 
       const payment = await Payment.create({
         truck: truck._id,
@@ -154,9 +166,16 @@ router.post(
         amount: Number(amount || 0),
         method: String(method || "").trim(),
         date: parsedDate,
+
         filename: displayFilename,
         originalFilename: file.originalname,
-        filePath: file.path,
+
+        // New payments live in Google Drive
+        driveFileId: uploadedDriveFileId,
+
+        // Keep empty for backward compatibility with old local payments
+        filePath: "",
+
         fileSize: file.size,
         mimeType: file.mimetype,
         note: String(note || "").trim(),
@@ -167,13 +186,31 @@ router.post(
         .populate("uploadedBy", "displayName");
 
       if (!populated) {
-        res.status(500).json({ error: "Failed to reload payment" });
-        return;
+        throw new Error("Failed to reload payment");
       }
 
-      res.status(201).json({ payment: toRow(populated) });
+      res.status(201).json({
+        payment: toRow(populated),
+      });
     } catch (err: any) {
-      res.status(500).json({ error: err.message });
+      // If Drive upload succeeded but MongoDB failed,
+      // remove the orphaned Drive file.
+      if (uploadedDriveFileId) {
+        try {
+          await deletePaymentFile(uploadedDriveFileId);
+        } catch (cleanupError) {
+          console.error(
+            "Failed to clean up orphaned Drive file:",
+            cleanupError,
+          );
+        }
+      }
+
+      console.error("Error uploading payment:", err);
+
+      res.status(500).json({
+        error: err.message || "Upload failed",
+      });
     }
   },
 );
@@ -183,13 +220,17 @@ router.put(
   "/:id",
   upload.single("file"),
   async (req: AuthRequest, res: Response) => {
+    let newDriveFileId = "";
+
     try {
       const { id } = req.params;
       const { truckId, category, recipient, amount, method, date, note } =
         req.body;
+
       const file = req.file;
 
       const payment = await Payment.findById(id);
+
       if (!payment) {
         res.status(404).json({ error: "Payment not found" });
         return;
@@ -206,44 +247,62 @@ router.put(
       }
 
       const truck = await Truck.findById(truckId);
+
       if (!truck) {
         res.status(404).json({ error: "Truck not found" });
         return;
       }
 
       const parsedDate = date ? new Date(date) : new Date();
+
       if (Number.isNaN(parsedDate.getTime())) {
         res.status(400).json({ error: "Invalid date" });
         return;
       }
+
       parsedDate.setHours(12, 0, 0, 0);
 
       let filename = payment.filename;
       let originalFilename = payment.originalFilename;
-      let filePath = payment.filePath;
       let fileSize = payment.fileSize;
       let mimeType = payment.mimeType;
 
       if (file) {
-        try {
-          if (payment.filePath && fs.existsSync(payment.filePath)) {
-            fs.unlinkSync(payment.filePath);
-          }
-        } catch {
-          // ignore old file deletion errors
-        }
+        const extensionByMime: Record<string, string> = {
+          "image/jpeg": ".jpg",
+          "image/png": ".png",
+          "image/gif": ".gif",
+          "image/webp": ".webp",
+        };
 
-        const ext = path.extname(file.originalname);
+        const ext = extensionByMime[file.mimetype] || "";
+
         const dateStr = `${parsedDate.getFullYear()}-${String(
           parsedDate.getMonth() + 1,
         ).padStart(2, "0")}-${String(parsedDate.getDate()).padStart(2, "0")}`;
 
-        filename = `${category} - ${dateStr}${ext}`;
+        filename = `${String(category).trim()} - ${dateStr}${ext}`;
         originalFilename = file.originalname;
-        filePath = file.path;
         fileSize = file.size;
         mimeType = file.mimetype;
+
+        // Upload replacement first.
+        // We only delete the old file after the new upload succeeds.
+        const driveFile = await uploadPaymentFile(
+          file.buffer,
+          filename,
+          file.mimetype,
+        );
+
+        if (!driveFile.id) {
+          throw new Error("Google Drive did not return a file ID");
+        }
+
+        newDriveFileId = driveFile.id;
       }
+
+      const oldDriveFileId = payment.driveFileId || "";
+      const oldFilePath = payment.filePath || "";
 
       payment.truck = truck._id;
       payment.category = String(category).trim();
@@ -254,25 +313,72 @@ router.put(
       payment.note = String(note || "").trim();
       payment.filename = filename;
       payment.originalFilename = originalFilename;
-      payment.filePath = filePath;
       payment.fileSize = fileSize;
       payment.mimeType = mimeType;
 
+      if (newDriveFileId) {
+        payment.driveFileId = newDriveFileId;
+        payment.filePath = "";
+      }
+
       await payment.save();
+
+      // New record is safely saved.
+      // Now remove the replaced old proof.
+      if (newDriveFileId) {
+        if (oldDriveFileId) {
+          try {
+            await deletePaymentFile(oldDriveFileId);
+          } catch (cleanupError) {
+            console.error(
+              "Failed to delete old Drive payment proof:",
+              cleanupError,
+            );
+          }
+        }
+
+        if (oldFilePath && fs.existsSync(oldFilePath)) {
+          try {
+            fs.unlinkSync(oldFilePath);
+          } catch (cleanupError) {
+            console.error(
+              "Failed to delete old local payment proof:",
+              cleanupError,
+            );
+          }
+        }
+      }
 
       const populated = await Payment.findById(payment._id)
         .populate("truck", "truckName")
         .populate("uploadedBy", "displayName");
 
       if (!populated) {
-        res.status(500).json({ error: "Failed to reload payment" });
-        return;
+        throw new Error("Failed to reload payment");
       }
 
-      res.json({ payment: toRow(populated) });
+      res.json({
+        payment: toRow(populated),
+      });
     } catch (err: any) {
+      // If the new Drive upload succeeded but the DB update failed,
+      // remove the newly uploaded file instead of leaving an orphan.
+      if (newDriveFileId) {
+        try {
+          await deletePaymentFile(newDriveFileId);
+        } catch (cleanupError) {
+          console.error(
+            "Failed to clean up replacement Drive file:",
+            cleanupError,
+          );
+        }
+      }
+
       console.error("Error updating payment:", err);
-      res.status(500).json({ error: err.message || "Update failed" });
+
+      res.status(500).json({
+        error: err.message || "Update failed",
+      });
     }
   },
 );
@@ -287,19 +393,45 @@ router.get("/:id/file", async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    if (!fs.existsSync(payment.filePath)) {
-      res.status(404).json({ error: "File not found on disk" });
-      return;
-    }
-
     res.setHeader("Content-Type", payment.mimeType);
     res.setHeader(
       "Content-Disposition",
       `inline; filename="${payment.filename}"`,
     );
-    res.sendFile(payment.filePath);
+
+    // New payments: stream privately from Google Drive
+    if (payment.driveFileId) {
+      const driveResponse = await getPaymentFile(payment.driveFileId);
+
+      driveResponse.data.on("error", (error) => {
+        console.error("Google Drive stream error:", error);
+
+        if (!res.headersSent) {
+          res.status(500).json({ error: "Failed to load payment proof" });
+        } else {
+          res.end();
+        }
+      });
+
+      driveResponse.data.pipe(res);
+      return;
+    }
+
+    // Old payments: continue serving from local disk
+    if (payment.filePath && fs.existsSync(payment.filePath)) {
+      res.sendFile(payment.filePath);
+      return;
+    }
+
+    res.status(404).json({
+      error: "Payment proof file not found",
+    });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    console.error("Error loading payment proof:", err);
+
+    res.status(500).json({
+      error: err.message || "Failed to load payment proof",
+    });
   }
 });
 
@@ -313,18 +445,46 @@ router.delete("/:id", async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    try {
-      if (payment.filePath && fs.existsSync(payment.filePath)) {
-        fs.unlinkSync(payment.filePath);
+    // New payments: delete proof from Google Drive
+    if (payment.driveFileId) {
+      try {
+        await deletePaymentFile(payment.driveFileId);
+      } catch (error) {
+        console.error(
+          "Failed to delete payment proof from Google Drive:",
+          error,
+        );
+
+        res.status(500).json({
+          error: "Failed to delete payment proof from Google Drive",
+        });
+        return;
       }
-    } catch {
-      // ignore file deletion issues
     }
 
-    await Payment.findByIdAndDelete(req.params.id);
+    // Old payments: delete proof from local disk
+    if (payment.filePath && fs.existsSync(payment.filePath)) {
+      try {
+        fs.unlinkSync(payment.filePath);
+      } catch (error) {
+        console.error("Failed to delete local payment proof:", error);
+
+        res.status(500).json({
+          error: "Failed to delete local payment proof",
+        });
+        return;
+      }
+    }
+
+    await Payment.findByIdAndDelete(payment._id);
+
     res.json({ ok: true });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    console.error("Error deleting payment:", err);
+
+    res.status(500).json({
+      error: err.message || "Failed to delete payment",
+    });
   }
 });
 
