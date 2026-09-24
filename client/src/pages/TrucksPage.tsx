@@ -933,7 +933,7 @@ export default function TrucksPage() {
           <DialogContent className="sm:max-w-[700px]">
             <DialogHeader>
               <DialogTitle>
-                Change Oil History
+                Service History
                 {changeOilModal ? ` — ${changeOilModal.truckName}` : ""}
               </DialogTitle>
             </DialogHeader>
@@ -1128,7 +1128,7 @@ export default function TrucksPage() {
 
                                 <td className="px-3 py-2 text-right whitespace-nowrap font-semibold">
                                   {record.odometer != null
-                                    ? `${Number(record.odometer).toLocaleString()} km`
+                                    ? `${Number(record.odometer).toLocaleString()} KM`
                                     : "—"}
                                 </td>
 

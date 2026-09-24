@@ -177,6 +177,7 @@ router.post(
         file.buffer,
         displayFilename,
         file.mimetype,
+        truck.truckName,
       );
 
       uploadedDriveFileId = driveFile.id!;
@@ -315,6 +316,7 @@ router.put(
           file.buffer,
           filename,
           file.mimetype,
+          truck.truckName,
         );
 
         if (!driveFile.id) {
