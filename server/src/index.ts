@@ -12,6 +12,7 @@ import dashboardRoutes from "./routes/dashboard.js";
 import authRoutes, { ensureDefaultAdmin } from "./routes/auth.js";
 import userRoutes from "./routes/users.js";
 import paymentRoutes from "./routes/payments.js";
+import collectionRoutes from "./routes/collections.js";
 import { requireAuth } from "./middleware/auth.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -40,6 +41,7 @@ app.use("/api/expenses", requireAuth, expenseRoutes);
 app.use("/api/dashboard", requireAuth, dashboardRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/payments", paymentRoutes);
+app.use("/api/collections", collectionRoutes);
 
 // Health check
 app.get("/api/health", (_req, res) => {

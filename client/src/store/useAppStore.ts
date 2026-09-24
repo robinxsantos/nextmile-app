@@ -113,6 +113,11 @@ export interface TripRow {
   paid: boolean;
   reportPayable?: number;
   reportNetIncome?: number;
+  collectionStatus?: "Collected" | "Uncollected";
+  collectionDate?: string | null;
+  collectionMethod?: string;
+  collectionReference?: string;
+  collectionNote?: string;
 }
 
 export interface ExpenseRow {

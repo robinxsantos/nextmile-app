@@ -648,13 +648,13 @@ export default function TripsPage() {
                   onClick={() => bulkTogglePaid(selectedTripIds, true)}
                   className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-green-500/10 text-green-600 dark:text-green-400 hover:bg-green-500/20 transition-colors"
                 >
-                  <CheckCheck size={15} /> Paid
+                  <CheckCheck size={15} /> Settled
                 </button>
                 <button
                   onClick={() => bulkTogglePaid(selectedTripIds, false)}
                   className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 transition-colors"
                 >
-                  <XCircle size={15} /> Unpaid
+                  <XCircle size={15} /> Unsettled
                 </button>
                 <button
                   onClick={() => setBulkDeleteModal(true)}

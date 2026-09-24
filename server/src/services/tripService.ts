@@ -189,6 +189,14 @@ export function formatTripResponse(trip: ITrip & { truck?: any }) {
     grossIncome: trip.grossIncome,
     netIncome: trip.netIncome,
     payable: trip.payable,
+
     paid: trip.paid,
+
+    // Client collection tracking
+    collectionStatus: trip.collectionStatus || "Uncollected",
+    collectionDate: trip.collectionDate || null,
+    collectionMethod: trip.collectionMethod || "",
+    collectionReference: trip.collectionReference || "",
+    collectionNote: trip.collectionNote || "",
   };
 }

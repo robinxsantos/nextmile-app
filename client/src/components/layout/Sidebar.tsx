@@ -14,6 +14,7 @@ import {
   Moon,
   Users,
   CreditCard,
+  WalletCards,
   LogOut,
   Settings,
 } from "lucide-react";
@@ -37,6 +38,14 @@ const allNavItems = [
   { to: "/expenses", icon: HandCoins, label: "Expenses", adminOnly: true },
   { to: "/reports", icon: BarChart3, label: "Reports", adminOnly: true },
   { to: "/payments", icon: CreditCard, label: "Payments", adminOnly: true },
+
+  {
+    to: "/collections",
+    icon: WalletCards,
+    label: "Collections",
+    adminOnly: true,
+  },
+
   { to: "/trucks", icon: Truck, label: "Trucks", adminOnly: true },
   { to: "/users", icon: Users, label: "Users", adminOnly: true },
   { to: "/settings", icon: Settings, label: "Settings", adminOnly: false },

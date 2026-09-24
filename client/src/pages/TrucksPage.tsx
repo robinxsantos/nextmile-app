@@ -1128,7 +1128,8 @@ export default function TrucksPage() {
 
                                 <td className="px-3 py-2 text-right whitespace-nowrap font-semibold">
                                   {record.odometer != null
-                                    ? `${Number(record.odometer).toLocaleString()} KM`
+                                    ? `${Number(record.odometer).toLocaleString()} KM
+                                    `
                                     : "—"}
                                 </td>
 
