@@ -227,6 +227,7 @@ router.post(
         uploadBuffer,
         displayFilename,
         uploadMimeType,
+        truck.companyName,
         truck.truckName,
       );
 
@@ -390,6 +391,7 @@ router.put(
           file.buffer,
           filename,
           file.mimetype,
+          truck.companyName,
           truck.truckName,
         );
 
