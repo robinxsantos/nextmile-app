@@ -105,94 +105,6 @@ router.patch(
   },
 );
 
-// PATCH /api/trips/bulk-collection (admin only)
-router.patch(
-  "/bulk-collection",
-  requireAdmin,
-  async (req: Request, res: Response) => {
-    try {
-      const {
-        ids,
-        status,
-        collectionDate,
-        collectionMethod,
-        collectionReference,
-        collectionNote,
-      } = req.body;
-
-      if (!Array.isArray(ids) || ids.length === 0) {
-        res.status(400).json({ error: "ids array is required" });
-        return;
-      }
-
-      if (!["Collected", "Uncollected"].includes(status)) {
-        res.status(400).json({ error: "Invalid collection status" });
-        return;
-      }
-
-      if (status === "Collected") {
-        const parsedCollectionDate = collectionDate
-          ? new Date(collectionDate)
-          : new Date();
-
-        if (Number.isNaN(parsedCollectionDate.getTime())) {
-          res.status(400).json({ error: "Invalid collection date" });
-          return;
-        }
-
-        parsedCollectionDate.setHours(12, 0, 0, 0);
-
-        const result = await Trip.updateMany(
-          {
-            _id: { $in: ids },
-          },
-          {
-            $set: {
-              collectionStatus: "Collected",
-              collectionDate: parsedCollectionDate,
-              collectionMethod: sanitizeString(collectionMethod || ""),
-              collectionReference: sanitizeString(collectionReference || ""),
-              collectionNote: sanitizeString(collectionNote || ""),
-            },
-          },
-        );
-
-        res.json({
-          ok: true,
-          count: result.modifiedCount,
-        });
-
-        return;
-      }
-
-      // Mark selected trips as Uncollected and clear collection details
-      const result = await Trip.updateMany(
-        {
-          _id: { $in: ids },
-        },
-        {
-          $set: {
-            collectionStatus: "Uncollected",
-            collectionDate: null,
-            collectionMethod: "",
-            collectionReference: "",
-            collectionNote: "",
-          },
-        },
-      );
-
-      res.json({
-        ok: true,
-        count: result.modifiedCount,
-      });
-    } catch (err: any) {
-      res.status(500).json({
-        error: err.message || "Failed to update collection status",
-      });
-    }
-  },
-);
-
 // DELETE /api/trips/bulk-delete (admin only)
 router.delete(
   "/bulk-delete",
@@ -856,6 +768,59 @@ router.patch(
       res.json(formatTripResponse(result as any));
     } catch (err: any) {
       res.status(500).json({ error: err.message });
+    }
+  },
+);
+
+// PATCH /api/trips/:id/collection-comment (admin only)
+router.patch(
+  "/:id/collection-comment",
+  requireAdmin,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { collectionComment } = req.body;
+
+      if (typeof collectionComment !== "string") {
+        res.status(400).json({
+          error: "Collection comment must be a string.",
+        });
+        return;
+      }
+
+      const cleanComment = collectionComment.trim();
+
+      if (cleanComment.length > 500) {
+        res.status(400).json({
+          error: "Collection comment cannot exceed 500 characters.",
+        });
+        return;
+      }
+
+      const trip = await Trip.findById(req.params.id);
+
+      if (!trip) {
+        res.status(404).json({
+          error: "Trip not found.",
+        });
+        return;
+      }
+
+      trip.collectionComment = cleanComment;
+
+      await trip.save();
+
+      const updated = await Trip.findById(trip._id).populate(
+        "truck",
+        "truckName",
+      );
+
+      res.json(formatTripResponse(updated as any));
+    } catch (err: any) {
+      console.error("Error updating collection comment:", err);
+
+      res.status(500).json({
+        error: err.message || "Failed to update collection comment.",
+      });
     }
   },
 );

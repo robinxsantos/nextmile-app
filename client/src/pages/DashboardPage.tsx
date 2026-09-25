@@ -1115,37 +1115,49 @@ export default function DashboardPage() {
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 40 }}
-            transition={{ duration: 0.25, ease: "easeOut" }}
-            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-lg"
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="fixed bottom-6 left-1/2 z-50 w-[calc(100%-2rem)] max-w-lg -translate-x-1/2"
           >
-            <div className="glass-card rounded-2xl border border-slate-200/80 dark:border-slate-700/80 shadow-[0_8px_32px_rgba(37,99,235,0.18)] dark:shadow-[0_8px_32px_rgba(37,99,235,0.25)] px-4 py-3 flex flex-col sm:flex-row items-center justify-center gap-2">
-              <span className="text-sm font-semibold whitespace-nowrap">
+            <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-border bg-background/95 px-4 py-3 shadow-lg backdrop-blur sm:flex-row">
+              <span className="whitespace-nowrap text-sm font-semibold text-foreground">
                 {selectedTripIds.length} trip
                 {selectedTripIds.length !== 1 ? "s" : ""} selected
               </span>
-              <div className="hidden sm:block w-px h-6 bg-slate-200 dark:bg-slate-700" />
-              <div className="flex items-center gap-2">
+
+              <div className="hidden h-6 w-px bg-border sm:block" />
+
+              <div className="flex items-center gap-1.5">
                 <button
+                  type="button"
                   onClick={() => bulkTogglePaid(selectedTripIds, true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-green-500/10 text-green-600 dark:text-green-400 hover:bg-green-500/20 transition-colors"
+                  className="inline-flex h-8 items-center gap-1.5 rounded-md border border-green-500/20 bg-green-500/10 px-3 text-xs font-medium text-green-600 transition-colors hover:bg-green-500/20 dark:text-green-400"
                 >
-                  <CheckCheck size={15} /> Settled
+                  <CheckCheck className="h-4 w-4" />
+                  Settled
                 </button>
+
                 <button
+                  type="button"
                   onClick={() => bulkTogglePaid(selectedTripIds, false)}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 transition-colors"
+                  className="inline-flex h-8 items-center gap-1.5 rounded-md border border-amber-500/20 bg-amber-500/10 px-3 text-xs font-medium text-amber-600 transition-colors hover:bg-amber-500/20 dark:text-amber-400"
                 >
-                  <XCircle size={15} /> Unsettled
+                  <XCircle className="h-4 w-4" />
+                  Unsettled
                 </button>
+
                 <button
+                  type="button"
                   onClick={() => setBulkDeleteModal(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/20 transition-colors"
+                  className="inline-flex h-8 items-center gap-1.5 rounded-md border border-red-500/20 bg-red-500/10 px-3 text-xs font-medium text-red-600 transition-colors hover:bg-red-500/20 dark:text-red-400"
                 >
-                  <Trash2 size={15} /> Delete
+                  <Trash2 className="h-4 w-4" />
+                  Delete
                 </button>
+
                 <button
+                  type="button"
                   onClick={() => setSelectedTripIds([])}
-                  className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                  className="inline-flex h-8 items-center rounded-md px-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 >
                   Clear
                 </button>

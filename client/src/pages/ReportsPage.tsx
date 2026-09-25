@@ -275,7 +275,7 @@ export default function ReportsPage() {
                 className="h-10 px-4 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors flex items-center gap-2"
               >
                 <Download size={16} />
-                Export Internal Report
+                Internal Report
               </button>
 
               <button
@@ -283,7 +283,7 @@ export default function ReportsPage() {
                 className="h-10 px-4 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors flex items-center gap-2"
               >
                 <Download size={16} />
-                Export Client Report
+                Client Report
               </button>
               <label className="h-10 px-3 rounded-md border border-border bg-background flex items-center gap-2 text-sm cursor-pointer select-none">
                 <input
@@ -292,7 +292,7 @@ export default function ReportsPage() {
                   onChange={(e) => setDeductFuel(e.target.checked)}
                   className="h-4 w-4"
                 />
-                Apply Fuel Deduction
+                Fuel Deduction
               </label>
             </div>
           }

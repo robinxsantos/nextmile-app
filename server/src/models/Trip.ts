@@ -14,15 +14,8 @@ export interface ITrip extends Document {
   cashAdvance: number;
   reimbursements: number;
   paid: boolean;
-
-  // Client collection tracking
-  collectionStatus: "Collected" | "Uncollected";
-  collectionDate?: Date | null;
-  collectionMethod: string;
-  collectionReference: string;
-  collectionNote: string;
-
   note: string;
+  collectionComment: string;
   grossIncome: number;
   netIncome: number;
   payable: number;
@@ -94,41 +87,17 @@ const TripSchema = new Schema<ITrip>(
       type: Boolean,
       default: false,
     },
-
-    // Client collection tracking
-    collectionStatus: {
-      type: String,
-      enum: ["Collected", "Uncollected"],
-      default: "Uncollected",
-    },
-
-    collectionDate: {
-      type: Date,
-      default: null,
-    },
-
-    collectionMethod: {
-      type: String,
-      default: "",
-      trim: true,
-    },
-
-    collectionReference: {
-      type: String,
-      default: "",
-      trim: true,
-    },
-
-    collectionNote: {
-      type: String,
-      default: "",
-      trim: true,
-    },
-
     note: {
       type: String,
       default: "",
     },
+
+    collectionComment: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
     grossIncome: {
       type: Number,
       default: 0,
@@ -148,11 +117,6 @@ const TripSchema = new Schema<ITrip>(
     vat: {
       type: Number,
       default: 0,
-    },
-    billingType: {
-      type: String,
-      enum: ["Rate Only", "Rate + VAT"],
-      default: "Rate Only",
     },
   },
   {

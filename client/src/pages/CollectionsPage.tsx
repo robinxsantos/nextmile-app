@@ -5,6 +5,23 @@ import { peso } from "../lib/utils";
 import Modal from "../components/shared/Modal";
 import { toast } from "sonner";
 import Pagination from "../components/shared/Pagination";
+import {
+  HandCoins,
+  PhilippinePeso,
+  Clock3,
+  CalendarDays,
+  ChevronsUpDown,
+  CheckCheck,
+} from "lucide-react";
+import type { DateRange } from "react-day-picker";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { format } from "date-fns";
+import { AnimatePresence, motion } from "framer-motion";
 
 type CollectionTrip = {
   _id: string;
@@ -47,10 +64,11 @@ export default function CollectionsPage() {
   const [selectedTripIds, setSelectedTripIds] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [collectionFilter, setCollectionFilter] = useState<
-    "ALL" | "Collected" | "Uncollected"
+    "ALL" | "Collected" | "Pending"
   >("ALL");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [openDateRange, setOpenDateRange] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [showCollectModal, setShowCollectModal] = useState(false);
@@ -103,6 +121,10 @@ export default function CollectionsPage() {
     "Rate Only",
   );
   const [collectionNote, setCollectionNote] = useState("");
+  const [commentTripId, setCommentTripId] = useState<string | null>(null);
+  const [commentDraft, setCommentDraft] = useState("");
+  const [savingComment, setSavingComment] = useState(false);
+  const [editingComment, setEditingComment] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -154,6 +176,18 @@ export default function CollectionsPage() {
     );
   }, [collections]);
 
+  const collectionByTripId = useMemo(() => {
+    const map = new Map<string, CollectionRow>();
+
+    collections.forEach((collection) => {
+      collection.trips.forEach((trip) => {
+        map.set(trip._id, collection);
+      });
+    });
+
+    return map;
+  }, [collections]);
+
   const filteredTrips = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
 
@@ -168,7 +202,7 @@ export default function CollectionsPage() {
         return false;
       }
 
-      if (collectionFilter === "Uncollected" && collected) {
+      if (collectionFilter === "Pending" && collected) {
         return false;
       }
 
@@ -500,6 +534,38 @@ export default function CollectionsPage() {
     }
   };
 
+  const handleSaveCollectionComment = async (tripId: string) => {
+    setSavingComment(true);
+
+    try {
+      await api.patch(`/trips/${tripId}/collection-comment`, {
+        collectionComment: commentDraft,
+      });
+
+      setTrips((current) =>
+        current.map((trip) =>
+          trip._id === tripId
+            ? {
+                ...trip,
+                collectionComment: commentDraft.trim(),
+              }
+            : trip,
+        ),
+      );
+
+      setCommentTripId(null);
+      setCommentDraft("");
+
+      toast.success("Comment updated");
+    } catch (error: any) {
+      console.error("Failed to update collection comment:", error);
+
+      toast.error(error.response?.data?.error || "Failed to update comment");
+    } finally {
+      setSavingComment(false);
+    }
+  };
+
   return (
     <div className="space-y-3.5">
       <div className="mb-4">
@@ -529,7 +595,7 @@ export default function CollectionsPage() {
             </div>
 
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
-              <span className="text-lg font-bold">₱</span>
+              <HandCoins className="h-5 w-5" strokeWidth={2} />
             </div>
           </div>
 
@@ -554,7 +620,7 @@ export default function CollectionsPage() {
             </div>
 
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-green-500/10 text-green-600 dark:text-green-400">
-              <span className="text-lg">✓</span>
+              <PhilippinePeso className="h-5 w-5" strokeWidth={2} />
             </div>
           </div>
 
@@ -574,12 +640,12 @@ export default function CollectionsPage() {
               </div>
 
               <div className="mt-1 text-xs text-muted-foreground">
-                Remaining trip receivables
+                To be collected
               </div>
             </div>
 
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-red-500/10 text-red-500">
-              <span className="text-lg font-semibold">!</span>
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-red-500/10 text-red-500 dark:text-red-400">
+              <Clock3 className="h-5 w-5" strokeWidth={2} />
             </div>
           </div>
 
@@ -622,87 +688,110 @@ export default function CollectionsPage() {
               value={collectionFilter}
               onChange={(e) =>
                 setCollectionFilter(
-                  e.target.value as "ALL" | "Collected" | "Uncollected",
+                  e.target.value as "ALL" | "Collected" | "Pending",
                 )
               }
               className="h-9 rounded-md border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
             >
               <option value="ALL">All</option>
-              <option value="Uncollected">Uncollected</option>
+              <option value="Pending">Pending</option>
               <option value="Collected">Collected</option>
             </select>
           </div>
 
-          <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">
-              From
+          <div className="min-w-[260px] flex-1 max-w-[320px]">
+            <label className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1">
+              <CalendarDays size={12} />
+              Period
             </label>
 
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="h-9 rounded-md border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-            />
+            <Popover open={openDateRange} onOpenChange={setOpenDateRange}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="w-full h-9 justify-between rounded-md border border-border bg-background px-3 text-sm flex items-center"
+                >
+                  <span className={!startDate ? "text-muted-foreground" : ""}>
+                    {startDate && endDate
+                      ? `${format(
+                          new Date(`${startDate}T00:00:00`),
+                          "MMM d, yyyy",
+                        )} - ${format(
+                          new Date(`${endDate}T00:00:00`),
+                          "MMM d, yyyy",
+                        )}`
+                      : "Select date range"}
+                  </span>
+
+                  <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
+                </button>
+              </PopoverTrigger>
+
+              <PopoverContent className="w-auto p-0">
+                <Calendar
+                  mode="range"
+                  selected={
+                    startDate
+                      ? {
+                          from: new Date(`${startDate}T00:00:00`),
+                          to: endDate
+                            ? new Date(`${endDate}T00:00:00`)
+                            : undefined,
+                        }
+                      : undefined
+                  }
+                  onSelect={(range: DateRange | undefined) => {
+                    if (!range?.from) {
+                      setStartDate("");
+                      setEndDate("");
+                      return;
+                    }
+
+                    const start = range.from;
+                    const end = range.to;
+
+                    setStartDate(format(start, "yyyy-MM-dd"));
+
+                    const hasCompleteRange =
+                      end && end.getTime() !== start.getTime();
+
+                    if (hasCompleteRange) {
+                      setEndDate(format(end, "yyyy-MM-dd"));
+                      setOpenDateRange(false);
+                    } else {
+                      setEndDate("");
+                    }
+                  }}
+                  numberOfMonths={2}
+                  defaultMonth={
+                    startDate ? new Date(`${startDate}T00:00:00`) : new Date()
+                  }
+                  showOutsideDays
+                />
+              </PopoverContent>
+            </Popover>
           </div>
 
-          <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">
-              To
-            </label>
-
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="h-9 rounded-md border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-            />
-          </div>
-
-          {(searchQuery ||
-            collectionFilter !== "ALL" ||
-            startDate ||
-            endDate) && (
-            <button
-              type="button"
-              onClick={() => {
-                setSearchQuery("");
-                setCollectionFilter("ALL");
-                setStartDate("");
-                setEndDate("");
-                setSelectedTripIds([]);
-              }}
-              className="h-9 px-3 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Clear Filters
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => {
+              setSearchQuery("");
+              setCollectionFilter("ALL");
+              setStartDate("");
+              setEndDate("");
+              setSelectedTripIds([]);
+            }}
+            disabled={
+              !searchQuery &&
+              collectionFilter === "ALL" &&
+              !startDate &&
+              !endDate
+            }
+            className="h-9 px-3 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:pointer-events-none"
+          >
+            Clear Filters
+          </button>
         </div>
-
-        {selectedTripIds.length > 0 && (
-          <div className="flex items-center gap-2 border-b border-border bg-background px-4 py-3">
-            <span className="mr-1 text-sm font-semibold">
-              {selectedTripIds.length}{" "}
-              {selectedTripIds.length === 1 ? "trip" : "trips"} selected
-            </span>
-
-            <button
-              type="button"
-              onClick={() => setShowCollectModal(true)}
-              className="inline-flex h-8 items-center gap-1.5 rounded-full border border-green-500/20 bg-green-500/10 px-3 text-xs font-medium text-green-600 transition-colors hover:bg-green-500/20 dark:text-green-400"
-            >
-              ✓ Mark as Collected
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setSelectedTripIds([])}
-              className="h-8 px-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-            >
-              Clear
-            </button>
-          </div>
-        )}
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -731,7 +820,9 @@ export default function CollectionsPage() {
                   "Rate",
                   "VAT",
                   "Total (VAT Incl.)",
-                  "Collection Status",
+                  "Status",
+                  "SOA Number",
+                  "Comment",
                 ].map((label) => {
                   const numeric = ["Rate", "VAT", "Total (VAT Incl.)"].includes(
                     label,
@@ -743,7 +834,7 @@ export default function CollectionsPage() {
                       className={`bg-muted/60 border-b border-border text-xs font-semibold text-muted-foreground px-2.5 py-3 ${
                         numeric
                           ? "text-right"
-                          : label === "Collection Status"
+                          : label === "Status"
                             ? "text-center"
                             : "text-left"
                       }`}
@@ -758,6 +849,7 @@ export default function CollectionsPage() {
             <tbody>
               {paginatedTrips.map((trip) => {
                 const collected = collectedTripIds.has(trip._id);
+                const tripCollection = collectionByTripId.get(trip._id);
 
                 return (
                   <tr key={trip._id} className="hover:bg-muted/50">
@@ -804,9 +896,168 @@ export default function CollectionsPage() {
                         </span>
                       ) : (
                         <span className="inline-flex items-center rounded-md border border-border bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
-                          Uncollected
+                          Pending
                         </span>
                       )}
+                    </td>
+                    <td className="text-xs px-2.5 py-2.5 border-b border-border whitespace-nowrap">
+                      {collected ? (
+                        <span className="font-medium">
+                          {tripCollection?.soaNumber || "—"}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </td>
+                    <td className="px-2.5 py-2.5 text-xs border-b border-border whitespace-nowrap">
+                      <Popover
+                        open={commentTripId === trip._id}
+                        onOpenChange={(open) => {
+                          if (open) {
+                            setCommentTripId(trip._id);
+                            setCommentDraft(trip.collectionComment || "");
+
+                            // Existing comment = View mode
+                            // No comment = Add mode immediately
+                            setEditingComment(!trip.collectionComment);
+                          } else if (!savingComment) {
+                            setCommentTripId(null);
+                            setCommentDraft("");
+                            setEditingComment(false);
+                          }
+                        }}
+                      >
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            className={
+                              trip.collectionComment
+                                ? "whitespace-nowrap text-xs font-medium text-blue-600 hover:text-blue-700 hover:underline dark:text-blue-400 dark:hover:text-blue-300"
+                                : "whitespace-nowrap text-xs font-medium text-muted-foreground hover:text-foreground"
+                            }
+                          >
+                            {trip.collectionComment ? (
+                              "View comment"
+                            ) : (
+                              <>
+                                <span className="opacity-50">
+                                  Write a comment...
+                                </span>
+                              </>
+                            )}
+                          </button>
+                        </PopoverTrigger>
+
+                        <PopoverContent align="end" className="w-[340px] p-3">
+                          <div className="space-y-3">
+                            <div>
+                              <div className="text-sm font-medium">
+                                Collection Comment - {trip.dateText}
+                              </div>
+
+                              <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2">
+                                <div>
+                                  <div className="text-[10px] text-muted-foreground">
+                                    Shipment No.
+                                  </div>
+                                  <div className="text-xs font-medium">
+                                    {trip.shipmentNumber || "—"}
+                                  </div>
+                                </div>
+
+                                <div />
+
+                                <div>
+                                  <div className="text-[10px] text-muted-foreground">
+                                    SOA Number
+                                  </div>
+                                  <div className="text-xs font-medium">
+                                    {tripCollection?.soaNumber || "—"}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            {editingComment ? (
+                              <>
+                                <textarea
+                                  value={commentDraft}
+                                  onChange={(e) =>
+                                    setCommentDraft(e.target.value)
+                                  }
+                                  maxLength={500}
+                                  rows={4}
+                                  autoFocus
+                                  placeholder="Add comment..."
+                                  className="w-full resize-none rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                                />
+
+                                <div className="flex items-center justify-between gap-3">
+                                  <span className="text-[11px] text-muted-foreground">
+                                    {commentDraft.length}/500
+                                  </span>
+
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      type="button"
+                                      disabled={savingComment}
+                                      onClick={() => {
+                                        if (trip.collectionComment) {
+                                          // Existing comment: cancel editing and return to View mode
+                                          setCommentDraft(
+                                            trip.collectionComment,
+                                          );
+                                          setEditingComment(false);
+                                        } else {
+                                          // New comment: close popover
+                                          setCommentTripId(null);
+                                          setCommentDraft("");
+                                          setEditingComment(false);
+                                        }
+                                      }}
+                                      className="h-8 rounded-md px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
+                                    >
+                                      Cancel
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      disabled={savingComment}
+                                      onClick={() =>
+                                        handleSaveCollectionComment(trip._id)
+                                      }
+                                      className="h-8 rounded-md bg-foreground px-3 text-xs font-medium text-background transition hover:opacity-90 disabled:opacity-50"
+                                    >
+                                      {savingComment ? "Saving..." : "Save"}
+                                    </button>
+                                  </div>
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <div className="rounded-md border border-border bg-muted/40 px-3 py-3 text-xs whitespace-pre-wrap break-words">
+                                  {trip.collectionComment}
+                                </div>
+
+                                <div className="flex justify-end">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setCommentDraft(
+                                        trip.collectionComment || "",
+                                      );
+                                      setEditingComment(true);
+                                    }}
+                                    className="h-8 rounded-md border border-border bg-background px-3 text-xs font-medium transition-colors hover:bg-muted"
+                                  >
+                                    Edit
+                                  </button>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                     </td>
                   </tr>
                 );
@@ -845,14 +1096,14 @@ export default function CollectionsPage() {
           </p>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="overflow-x-clip">
           <table className="w-full text-sm">
             <thead>
               <tr>
                 {[
                   "Date Received",
                   "Date Covered",
-                  "SOA #",
+                  "SOA Number",
                   "Method",
                   "Reference",
                   "Billing Type",
@@ -1036,7 +1287,7 @@ export default function CollectionsPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-medium text-foreground mb-1.5 block">
-                SOA #
+                SOA Number
               </label>
 
               <input
@@ -1363,7 +1614,7 @@ export default function CollectionsPage() {
 
               {/* ROW 2 - LEFT */}
               <div>
-                <div className="text-xs text-muted-foreground">SOA #</div>
+                <div className="text-xs text-muted-foreground">SOA Number</div>
 
                 <div className="text-sm font-medium mt-0.5">
                   {viewCollection.soaNumber || "—"}
@@ -1618,7 +1869,7 @@ export default function CollectionsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-medium text-foreground mb-1.5 block">
-                  SOA #
+                  SOA Number
                 </label>
 
                 <input
@@ -1723,7 +1974,7 @@ export default function CollectionsPage() {
               <div className="border border-border rounded-md overflow-hidden">
                 <div className="max-h-[220px] overflow-y-auto">
                   <table className="w-full text-sm">
-                    <thead className="sticky top-0 z-10">
+                    <thead>
                       <tr>
                         <th className="w-[40px] bg-muted/60 border-b border-border px-2.5 py-2.5">
                           <input
@@ -1848,7 +2099,7 @@ export default function CollectionsPage() {
 
               {editCollectionTripIds.length < editCollection.trips.length && (
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Unchecked trips will become Uncollected after saving.
+                  Unchecked trips will become pending after saving.
                 </p>
               )}
             </div>
@@ -2106,7 +2357,7 @@ export default function CollectionsPage() {
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
               This will remove this collection batch and return its covered
-              trips to Uncollected.
+              trips to Pending.
             </p>
 
             <div className="rounded-md border border-border bg-muted/40 p-3 space-y-1.5 text-xs">
@@ -2134,6 +2385,45 @@ export default function CollectionsPage() {
           </div>
         )}
       </Modal>
+      <AnimatePresence>
+        {selectedTripIds.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 40 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="fixed bottom-6 left-1/2 z-50 w-fit max-w-[calc(100%-2rem)] -translate-x-1/2"
+          >
+            <div className="flex flex-col items-center gap-2 rounded-lg border border-border bg-background/95 px-3 py-2.5 shadow-lg backdrop-blur sm:flex-row">
+              <span className="whitespace-nowrap text-sm font-semibold text-foreground">
+                {selectedTripIds.length} trip
+                {selectedTripIds.length !== 1 ? "s" : ""} selected
+              </span>
+
+              <div className="hidden h-6 w-px bg-border sm:block" />
+
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setShowCollectModal(true)}
+                  className="inline-flex h-8 items-center gap-1.5 rounded-md border border-green-500/20 bg-green-500/10 px-3 text-xs font-medium text-green-600 transition-colors hover:bg-green-500/20 dark:text-green-400"
+                >
+                  <CheckCheck className="h-4 w-4" strokeWidth={2} />
+                  Mark as Collected
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedTripIds([])}
+                  className="inline-flex h-8 items-center rounded-md px-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

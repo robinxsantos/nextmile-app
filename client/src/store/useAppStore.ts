@@ -105,6 +105,7 @@ export interface TripRow {
   reimbursements: number;
   expenses: number;
   note: string;
+  collectionComment?: string;
   expenseBreakdown?: string;
   hasExpenses?: boolean;
   grossIncome: number;
@@ -113,11 +114,6 @@ export interface TripRow {
   paid: boolean;
   reportPayable?: number;
   reportNetIncome?: number;
-  collectionStatus?: "Collected" | "Uncollected";
-  collectionDate?: string | null;
-  collectionMethod?: string;
-  collectionReference?: string;
-  collectionNote?: string;
 }
 
 export interface ExpenseRow {
