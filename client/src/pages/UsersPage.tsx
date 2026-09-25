@@ -41,6 +41,8 @@ interface UserRow {
         companyName?: string;
       }
     | null;
+  licenseNumber: string;
+  startDate: string | null;
   active: boolean;
 }
 
@@ -59,6 +61,7 @@ export default function UsersPage() {
 
   const [users, setUsers] = useState<UserRow[]>([]);
   const [companies, setCompanies] = useState<CompanyOption[]>([]);
+  const [companyFilter, setCompanyFilter] = useState("ALL");
   const [loading, setLoading] = useState(false);
   const [modal, setModal] = useState(false);
   const [editUser, setEditUser] = useState<UserRow | null>(null);
@@ -71,6 +74,8 @@ export default function UsersPage() {
     role: "employee",
     companyName: "",
     truck: "none",
+    licenseNumber: "",
+    startDate: "",
   });
 
   useEffect(() => {
@@ -115,6 +120,7 @@ export default function UsersPage() {
 
   const openAdd = () => {
     setEditUser(null);
+
     setForm({
       username: "",
       password: "",
@@ -122,7 +128,10 @@ export default function UsersPage() {
       role: "employee",
       companyName: isManager ? currentUser?.companyName || "" : "",
       truck: "none",
+      licenseNumber: "",
+      startDate: "",
     });
+
     setModal(true);
   };
 
@@ -139,9 +148,16 @@ export default function UsersPage() {
       password: "",
       displayName: u.displayName,
       role: u.role,
-      companyName: isManager ? currentUser?.companyName || "" : "",
+      companyName: isManager
+        ? currentUser?.companyName || ""
+        : u.companyName || "",
       truck: truckId,
+      licenseNumber: u.licenseNumber || "",
+      startDate: u.startDate
+        ? new Date(u.startDate).toISOString().slice(0, 10)
+        : "",
     });
+
     setModal(true);
   };
 
@@ -165,12 +181,25 @@ export default function UsersPage() {
       return;
     }
 
+    if (form.role !== "admin" && !form.startDate) {
+      toast.error("Start date is required");
+      return;
+    }
+
+    if (form.role === "employee" && !form.licenseNumber.trim()) {
+      toast.error("License number is required for drivers");
+      return;
+    }
+
     setLoading(true);
     try {
       if (editUser) {
         const payload: Record<string, unknown> = {
           displayName: form.displayName,
           role: form.role,
+          startDate: form.role === "admin" ? null : form.startDate,
+          licenseNumber:
+            form.role === "employee" ? form.licenseNumber.trim() : "",
         };
 
         if (form.role === "manager") {
@@ -196,11 +225,18 @@ export default function UsersPage() {
           password: form.password,
           displayName: form.displayName,
           role: form.role,
+
           companyName:
             form.role === "manager" || form.role === "employee"
               ? form.companyName
               : "",
+
           truck: form.role === "employee" ? form.truck : null,
+
+          licenseNumber:
+            form.role === "employee" ? form.licenseNumber.trim() : "",
+
+          startDate: form.role === "admin" ? null : form.startDate,
         });
         toast.success("User created");
       }
@@ -282,16 +318,29 @@ export default function UsersPage() {
     label: t.truckName,
   }));
 
+  const filteredUsers =
+    isAdmin && companyFilter !== "ALL"
+      ? users.filter(
+          (user) =>
+            user.companyName.trim().toLowerCase() ===
+            companyFilter.trim().toLowerCase(),
+        )
+      : users;
+
   return (
     <div>
       <div className="mb-4">
         <div className="flex flex-col md:flex-row justify-between md:items-end gap-3">
           <div>
             <h1 className="text-[1.45rem] font-bold tracking-tight">
-              User Management
+              User List
+              {isManager && currentUser?.companyName
+                ? ` – ${currentUser.companyName}`
+                : ""}
             </h1>
+
             <p className="text-sm text-slate-500 mt-1">
-              Create and manage employee accounts.
+              Create and manage user accounts.
             </p>
           </div>
           <button
@@ -302,6 +351,32 @@ export default function UsersPage() {
           </button>
         </div>
       </div>
+
+      {isAdmin && (
+        <div className="mb-4 flex items-end gap-3">
+          <div className="w-full sm:w-[280px]">
+            <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
+              Company
+            </label>
+
+            <UiSelect value={companyFilter} onValueChange={setCompanyFilter}>
+              <SelectTrigger className="w-full min-h-[40px]">
+                <SelectValue />
+              </SelectTrigger>
+
+              <SelectContent>
+                <SelectItem value="ALL">All Companies</SelectItem>
+
+                {companies.map((company) => (
+                  <SelectItem key={company._id} value={company.companyName}>
+                    {company.companyName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </UiSelect>
+          </div>
+        </div>
+      )}
 
       <div className="border rounded-lg bg-background overflow-hidden">
         {/* Desktop Table */}
@@ -315,6 +390,8 @@ export default function UsersPage() {
                   "Role",
                   "Company",
                   "Assigned Truck",
+                  "License No.",
+                  "Start Date",
                   "Status",
                   "Actions",
                 ].map((h) => (
@@ -328,9 +405,9 @@ export default function UsersPage() {
               </tr>
             </thead>
             <tbody>
-              {users.length === 0 ? (
+              {filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-slate-400">
+                  <td colSpan={9} className="text-center py-12 text-slate-400">
                     <Users size={40} className="mx-auto mb-3 opacity-30" />
                     <div className="font-semibold">No users found</div>
                     <div className="text-sm">
@@ -339,7 +416,7 @@ export default function UsersPage() {
                   </td>
                 </tr>
               ) : (
-                users.map((u) => (
+                filteredUsers.map((u) => (
                   <tr
                     key={u._id}
                     className="hover:bg-blue-50/50 dark:hover:bg-slate-800/50"
@@ -360,7 +437,10 @@ export default function UsersPage() {
                               : "bg-blue-500/10 text-blue-600 dark:text-blue-400"
                         }`}
                       >
-                        <Shield size={12} /> {u.role.toUpperCase()}
+                        <Shield size={12} />{" "}
+                        {u.role === "employee"
+                          ? "DRIVER"
+                          : u.role.toUpperCase()}
                       </span>
                     </td>
                     <td className="text-center text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800">
@@ -379,6 +459,29 @@ export default function UsersPage() {
                         <span className="inline-flex items-center gap-1 text-slate-700 dark:text-slate-300">
                           <TruckIcon size={12} /> {u.truckName}
                         </span>
+                      ) : (
+                        <span className="text-slate-300 dark:text-slate-600">
+                          —
+                        </span>
+                      )}
+                    </td>
+                    <td className="text-center text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800">
+                      {u.role === "employee" && u.licenseNumber ? (
+                        <span className="font-medium">{u.licenseNumber}</span>
+                      ) : (
+                        <span className="text-slate-300 dark:text-slate-600">
+                          —
+                        </span>
+                      )}
+                    </td>
+
+                    <td className="text-center text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800 whitespace-nowrap">
+                      {u.role !== "admin" && u.startDate ? (
+                        new Date(u.startDate).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })
                       ) : (
                         <span className="text-slate-300 dark:text-slate-600">
                           —
@@ -424,13 +527,13 @@ export default function UsersPage() {
 
         {/* Mobile Cards */}
         <div className="flex flex-col gap-3 md:hidden p-3">
-          {users.length === 0 ? (
+          {filteredUsers.length === 0 ? (
             <div className="text-center py-8 text-slate-400">
               <Users size={40} className="mx-auto mb-3 opacity-30" />
               <div className="font-semibold">No users found</div>
             </div>
           ) : (
-            users.map((u) => (
+            filteredUsers.map((u) => (
               <div
                 key={u._id}
                 className="glass-card rounded-xl border border-slate-200 dark:border-slate-700 p-4"
@@ -451,7 +554,8 @@ export default function UsersPage() {
                           : "bg-blue-500/10 text-blue-600"
                     }`}
                   >
-                    <Shield size={12} /> {u.role.toUpperCase()}
+                    <Shield size={12} />{" "}
+                    {u.role === "employee" ? "DRIVER" : u.role.toUpperCase()}
                   </span>
                 </div>
                 {u.companyName && (
@@ -462,6 +566,22 @@ export default function UsersPage() {
                 {u.truckName && (
                   <div className="text-xs text-slate-500 mb-2 flex items-center gap-1">
                     <TruckIcon size={12} /> {u.truckName}
+                  </div>
+                )}
+                {u.role === "employee" && u.licenseNumber && (
+                  <div className="text-xs text-slate-500 mb-1">
+                    License: {u.licenseNumber}
+                  </div>
+                )}
+
+                {u.role !== "admin" && u.startDate && (
+                  <div className="text-xs text-slate-500 mb-2">
+                    Start Date:{" "}
+                    {new Date(u.startDate).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
                   </div>
                 )}
                 {isManager && u._id === currentUser?._id ? (
@@ -569,6 +689,7 @@ export default function UsersPage() {
                     setForm({
                       ...form,
                       role: val,
+
                       companyName:
                         val === "admin"
                           ? ""
@@ -577,7 +698,13 @@ export default function UsersPage() {
                             : val === "employee"
                               ? ""
                               : form.companyName,
+
                       truck: "none",
+
+                      licenseNumber:
+                        val === "employee" ? form.licenseNumber : "",
+
+                      startDate: val === "admin" ? "" : form.startDate,
                     })
                   }
                 >
@@ -594,6 +721,26 @@ export default function UsersPage() {
                   </SelectContent>
                 </UiSelect>
               </div>
+
+              {form.role !== "admin" && (
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
+                    Start Date <span className="text-red-500">*</span>
+                  </label>
+
+                  <input
+                    type="date"
+                    value={form.startDate}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        startDate: e.target.value,
+                      })
+                    }
+                    className={inputClass}
+                  />
+                </div>
+              )}
 
               {/* COMPANY */}
               {form.role === "manager" && (
@@ -672,6 +819,28 @@ export default function UsersPage() {
                       </SelectContent>
                     </UiSelect>
                   )}
+                </div>
+              )}
+
+              {/* DRIVER LICENSE */}
+              {form.role === "employee" && (
+                <div className="col-span-2">
+                  <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
+                    License Number <span className="text-red-500">*</span>
+                  </label>
+
+                  <input
+                    type="text"
+                    value={form.licenseNumber}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        licenseNumber: e.target.value,
+                      })
+                    }
+                    className={inputClass}
+                    placeholder="Enter driver's license number"
+                  />
                 </div>
               )}
 

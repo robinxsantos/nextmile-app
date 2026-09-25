@@ -11,6 +11,10 @@ export interface IUser extends Document {
 
   truck?: Types.ObjectId;
 
+  licenseNumber: string;
+
+  startDate: Date | null;
+
   active: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -52,6 +56,18 @@ const UserSchema = new Schema<IUser>(
       ref: "Truck",
       default: null,
     },
+
+    licenseNumber: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    startDate: {
+      type: Date,
+      default: null,
+    },
+
     active: {
       type: Boolean,
       default: true,

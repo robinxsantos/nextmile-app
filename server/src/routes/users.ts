@@ -51,6 +51,8 @@ router.get("/", async (req: AuthRequest, res: Response) => {
       companyName: u.companyName || "",
       truck: u.truck,
       truckName: (u.truck as any)?.truckName || "",
+      licenseNumber: u.licenseNumber || "",
+      startDate: u.startDate || null,
       active: u.active,
       createdAt: u.createdAt,
     }));
@@ -68,8 +70,16 @@ router.get("/", async (req: AuthRequest, res: Response) => {
 // POST /api/users
 router.post("/", async (req: AuthRequest, res: Response) => {
   try {
-    const { username, password, displayName, role, truck, companyName } =
-      req.body;
+    const {
+      username,
+      password,
+      displayName,
+      role,
+      truck,
+      companyName,
+      licenseNumber,
+      startDate,
+    } = req.body;
 
     if (!username || !password) {
       res.status(400).json({
@@ -115,9 +125,36 @@ router.post("/", async (req: AuthRequest, res: Response) => {
 
     let finalCompanyName = "";
     let finalTruck = null;
+    let finalLicenseNumber = "";
+    let finalStartDate: Date | null = null;
+
+    // Manager and Employee accounts require a start date.
+    if (requestedRole !== "admin") {
+      if (!startDate) {
+        res.status(400).json({
+          error: "Start date is required",
+        });
+        return;
+      }
+
+      const parsedStartDate = new Date(startDate);
+
+      if (Number.isNaN(parsedStartDate.getTime())) {
+        res.status(400).json({
+          error: "Invalid start date",
+        });
+        return;
+      }
+
+      // Keep date stable regardless of timezone.
+      parsedStartDate.setHours(12, 0, 0, 0);
+
+      finalStartDate = parsedStartDate;
+    }
 
     // MANAGER ACCOUNT
     if (requestedRole === "manager") {
+      finalLicenseNumber = "";
       if (req.user?.role === "manager") {
         // Manager-created Manager automatically inherits
         // the logged-in Manager's company.
@@ -161,6 +198,15 @@ router.post("/", async (req: AuthRequest, res: Response) => {
 
     // EMPLOYEE ACCOUNT
     if (requestedRole === "employee") {
+      finalLicenseNumber = String(licenseNumber || "").trim();
+
+      if (!finalLicenseNumber) {
+        res.status(400).json({
+          error: "License number is required for driver accounts",
+        });
+        return;
+      }
+
       if (!truck) {
         res.status(400).json({
           error: "Truck is required for employee accounts",
@@ -214,6 +260,8 @@ router.post("/", async (req: AuthRequest, res: Response) => {
 
     // ADMIN ACCOUNT
     if (requestedRole === "admin") {
+      finalLicenseNumber = "";
+      finalStartDate = null;
       if (req.user?.role !== "admin") {
         res.status(403).json({
           error: "Only admins can create admin accounts",
@@ -232,6 +280,8 @@ router.post("/", async (req: AuthRequest, res: Response) => {
       role: requestedRole,
       companyName: finalCompanyName,
       truck: finalTruck,
+      licenseNumber: finalLicenseNumber,
+      startDate: finalStartDate,
       active: true,
     });
 
@@ -242,6 +292,8 @@ router.post("/", async (req: AuthRequest, res: Response) => {
       role: user.role,
       companyName: user.companyName || "",
       truck: user.truck,
+      licenseNumber: user.licenseNumber || "",
+      startDate: user.startDate || null,
       active: user.active,
     });
   } catch (err: any) {
@@ -256,8 +308,16 @@ router.post("/", async (req: AuthRequest, res: Response) => {
 // PUT /api/users/:id
 router.put("/:id", async (req: AuthRequest, res: Response) => {
   try {
-    const { displayName, role, truck, active, password, companyName } =
-      req.body;
+    const {
+      displayName,
+      role,
+      truck,
+      active,
+      password,
+      companyName,
+      licenseNumber,
+      startDate,
+    } = req.body;
 
     const user = await User.findById(req.params.id);
 
@@ -350,6 +410,29 @@ router.put("/:id", async (req: AuthRequest, res: Response) => {
       user.role = role;
     }
 
+    // Start date is required for Manager and Employee accounts.
+    if (user.role !== "admin") {
+      if (!startDate) {
+        res.status(400).json({
+          error: "Start date is required",
+        });
+        return;
+      }
+
+      const parsedStartDate = new Date(startDate);
+
+      if (Number.isNaN(parsedStartDate.getTime())) {
+        res.status(400).json({
+          error: "Invalid start date",
+        });
+        return;
+      }
+
+      parsedStartDate.setHours(12, 0, 0, 0);
+
+      user.startDate = parsedStartDate;
+    }
+
     // Handle Manager company assignment.
     if ((isAdmin || isManager) && user.role === "manager") {
       const nextCompanyName = isManager
@@ -390,9 +473,21 @@ router.put("/:id", async (req: AuthRequest, res: Response) => {
 
       user.companyName = company.companyName;
       user.truck = undefined;
+      user.licenseNumber = "";
+    }
 
-      user.companyName = nextCompanyName;
-      user.truck = undefined;
+    // Driver accounts require a license number.
+    if (user.role === "employee") {
+      const nextLicenseNumber = String(licenseNumber || "").trim();
+
+      if (!nextLicenseNumber) {
+        res.status(400).json({
+          error: "License number is required for driver accounts",
+        });
+        return;
+      }
+
+      user.licenseNumber = nextLicenseNumber;
     }
 
     // Handle Employee truck assignment.
@@ -448,6 +543,8 @@ router.put("/:id", async (req: AuthRequest, res: Response) => {
     if (user.role === "admin") {
       user.companyName = "";
       user.truck = undefined;
+      user.licenseNumber = "";
+      user.startDate = null;
     }
 
     if (active !== undefined) {
@@ -475,6 +572,8 @@ router.put("/:id", async (req: AuthRequest, res: Response) => {
       role: user.role,
       companyName: user.companyName || "",
       truck: user.truck,
+      licenseNumber: user.licenseNumber || "",
+      startDate: user.startDate || null,
       active: user.active,
     });
   } catch (err: any) {
@@ -506,11 +605,12 @@ router.delete("/:id", async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    // Manager may delete only employees under their company.
+    // Manager may delete Manager or Employee accounts
+    // belonging to their own company.
     if (req.user?.role === "manager") {
-      if (user.role !== "employee") {
+      if (!["manager", "employee"].includes(user.role)) {
         res.status(403).json({
-          error: "Managers can only delete employee accounts",
+          error: "Managers can only delete manager or employee accounts",
         });
         return;
       }
@@ -519,11 +619,11 @@ router.delete("/:id", async (req: AuthRequest, res: Response) => {
         .trim()
         .toLowerCase();
 
-      const employeeCompanyName = String(user.companyName || "")
+      const userCompanyName = String(user.companyName || "")
         .trim()
         .toLowerCase();
 
-      if (!managerCompanyName || managerCompanyName !== employeeCompanyName) {
+      if (!managerCompanyName || managerCompanyName !== userCompanyName) {
         res.status(403).json({
           error: "You cannot delete users from another company",
         });
