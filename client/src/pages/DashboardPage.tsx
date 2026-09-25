@@ -195,8 +195,9 @@ export default function DashboardPage() {
     addExpense,
     deleteExpense,
   } = useAppStore();
-  const { isAdmin } = useAuthStore();
-  const admin = isAdmin();
+  const { user } = useAuthStore();
+
+  const canManageDashboard = user?.role === "admin" || user?.role === "manager";
 
   const [tripModal, setTripModal] = useState(false);
   const [editRow, setEditRow] = useState<TripRow | null>(null);
@@ -518,8 +519,10 @@ export default function DashboardPage() {
 
       <div className="sticky top-0 z-20 bg-background">
         <FilterBar
-          showTruck={admin}
-          allowedRangePresets={admin ? undefined : (["CC", "LC"] as const)}
+          showTruck={canManageDashboard}
+          allowedRangePresets={
+            canManageDashboard ? undefined : (["CC", "LC"] as const)
+          }
           actions={
             <button
               onClick={handleAddTrip}

@@ -6,8 +6,15 @@ export interface AuthUser {
   _id: string;
   username: string;
   displayName: string;
-  role: "admin" | "employee";
-  truck?: string | { _id: string; truckName: string };
+  role: "admin" | "manager" | "employee";
+  companyName?: string;
+  truck?:
+    | string
+    | {
+        _id: string;
+        truckName: string;
+        companyName?: string;
+      };
 }
 
 interface AuthState {
@@ -20,6 +27,7 @@ interface AuthState {
   logout: () => void;
   checkAuth: () => Promise<void>;
   isAdmin: () => boolean;
+  isManager: () => boolean;
   isEmployee: () => boolean;
 }
 
@@ -130,5 +138,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   isAdmin: () => get().user?.role === "admin",
+  isManager: () => get().user?.role === "manager",
   isEmployee: () => get().user?.role === "employee",
 }));

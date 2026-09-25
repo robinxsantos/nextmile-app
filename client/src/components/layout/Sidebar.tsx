@@ -17,6 +17,7 @@ import {
   WalletCards,
   LogOut,
   Settings,
+  type LucideIcon,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -32,23 +33,70 @@ import {
 import LogoLight from "../../assets/logo-light.png";
 import LogoDark from "../../assets/logo-dark.png";
 
-const allNavItems = [
-  { to: "/", icon: LayoutDashboard, label: "Dashboard", adminOnly: true },
-  { to: "/trips", icon: Route, label: "Trips", adminOnly: false },
-  { to: "/expenses", icon: HandCoins, label: "Expenses", adminOnly: true },
-  { to: "/reports", icon: BarChart3, label: "Reports", adminOnly: true },
-  { to: "/payments", icon: CreditCard, label: "Payments", adminOnly: true },
+type UserRole = "admin" | "manager" | "employee";
 
+type NavItem = {
+  to: string;
+  icon: LucideIcon;
+  label: string;
+  roles: UserRole[];
+};
+
+const allNavItems: NavItem[] = [
+  {
+    to: "/",
+    icon: LayoutDashboard,
+    label: "Dashboard",
+    roles: ["admin", "manager"],
+  },
+  {
+    to: "/trips",
+    icon: Route,
+    label: "Trips",
+    roles: ["admin", "manager", "employee"],
+  },
+  {
+    to: "/expenses",
+    icon: HandCoins,
+    label: "Expenses",
+    roles: ["admin", "manager"],
+  },
+  {
+    to: "/reports",
+    icon: BarChart3,
+    label: "Reports",
+    roles: ["admin", "manager"],
+  },
+  {
+    to: "/payments",
+    icon: CreditCard,
+    label: "Payments",
+    roles: ["admin", "manager"],
+  },
   {
     to: "/collections",
     icon: WalletCards,
     label: "Collections",
-    adminOnly: true,
+    roles: ["admin", "manager"],
   },
-
-  { to: "/trucks", icon: Truck, label: "Trucks", adminOnly: true },
-  { to: "/users", icon: Users, label: "Users", adminOnly: true },
-  { to: "/settings", icon: Settings, label: "Settings", adminOnly: false },
+  {
+    to: "/trucks",
+    icon: Truck,
+    label: "Trucks",
+    roles: ["admin", "manager"],
+  },
+  {
+    to: "/users",
+    icon: Users,
+    label: "Users",
+    roles: ["admin", "manager"],
+  },
+  {
+    to: "/settings",
+    icon: Settings,
+    label: "Settings",
+    roles: ["admin", "manager", "employee"],
+  },
 ];
 
 export default function Sidebar({
@@ -59,15 +107,13 @@ export default function Sidebar({
   setOpenMobile: (val: boolean) => void;
 }) {
   const { sidebarCollapsed, toggleSidebar, theme, toggleTheme } = useAppStore();
-  const { user, logout, isAdmin } = useAuthStore();
+  const { user, logout } = useAuthStore();
   const location = useLocation();
   const navigate = useNavigate();
-  const isOpen = !sidebarCollapsed;
 
-  const admin = isAdmin();
-  const navItems = admin
-    ? allNavItems
-    : allNavItems.filter((item) => !item.adminOnly);
+  const navItems = allNavItems.filter((item) =>
+    user ? item.roles.includes(user.role) : false,
+  );
 
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
@@ -180,6 +226,12 @@ export default function Sidebar({
               <div className="text-xs text-zinc-500 capitalize">
                 {user?.role || "—"}
               </div>
+
+              {user?.companyName && (
+                <div className="text-xs text-zinc-400 truncate mt-0.5">
+                  {user.companyName}
+                </div>
+              )}
             </div>
           )}
 

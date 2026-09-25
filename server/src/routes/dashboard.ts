@@ -1,4 +1,4 @@
-import { Router, Request, Response } from "express";
+import { Router, Response } from "express";
 import { Trip } from "../models/Trip.js";
 import { Expense } from "../models/Expense.js";
 import { Truck } from "../models/Truck.js";
@@ -9,6 +9,11 @@ import {
   previousRangeForPreset,
   type RangePreset,
 } from "../utils/dateHelpers.js";
+import {
+  requireAuth,
+  canAccessTruck,
+  type AuthRequest,
+} from "../middleware/auth.js";
 
 type DateRange = {
   prevStart: Date;
@@ -151,17 +156,75 @@ function getPreviousPeriodRange(
 }
 
 // GET /api/dashboard?truck=&start=&end=
-router.get("/", async (req: Request, res: Response) => {
+router.get("/", requireAuth, async (req: AuthRequest, res: Response) => {
   try {
     const { truck, start, end, rangePreset } = req.query;
 
+    let allowedTruckIds: any[] | null = null;
+
+    // Employee: assigned truck only.
+    if (req.user?.role === "employee") {
+      if (!req.user.truck) {
+        res.json({
+          rows: [],
+          kpis: {
+            gross: 0,
+            net: 0,
+            trips: 0,
+            payable: 0,
+            cashOutflow: 0,
+            expenses: 0,
+          },
+          previousKpis: {
+            gross: 0,
+            net: 0,
+            trips: 0,
+            payable: 0,
+            cashOutflow: 0,
+            expenses: 0,
+          },
+          chartData: [],
+          truckOptions: [],
+        });
+        return;
+      }
+
+      allowedTruckIds = [req.user.truck];
+    }
+
+    // Manager: all trucks under their assigned company.
+    if (req.user?.role === "manager") {
+      const companyName = String(req.user.companyName || "").trim();
+
+      if (!companyName) {
+        allowedTruckIds = [];
+      } else {
+        const companyTrucks = await Truck.find({
+          companyName,
+        }).select("_id");
+
+        allowedTruckIds = companyTrucks.map((item) => item._id);
+      }
+    }
+
     // Get active trucks for dropdown
-    const allTrucks = await Truck.find({ status: "Active" }).sort({
+    const truckOptionFilter: any = {
+      status: "Active",
+    };
+
+    if (allowedTruckIds !== null) {
+      truckOptionFilter._id = {
+        $in: allowedTruckIds,
+      };
+    }
+
+    const allTrucks = await Truck.find(truckOptionFilter).sort({
       truckName: 1,
     });
     const truckOptions = allTrucks.map((t) => ({
       _id: t._id,
       truckName: t.truckName,
+      companyName: t.companyName || "",
       cutoffType: t.cutoffType || "weekly",
       cutoffStart: t.cutoffStart,
       cutoffEnd: t.cutoffEnd,
@@ -169,10 +232,26 @@ router.get("/", async (req: Request, res: Response) => {
       dayOff: t.dayOff,
     }));
 
+    if (truck) {
+      const allowed = await canAccessTruck(req, String(truck));
+
+      if (!allowed) {
+        res.status(403).json({
+          error: "You do not have access to this truck.",
+        });
+        return;
+      }
+    }
+
     // Build trip filter
     const tripFilter: any = {};
+
     if (truck) {
-      tripFilter.truck = truck;
+      tripFilter.truck = String(truck);
+    } else if (allowedTruckIds !== null) {
+      tripFilter.truck = {
+        $in: allowedTruckIds,
+      };
     }
     if (start || end) {
       tripFilter.date = {};
@@ -189,7 +268,17 @@ router.get("/", async (req: Request, res: Response) => {
       .populate("truck", "truckName")
       .sort({ date: 1, createdAt: 1 });
 
-    const allExpenses = await Expense.find(truck ? { truck } : {});
+    const allExpenseFilter: any = {};
+
+    if (truck) {
+      allExpenseFilter.truck = String(truck);
+    } else if (allowedTruckIds !== null) {
+      allExpenseFilter.truck = {
+        $in: allowedTruckIds,
+      };
+    }
+
+    const allExpenses = await Expense.find(allExpenseFilter);
     const formattedTrips = trips.map((t) => formatTripResponse(t as any));
     const enriched = attachExpenseNotes(formattedTrips, allExpenses);
 
@@ -201,7 +290,14 @@ router.get("/", async (req: Request, res: Response) => {
 
     // Get expenses for the same filter
     const expenseFilter: any = {};
-    if (truck) expenseFilter.truck = truck;
+
+    if (truck) {
+      expenseFilter.truck = String(truck);
+    } else if (allowedTruckIds !== null) {
+      expenseFilter.truck = {
+        $in: allowedTruckIds,
+      };
+    }
     if (start || end) {
       expenseFilter.date = {};
       if (start) expenseFilter.date.$gte = new Date(start as string);
@@ -258,7 +354,14 @@ router.get("/", async (req: Request, res: Response) => {
 
       if (prevRange) {
         const prevTripFilter: any = {};
-        if (truck) prevTripFilter.truck = truck;
+
+        if (truck) {
+          prevTripFilter.truck = String(truck);
+        } else if (allowedTruckIds !== null) {
+          prevTripFilter.truck = {
+            $in: allowedTruckIds,
+          };
+        }
         prevTripFilter.date = {
           $gte: prevRange.start,
           $lte: prevRange.end,
@@ -271,7 +374,14 @@ router.get("/", async (req: Request, res: Response) => {
         const prevRows = prevTrips.map((t) => formatTripResponse(t as any));
 
         const prevExpenseFilter: any = {};
-        if (truck) prevExpenseFilter.truck = truck;
+
+        if (truck) {
+          prevExpenseFilter.truck = String(truck);
+        } else if (allowedTruckIds !== null) {
+          prevExpenseFilter.truck = {
+            $in: allowedTruckIds,
+          };
+        }
         prevExpenseFilter.date = {
           $gte: prevRange.start,
           $lte: prevRange.end,
@@ -374,14 +484,55 @@ router.get("/", async (req: Request, res: Response) => {
 });
 
 // GET /api/dashboard/reports?truck=&month=&start=&end=
-router.get("/reports", async (req: Request, res: Response) => {
+router.get("/reports", requireAuth, async (req: AuthRequest, res: Response) => {
   try {
     const { truck, month, start, end } = req.query;
+
+    let allowedTruckIds: any[] | null = null;
+
+    if (req.user?.role === "employee") {
+      if (!req.user.truck) {
+        res.json({ rows: [] });
+        return;
+      }
+
+      allowedTruckIds = [req.user.truck];
+    }
+
+    if (req.user?.role === "manager") {
+      const companyName = String(req.user.companyName || "").trim();
+
+      if (!companyName) {
+        res.json({ rows: [] });
+        return;
+      }
+
+      const companyTrucks = await Truck.find({
+        companyName,
+      }).select("_id");
+
+      allowedTruckIds = companyTrucks.map((item) => item._id);
+    }
+
+    if (truck) {
+      const allowed = await canAccessTruck(req, String(truck));
+
+      if (!allowed) {
+        res.status(403).json({
+          error: "You do not have access to this truck.",
+        });
+        return;
+      }
+    }
 
     const filter: any = {};
 
     if (truck) {
-      filter.truck = truck;
+      filter.truck = String(truck);
+    } else if (allowedTruckIds !== null) {
+      filter.truck = {
+        $in: allowedTruckIds,
+      };
     }
 
     // Custom date range takes priority over month
@@ -418,7 +569,11 @@ router.get("/reports", async (req: Request, res: Response) => {
     const expenseFilter: any = {};
 
     if (truck) {
-      expenseFilter.truck = truck;
+      expenseFilter.truck = String(truck);
+    } else if (allowedTruckIds !== null) {
+      expenseFilter.truck = {
+        $in: allowedTruckIds,
+      };
     }
 
     if (filter.date) {

@@ -63,6 +63,7 @@ router.post("/login", async (req: AuthRequest, res: Response) => {
         username: user.username,
         displayName: user.displayName,
         role: user.role,
+        companyName: user.companyName || "",
         truck: user.truck,
       },
     });
@@ -76,7 +77,7 @@ router.get("/me", requireAuth, async (req: AuthRequest, res: Response) => {
   try {
     const user = await User.findById(req.user!._id)
       .select("-password")
-      .populate("truck", "truckName");
+      .populate("truck", "truckName companyName");
 
     if (!user) {
       res.status(404).json({ error: "User not found" });
@@ -89,6 +90,7 @@ router.get("/me", requireAuth, async (req: AuthRequest, res: Response) => {
         username: user.username,
         displayName: user.displayName,
         role: user.role,
+        companyName: user.companyName || "",
         truck: user.truck,
       },
     });
@@ -117,6 +119,7 @@ router.put("/profile", requireAuth, async (req: AuthRequest, res: Response) => {
         username: updated!.username,
         displayName: updated!.displayName,
         role: updated!.role,
+        companyName: updated!.companyName || "",
         truck: updated!.truck,
       },
     });

@@ -78,6 +78,7 @@ function sumKpisFromTrips(
 export interface TruckOption {
   _id: string;
   truckName: string;
+  companyName: string;
   cutoffType: "weekly" | "monthly";
   cutoffStart: number;
   cutoffEnd: number;
@@ -277,7 +278,7 @@ interface AppState {
   toggleExpenseReimbursed: (id: string) => Promise<void>;
   addTruck: (data: Record<string, unknown>) => Promise<void>;
   updateTruck: (id: string, data: Record<string, unknown>) => Promise<void>;
-  deleteTruck: (id: string) => Promise<void>;
+  deleteTruck: (id: string, password: string) => Promise<void>;
 
   addChangeOilRecord: (
     truckId: string,
@@ -523,6 +524,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       const truckOptions: TruckOption[] = activeTrucks.map((t: TruckRow) => ({
         _id: t._id,
         truckName: t.truckName,
+        companyName: t.companyName || "",
         cutoffType: t.cutoffType,
         cutoffStart: t.cutoffStart,
         cutoffEnd: t.cutoffEnd,
@@ -694,6 +696,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         truckOptions: activeTrucks.map((t: TruckRow) => ({
           _id: t._id,
           truckName: t.truckName,
+          companyName: t.companyName || "",
           cutoffType: t.cutoffType,
           cutoffStart: t.cutoffStart,
           cutoffEnd: t.cutoffEnd,
@@ -1035,7 +1038,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       throw err;
     }
   },
-  deleteTruck: async (id) => {
+  deleteTruck: async (id, password) => {
     const state = get();
     const originalTruckRows = state.truckRows;
     const originalTruckOptions = state.truckOptions;
@@ -1058,18 +1061,27 @@ export const useAppStore = create<AppState>((set, get) => ({
     });
 
     try {
-      await api.delete(`/trucks/${id}`);
+      await api.delete(`/trucks/${id}`, {
+        data: {
+          password,
+        },
+      });
       await get().fetchTrucks();
       await get().fetchDashboard();
       toast.success("Truck deleted", { duration: 4000 });
     } catch (err: unknown) {
-      // Revert on error
+      // Revert optimistic removal
       set({
         truckRows: originalTruckRows,
         truckOptions: originalTruckOptions,
         selectedTruck: originalSelectedTruck,
       });
-      toast.error(getErrorMessage(err, "Failed to delete truck"));
+
+      const message = getErrorMessage(err, "Failed to delete truck");
+
+      toast.error(message);
+
+      throw err;
     }
   },
 }));

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import api from "../api/client";
 import { useAppStore } from "../store/useAppStore";
+import { useAuthStore } from "../store/useAuthStore";
 import {
   Plus,
   Pencil,
@@ -29,14 +30,26 @@ interface UserRow {
   _id: string;
   username: string;
   displayName: string;
-  role: string;
+  role: "admin" | "manager" | "employee";
+  companyName: string;
   truckName: string;
-  truck: string | { _id: string; truckName: string } | null;
+  truck:
+    | string
+    | {
+        _id: string;
+        truckName: string;
+        companyName?: string;
+      }
+    | null;
   active: boolean;
 }
 
 export default function UsersPage() {
   const { truckOptions, initApp } = useAppStore();
+  const { user: currentUser } = useAuthStore();
+
+  const isAdmin = currentUser?.role === "admin";
+  const isManager = currentUser?.role === "manager";
 
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -49,6 +62,7 @@ export default function UsersPage() {
     password: "",
     displayName: "",
     role: "employee",
+    companyName: "",
     truck: "none",
   });
 
@@ -76,7 +90,8 @@ export default function UsersPage() {
       password: "",
       displayName: "",
       role: "employee",
-      truck: "",
+      companyName: isManager ? currentUser?.companyName || "" : "",
+      truck: "none",
     });
     setModal(true);
   };
@@ -94,6 +109,7 @@ export default function UsersPage() {
       password: "",
       displayName: u.displayName,
       role: u.role,
+      companyName: isManager ? currentUser?.companyName || "" : "",
       truck: truckId,
     });
     setModal(true);
@@ -109,14 +125,38 @@ export default function UsersPage() {
       return;
     }
 
+    if (form.role === "manager" && !form.companyName.trim()) {
+      toast.error("Company is required for managers");
+      return;
+    }
+
+    if (form.role === "employee" && (!form.truck || form.truck === "none")) {
+      toast.error("Truck is required for employees");
+      return;
+    }
+
     setLoading(true);
     try {
       if (editUser) {
         const payload: Record<string, unknown> = {
           displayName: form.displayName,
           role: form.role,
-          truck: form.truck || null,
         };
+
+        if (form.role === "manager") {
+          payload.companyName = form.companyName;
+          payload.truck = null;
+        }
+
+        if (form.role === "employee") {
+          payload.companyName = form.companyName;
+          payload.truck = form.truck;
+        }
+
+        if (form.role === "admin") {
+          payload.companyName = "";
+          payload.truck = null;
+        }
         if (form.password) payload.password = form.password;
         await api.put(`/users/${editUser._id}`, payload);
         toast.success("User updated");
@@ -126,7 +166,11 @@ export default function UsersPage() {
           password: form.password,
           displayName: form.displayName,
           role: form.role,
-          truck: form.truck || null,
+          companyName:
+            form.role === "manager" || form.role === "employee"
+              ? form.companyName
+              : "",
+          truck: form.role === "employee" ? form.truck : null,
         });
         toast.success("User created");
       }
@@ -160,18 +204,52 @@ export default function UsersPage() {
   const inputClass =
     "w-full min-h-[44px] rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 px-3.5 text-sm focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10 outline-none transition-colors";
 
-  const roleOptions = [
-    { value: "admin", label: "🛡️ Admin" },
-    { value: "employee", label: "🚛 Driver" },
-  ];
+  const roleOptions = isAdmin
+    ? [
+        { value: "admin", label: "Admin" },
+        { value: "manager", label: "Manager" },
+        { value: "employee", label: "Driver" },
+      ]
+    : [
+        { value: "manager", label: "Manager" },
+        { value: "employee", label: "Driver" },
+      ];
 
-  const truckSelectOptions = [
-    { value: "none", label: "No assigned truck" },
-    ...truckOptions.map((t) => ({
-      value: t._id,
-      label: t.truckName,
-    })),
-  ];
+  const companyOptions = Array.from(
+    new Set(
+      truckOptions
+        .map((t) => String(t.companyName || "").trim())
+        .filter(Boolean),
+    ),
+  ).sort();
+
+  const filteredTruckOptions = truckOptions.filter((t) => {
+    if (isManager) {
+      return (
+        String(t.companyName || "")
+          .trim()
+          .toLowerCase() ===
+        String(currentUser?.companyName || "")
+          .trim()
+          .toLowerCase()
+      );
+    }
+
+    if (form.companyName) {
+      return (
+        String(t.companyName || "")
+          .trim()
+          .toLowerCase() === form.companyName.trim().toLowerCase()
+      );
+    }
+
+    return true;
+  });
+
+  const truckSelectOptions = filteredTruckOptions.map((t) => ({
+    value: t._id,
+    label: t.truckName,
+  }));
 
   return (
     <div>
@@ -204,6 +282,7 @@ export default function UsersPage() {
                   "Username",
                   "Display Name",
                   "Role",
+                  "Company",
                   "Assigned Truck",
                   "Status",
                   "Actions",
@@ -220,7 +299,7 @@ export default function UsersPage() {
             <tbody>
               {users.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-12 text-slate-400">
+                  <td colSpan={7} className="text-center py-12 text-slate-400">
                     <Users size={40} className="mx-auto mb-3 opacity-30" />
                     <div className="font-semibold">No users found</div>
                     <div className="text-sm">
@@ -242,10 +321,27 @@ export default function UsersPage() {
                     </td>
                     <td className="text-center text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800">
                       <span
-                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[0.72rem] font-bold ${u.role === "admin" ? "bg-purple-500/10 text-purple-600 dark:text-purple-400" : "bg-blue-500/10 text-blue-600 dark:text-blue-400"}`}
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[0.72rem] font-bold ${
+                          u.role === "admin"
+                            ? "bg-purple-500/10 text-purple-600 dark:text-purple-400"
+                            : u.role === "manager"
+                              ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                              : "bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                        }`}
                       >
                         <Shield size={12} /> {u.role.toUpperCase()}
                       </span>
+                    </td>
+                    <td className="text-center text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800">
+                      {u.companyName ? (
+                        <span className="font-medium text-slate-700 dark:text-slate-300">
+                          {u.companyName}
+                        </span>
+                      ) : (
+                        <span className="text-slate-300 dark:text-slate-600">
+                          —
+                        </span>
+                      )}
                     </td>
                     <td className="text-center text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800">
                       {u.truckName ? (
@@ -266,20 +362,27 @@ export default function UsersPage() {
                       </span>
                     </td>
                     <td className="text-center text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800">
-                      <div className="flex items-center justify-center gap-1">
-                        <button
-                          onClick={() => openEdit(u)}
-                          className="w-[34px] h-[34px] rounded-md inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-blue-500/10 hover:text-blue-600 transition-all"
-                        >
-                          <Pencil size={14} />
-                        </button>
-                        <button
-                          onClick={() => setDeleteModal(u)}
-                          className="w-[34px] h-[34px] rounded-md inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-red-500/10 hover:text-red-500 transition-all"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
+                      {isManager && u._id === currentUser?._id ? (
+                        <span className="text-[11px] text-muted-foreground">
+                          Your account
+                        </span>
+                      ) : (
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            onClick={() => openEdit(u)}
+                            className="w-[34px] h-[34px] rounded-md inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-blue-500/10 hover:text-blue-600 transition-all"
+                          >
+                            <Pencil size={14} />
+                          </button>
+
+                          <button
+                            onClick={() => setDeleteModal(u)}
+                            className="w-[34px] h-[34px] rounded-md inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-red-500/10 hover:text-red-500 transition-all"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))
@@ -309,30 +412,48 @@ export default function UsersPage() {
                     </div>
                   </div>
                   <span
-                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[0.72rem] font-bold ${u.role === "admin" ? "bg-purple-500/10 text-purple-600" : "bg-blue-500/10 text-blue-600"}`}
+                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[0.72rem] font-bold ${
+                      u.role === "admin"
+                        ? "bg-purple-500/10 text-purple-600"
+                        : u.role === "manager"
+                          ? "bg-amber-500/10 text-amber-600"
+                          : "bg-blue-500/10 text-blue-600"
+                    }`}
                   >
                     <Shield size={12} /> {u.role.toUpperCase()}
                   </span>
                 </div>
+                {u.companyName && (
+                  <div className="text-xs text-slate-500 mb-1">
+                    {u.companyName}
+                  </div>
+                )}
                 {u.truckName && (
                   <div className="text-xs text-slate-500 mb-2 flex items-center gap-1">
                     <TruckIcon size={12} /> {u.truckName}
                   </div>
                 )}
-                <div className="flex gap-2 pt-2 border-t border-slate-200 dark:border-slate-700">
-                  <button
-                    onClick={() => openEdit(u)}
-                    className="flex-1 h-9 rounded-xl inline-flex items-center justify-center gap-1.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-blue-500/10 hover:text-blue-600 transition-all text-xs font-semibold"
-                  >
-                    <Pencil size={14} /> Edit
-                  </button>
-                  <button
-                    onClick={() => setDeleteModal(u)}
-                    className="h-9 w-9 rounded-xl inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-red-500/10 hover:text-red-500 transition-all"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
+                {isManager && u._id === currentUser?._id ? (
+                  <div className="pt-2 border-t border-slate-200 dark:border-slate-700 text-xs text-muted-foreground">
+                    Your account
+                  </div>
+                ) : (
+                  <div className="flex gap-2 pt-2 border-t border-slate-200 dark:border-slate-700">
+                    <button
+                      onClick={() => openEdit(u)}
+                      className="flex-1 h-9 rounded-xl inline-flex items-center justify-center gap-1.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-blue-500/10 hover:text-blue-600 transition-all text-xs font-semibold"
+                    >
+                      <Pencil size={14} /> Edit
+                    </button>
+
+                    <button
+                      onClick={() => setDeleteModal(u)}
+                      className="h-9 w-9 rounded-xl inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-red-500/10 hover:text-red-500 transition-all"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                )}
               </div>
             ))
           )}
@@ -413,7 +534,21 @@ export default function UsersPage() {
                 </label>
                 <UiSelect
                   value={form.role}
-                  onValueChange={(val) => setForm({ ...form, role: val })}
+                  onValueChange={(val) =>
+                    setForm({
+                      ...form,
+                      role: val,
+                      companyName:
+                        val === "admin"
+                          ? ""
+                          : isManager
+                            ? currentUser?.companyName || ""
+                            : val === "employee"
+                              ? ""
+                              : form.companyName,
+                      truck: "none",
+                    })
+                  }
                 >
                   <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
                     <SelectValue />
@@ -429,27 +564,116 @@ export default function UsersPage() {
                 </UiSelect>
               </div>
 
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
-                  Assigned Truck
-                </label>
-                <UiSelect
-                  value={form.truck}
-                  onValueChange={(val) => setForm({ ...form, truck: val })}
-                >
-                  <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
-                    <SelectValue placeholder="Select truck..." />
-                  </SelectTrigger>
+              {/* COMPANY */}
+              {form.role === "manager" && (
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
+                    Company <span className="text-red-500">*</span>
+                  </label>
 
-                  <SelectContent className="z-[9999]">
-                    {truckSelectOptions.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </UiSelect>
-              </div>
+                  {isManager ? (
+                    <input
+                      value={currentUser?.companyName || ""}
+                      disabled
+                      className={`${inputClass} opacity-60 cursor-not-allowed bg-muted`}
+                    />
+                  ) : (
+                    <UiSelect
+                      value={form.companyName}
+                      onValueChange={(val) =>
+                        setForm({
+                          ...form,
+                          companyName: val,
+                          truck: "none",
+                        })
+                      }
+                    >
+                      <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
+                        <SelectValue placeholder="Select company..." />
+                      </SelectTrigger>
+
+                      <SelectContent className="z-[9999]">
+                        {companyOptions.map((company) => (
+                          <SelectItem key={company} value={company}>
+                            {company}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </UiSelect>
+                  )}
+                </div>
+              )}
+
+              {/* EMPLOYEE COMPANY */}
+              {form.role === "employee" && (
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
+                    Company
+                  </label>
+
+                  {isManager ? (
+                    <input
+                      value={currentUser?.companyName || ""}
+                      disabled
+                      className={`${inputClass} opacity-60`}
+                    />
+                  ) : (
+                    <UiSelect
+                      value={form.companyName}
+                      onValueChange={(val) =>
+                        setForm({
+                          ...form,
+                          companyName: val,
+                          truck: "none",
+                        })
+                      }
+                    >
+                      <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
+                        <SelectValue placeholder="Select company..." />
+                      </SelectTrigger>
+
+                      <SelectContent className="z-[9999]">
+                        {companyOptions.map((company) => (
+                          <SelectItem key={company} value={company}>
+                            {company}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </UiSelect>
+                  )}
+                </div>
+              )}
+
+              {/* EMPLOYEE TRUCK */}
+              {form.role === "employee" && (
+                <div className="col-span-2">
+                  <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
+                    Assigned Truck <span className="text-red-500">*</span>
+                  </label>
+
+                  <UiSelect
+                    value={form.truck}
+                    onValueChange={(val) =>
+                      setForm({
+                        ...form,
+                        truck: val,
+                      })
+                    }
+                  >
+                    <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
+                      <SelectValue placeholder="Select truck..." />
+                    </SelectTrigger>
+
+                    <SelectContent className="z-[9999]">
+                      {truckSelectOptions.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </UiSelect>
+                </div>
+              )}
             </div>
 
             <DialogFooter className="mt-4">

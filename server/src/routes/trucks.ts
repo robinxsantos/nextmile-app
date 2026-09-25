@@ -1,10 +1,16 @@
-import { Router, Request, Response } from "express";
+import { Router, Response } from "express";
 import { Truck } from "../models/Truck.js";
 import { Trip } from "../models/Trip.js";
 import { Expense } from "../models/Expense.js";
+import { User } from "../models/User.js";
 import { dayNameShort } from "../utils/calculations.js";
 import { validateTruckData } from "../middleware/validate.js";
-import { requireAdmin } from "../middleware/auth.js";
+import {
+  requireAuth,
+  requireManagerOrAdmin,
+  canAccessTruck,
+  type AuthRequest,
+} from "../middleware/auth.js";
 
 const router = Router();
 
@@ -26,9 +32,43 @@ async function recalculateLastChangeOil(truckId: string) {
 }
 
 // GET /api/trucks - List all trucks
-router.get("/", async (_req: Request, res: Response) => {
+router.get("/", requireAuth, async (req: AuthRequest, res: Response) => {
   try {
-    const trucks = await Truck.find().sort({ createdAt: -1 });
+    const filter: Record<string, any> = {};
+
+    if (req.user?.role === "manager") {
+      const companyName = String(req.user.companyName || "").trim();
+
+      if (!companyName) {
+        res.json({
+          rows: [],
+          total: 0,
+          active: 0,
+          inactive: 0,
+          sheets: 0,
+        });
+        return;
+      }
+
+      filter.companyName = companyName;
+    }
+
+    if (req.user?.role === "employee") {
+      if (!req.user.truck) {
+        res.json({
+          rows: [],
+          total: 0,
+          active: 0,
+          inactive: 0,
+          sheets: 0,
+        });
+        return;
+      }
+
+      filter._id = req.user.truck;
+    }
+
+    const trucks = await Truck.find(filter).sort({ createdAt: -1 });
 
     const rows = trucks.map((t) => {
       const isMonthly = t.cutoffType === "monthly";
@@ -77,12 +117,12 @@ router.get("/", async (_req: Request, res: Response) => {
   }
 });
 
-// POST /api/trucks - Create truck (admin only)
+// POST /api/trucks - Create truck (admin or manager)
 router.post(
   "/",
-  requireAdmin,
+  requireManagerOrAdmin,
   validateTruckData,
-  async (req: Request, res: Response) => {
+  async (req: AuthRequest, res: Response) => {
     try {
       const {
         truckName,
@@ -104,6 +144,28 @@ router.post(
         return;
       }
 
+      let finalCompanyName = "";
+
+      if (req.user?.role === "manager") {
+        finalCompanyName = String(req.user.companyName || "").trim();
+
+        if (!finalCompanyName) {
+          res.status(400).json({
+            error: "Your manager account does not have an assigned company.",
+          });
+          return;
+        }
+      } else {
+        finalCompanyName = String(companyName || "").trim();
+
+        if (!finalCompanyName) {
+          res.status(400).json({
+            error: "Company name is required.",
+          });
+          return;
+        }
+      }
+
       const existing = await Truck.findOne({
         truckName: { $regex: new RegExp(`^${truckName.trim()}$`, "i") },
       });
@@ -115,7 +177,7 @@ router.post(
 
       const truck = await Truck.create({
         truckName: truckName.trim(),
-        companyName: String(companyName || "").trim(),
+        companyName: finalCompanyName,
         status: status || "Active",
         cutoffType,
         client: client?.trim() || notes?.trim() || "",
@@ -137,13 +199,28 @@ router.post(
   },
 );
 
-// PUT /api/trucks/:id - Update truck (admin only)
+// PUT /api/trucks/:id - Update truck (admin or own-company manager)
 router.put(
   "/:id",
-  requireAdmin,
+  requireManagerOrAdmin,
   validateTruckData,
-  async (req: Request, res: Response) => {
+  async (req: AuthRequest, res: Response) => {
     try {
+      const existingTruck = await Truck.findById(req.params.id);
+
+      if (!existingTruck) {
+        res.status(404).json({ error: "Truck not found." });
+        return;
+      }
+
+      const allowed = await canAccessTruck(req, String(existingTruck._id));
+
+      if (!allowed) {
+        res.status(403).json({
+          error: "You do not have access to this truck.",
+        });
+        return;
+      }
       const {
         truckName,
         companyName,
@@ -159,6 +236,18 @@ router.put(
         dayOff,
       } = req.body;
 
+      const finalCompanyName =
+        req.user?.role === "manager"
+          ? String(req.user.companyName || "").trim()
+          : String(companyName || "").trim();
+
+      if (!finalCompanyName) {
+        res.status(400).json({
+          error: "Company name is required.",
+        });
+        return;
+      }
+
       if (!truckName?.trim()) {
         res.status(400).json({ error: "Truck name is required." });
         return;
@@ -168,7 +257,7 @@ router.put(
         req.params.id,
         {
           truckName: truckName.trim(),
-          companyName: String(companyName || "").trim(),
+          companyName: finalCompanyName,
           status: status || "Active",
           cutoffType,
           client: client?.trim() || notes?.trim() || "",
@@ -200,9 +289,17 @@ router.put(
 // POST /api/trucks/:id/change-oil - Add change oil history record
 router.post(
   "/:id/change-oil",
-  requireAdmin,
-  async (req: Request, res: Response) => {
+  requireManagerOrAdmin,
+  async (req: AuthRequest, res: Response) => {
     try {
+      const allowed = await canAccessTruck(req, String(req.params.id));
+
+      if (!allowed) {
+        res.status(403).json({
+          error: "You do not have access to this truck.",
+        });
+        return;
+      }
       const { date, odometer, notes } = req.body;
 
       if (!date) {
@@ -260,9 +357,17 @@ router.post(
 // PUT /api/trucks/:id/change-oil/:recordId - Edit change oil record
 router.put(
   "/:id/change-oil/:recordId",
-  requireAdmin,
-  async (req: Request, res: Response) => {
+  requireManagerOrAdmin,
+  async (req: AuthRequest, res: Response) => {
     try {
+      const allowed = await canAccessTruck(req, String(req.params.id));
+
+      if (!allowed) {
+        res.status(403).json({
+          error: "You do not have access to this truck.",
+        });
+        return;
+      }
       const { date, odometer, notes } = req.body;
 
       if (!date) {
@@ -324,9 +429,17 @@ router.put(
 // DELETE /api/trucks/:id/change-oil/:recordId - Delete change oil record
 router.delete(
   "/:id/change-oil/:recordId",
-  requireAdmin,
-  async (req: Request, res: Response) => {
+  requireManagerOrAdmin,
+  async (req: AuthRequest, res: Response) => {
     try {
+      const allowed = await canAccessTruck(req, String(req.params.id));
+
+      if (!allowed) {
+        res.status(403).json({
+          error: "You do not have access to this truck.",
+        });
+        return;
+      }
       const truck = await Truck.findByIdAndUpdate(
         req.params.id,
         {
@@ -355,24 +468,81 @@ router.delete(
   },
 );
 
-// DELETE /api/trucks/:id - Delete truck + cascade (admin only)
-router.delete("/:id", requireAdmin, async (req: Request, res: Response) => {
-  try {
-    const truck = await Truck.findById(req.params.id);
-    if (!truck) {
-      res.status(404).json({ error: "Truck not found." });
-      return;
+// DELETE /api/trucks/:id - Delete truck + cascade
+// Requires current user's password confirmation.
+router.delete(
+  "/:id",
+  requireManagerOrAdmin,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { password } = req.body;
+
+      if (!password || !String(password).trim()) {
+        res.status(400).json({
+          error: "Password is required to delete a truck.",
+        });
+        return;
+      }
+
+      const truck = await Truck.findById(req.params.id);
+
+      if (!truck) {
+        res.status(404).json({
+          error: "Truck not found.",
+        });
+        return;
+      }
+
+      const allowed = await canAccessTruck(req, String(truck._id));
+
+      if (!allowed) {
+        res.status(403).json({
+          error: "You do not have access to this truck.",
+        });
+        return;
+      }
+
+      // Load the authenticated user WITH password hash.
+      const currentUser = await User.findById(req.user?._id);
+
+      if (!currentUser || !currentUser.active) {
+        res.status(401).json({
+          error: "Invalid user account.",
+        });
+        return;
+      }
+
+      const passwordMatches = await currentUser.comparePassword(
+        String(password),
+      );
+
+      if (!passwordMatches) {
+        res.status(401).json({
+          error: "Incorrect password.",
+        });
+        return;
+      }
+
+      // Password confirmed. Cascade delete related records.
+      await Trip.deleteMany({
+        truck: truck._id,
+      });
+
+      await Expense.deleteMany({
+        truck: truck._id,
+      });
+
+      await Truck.findByIdAndDelete(truck._id);
+
+      res.json({
+        ok: true,
+      });
+    } catch (err: any) {
+      res.status(500).json({
+        error: err.message,
+      });
     }
-
-    // Cascade delete trips and expenses
-    await Trip.deleteMany({ truck: truck._id });
-    await Expense.deleteMany({ truck: truck._id });
-    await Truck.findByIdAndDelete(truck._id);
-
-    res.json({ ok: true });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
+  },
+);
 
 export default router;

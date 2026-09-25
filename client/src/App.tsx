@@ -43,10 +43,14 @@ function RedirectIfAuth({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-/** Only admin can access */
-function RequireAdmin({ children }: { children: React.ReactNode }) {
+/** Admin and Manager can access */
+function RequireManagerOrAdmin({ children }: { children: React.ReactNode }) {
   const { user } = useAuthStore();
-  if (user?.role !== "admin") return <Navigate to="/trips" replace />;
+
+  if (user?.role !== "admin" && user?.role !== "manager") {
+    return <Navigate to="/trips" replace />;
+  }
+
   return <>{children}</>;
 }
 
@@ -98,11 +102,11 @@ export default function App() {
           <Route
             path="/"
             element={
-              <RequireAdmin>
+              <RequireManagerOrAdmin>
                 <Suspense fallback={<PageSkeleton />}>
                   <DashboardPage />
                 </Suspense>
-              </RequireAdmin>
+              </RequireManagerOrAdmin>
             }
           />
           <Route
@@ -116,59 +120,61 @@ export default function App() {
           <Route
             path="/expenses"
             element={
-              <Suspense fallback={<PageSkeleton />}>
-                <ExpensesPage />
-              </Suspense>
+              <RequireManagerOrAdmin>
+                <Suspense fallback={<PageSkeleton />}>
+                  <ExpensesPage />
+                </Suspense>
+              </RequireManagerOrAdmin>
             }
           />
           <Route
             path="/reports"
             element={
-              <RequireAdmin>
+              <RequireManagerOrAdmin>
                 <Suspense fallback={<PageSkeleton />}>
                   <ReportsPage />
                 </Suspense>
-              </RequireAdmin>
+              </RequireManagerOrAdmin>
             }
           />
           <Route
             path="/trucks"
             element={
-              <RequireAdmin>
+              <RequireManagerOrAdmin>
                 <Suspense fallback={<PageSkeleton />}>
                   <TrucksPage />
                 </Suspense>
-              </RequireAdmin>
+              </RequireManagerOrAdmin>
             }
           />
           <Route
             path="/users"
             element={
-              <RequireAdmin>
+              <RequireManagerOrAdmin>
                 <Suspense fallback={<PageSkeleton />}>
                   <UsersPage />
                 </Suspense>
-              </RequireAdmin>
+              </RequireManagerOrAdmin>
             }
           />
           <Route
             path="/payments"
             element={
-              <RequireAdmin>
+              <RequireManagerOrAdmin>
                 <Suspense fallback={<PageSkeleton />}>
                   <PaymentsPage />
                 </Suspense>
-              </RequireAdmin>
+              </RequireManagerOrAdmin>
             }
           />
           <Route
             path="/collections"
             element={
-              <RequireAdmin>
+              <RequireManagerOrAdmin>
                 <Suspense fallback={<PageSkeleton />}>
                   <CollectionsPage />
                 </Suspense>
-              </RequireAdmin>
+              </RequireManagerOrAdmin>
             }
           />
           <Route

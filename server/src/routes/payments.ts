@@ -11,7 +11,8 @@ import {
 } from "../lib/googleDrive.js";
 import {
   requireAuth,
-  requireAdmin,
+  requireManagerOrAdmin,
+  canAccessTruck,
   type AuthRequest,
 } from "../middleware/auth.js";
 
@@ -24,7 +25,14 @@ const upload = multer({
     fileSize: 10 * 1024 * 1024, // 10MB
   },
   fileFilter: (_req, file, cb) => {
-    const allowed = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+    const allowed = [
+      "image/jpeg",
+      "image/png",
+      "image/gif",
+      "image/webp",
+      "image/heic",
+      "image/heif",
+    ];
     if (allowed.includes(file.mimetype)) {
       cb(null, true);
     } else {
@@ -35,8 +43,8 @@ const upload = multer({
 
 const router = Router();
 
-// All payment routes require auth + admin
-router.use(requireAuth, requireAdmin);
+// Payment routes are available to admins and company-scoped managers.
+router.use(requireAuth, requireManagerOrAdmin);
 
 function toRow(p: any) {
   return {
@@ -69,7 +77,40 @@ router.get("/", async (req: AuthRequest, res: Response) => {
     const { truck, month } = req.query;
 
     const filter: Record<string, any> = {};
-    if (truck) filter.truck = truck;
+
+    if (req.user?.role === "manager") {
+      const companyName = String(req.user.companyName || "").trim();
+
+      if (!companyName) {
+        res.json({ rows: [] });
+        return;
+      }
+
+      if (truck) {
+        const truckId = String(truck);
+
+        const allowed = await canAccessTruck(req, truckId);
+
+        if (!allowed) {
+          res.status(403).json({
+            error: "You do not have access to this truck.",
+          });
+          return;
+        }
+
+        filter.truck = truckId;
+      } else {
+        const allowedTrucks = await Truck.find({
+          companyName,
+        }).select("_id");
+
+        filter.truck = {
+          $in: allowedTrucks.map((item) => item._id),
+        };
+      }
+    } else if (req.user?.role === "admin" && truck) {
+      filter.truck = String(truck);
+    }
 
     if (month && month !== "ALL") {
       const year = new Date().getFullYear();
@@ -81,7 +122,7 @@ router.get("/", async (req: AuthRequest, res: Response) => {
     }
 
     const payments = await Payment.find(filter)
-      .populate("truck", "truckName")
+      .populate("truck", "truckName companyName")
       .populate("uploadedBy", "displayName")
       .sort({ date: -1, createdAt: -1 });
 
@@ -111,6 +152,15 @@ router.post(
 
       if (!truckId) {
         res.status(400).json({ error: "Truck is required" });
+        return;
+      }
+
+      const allowed = await canAccessTruck(req, String(truckId));
+
+      if (!allowed) {
+        res.status(403).json({
+          error: "You do not have access to this truck.",
+        });
         return;
       }
 
@@ -164,7 +214,7 @@ router.post(
         "image/webp": ".webp",
       };
 
-      const ext = extensionByMime[file.mimetype] || "";
+      const ext = extensionByMime[uploadMimeType] || "";
 
       const dateStr = `${parsedDate.getFullYear()}-${String(
         parsedDate.getMonth() + 1,
@@ -174,9 +224,9 @@ router.post(
 
       // Upload the image buffer directly to Google Drive
       const driveFile = await uploadPaymentFile(
-        file.buffer,
+        uploadBuffer,
         displayFilename,
-        file.mimetype,
+        uploadMimeType,
         truck.truckName,
       );
 
@@ -200,8 +250,8 @@ router.post(
         // Keep empty for backward compatibility with old local payments
         filePath: "",
 
-        fileSize: file.size,
-        mimeType: file.mimetype,
+        fileSize: uploadBuffer.length,
+        mimeType: uploadMimeType,
         note: String(note || "").trim(),
       });
 
@@ -260,6 +310,18 @@ router.put(
         return;
       }
 
+      const canAccessExistingPayment = await canAccessTruck(
+        req,
+        String(payment.truck),
+      );
+
+      if (!canAccessExistingPayment) {
+        res.status(403).json({
+          error: "You do not have access to this payment.",
+        });
+        return;
+      }
+
       if (!truckId) {
         res.status(400).json({ error: "Truck is required" });
         return;
@@ -267,6 +329,18 @@ router.put(
 
       if (!category) {
         res.status(400).json({ error: "Category is required" });
+        return;
+      }
+
+      const canAccessDestinationTruck = await canAccessTruck(
+        req,
+        String(truckId),
+      );
+
+      if (!canAccessDestinationTruck) {
+        res.status(403).json({
+          error: "You cannot move this payment to that truck.",
+        });
         return;
       }
 
@@ -418,6 +492,15 @@ router.get("/:id/file", async (req: AuthRequest, res: Response) => {
       return;
     }
 
+    const allowed = await canAccessTruck(req, String(payment.truck));
+
+    if (!allowed) {
+      res.status(403).json({
+        error: "You do not have access to this payment proof.",
+      });
+      return;
+    }
+
     res.setHeader("Content-Type", payment.mimeType);
     res.setHeader(
       "Content-Disposition",
@@ -467,6 +550,15 @@ router.delete("/:id", async (req: AuthRequest, res: Response) => {
 
     if (!payment) {
       res.status(404).json({ error: "Payment not found" });
+      return;
+    }
+
+    const allowed = await canAccessTruck(req, String(payment.truck));
+
+    if (!allowed) {
+      res.status(403).json({
+        error: "You do not have access to this payment.",
+      });
       return;
     }
 

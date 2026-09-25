@@ -79,8 +79,9 @@ export default function TripsPage() {
     importTrips,
     previewImportTrips,
   } = useAppStore();
-  const { isAdmin } = useAuthStore();
-  const admin = isAdmin();
+  const { user } = useAuthStore();
+
+  const canManageTrips = user?.role === "admin" || user?.role === "manager";
 
   const [driverStatus, setDriverStatus] = useState<"ALL" | "UNPAID" | "PAID">(
     "ALL",
@@ -405,10 +406,12 @@ export default function TripsPage() {
 
       <div className="sticky top-0 z-30 bg-background">
         <FilterBar
-          showTruck={admin}
+          showTruck={canManageTrips}
           showRange
           showMonth={false}
-          allowedRangePresets={admin ? undefined : (["CC", "LC"] as const)}
+          allowedRangePresets={
+            canManageTrips ? undefined : (["CC", "LC"] as const)
+          }
           actions={
             <button
               onClick={handleAddTrip}
@@ -425,7 +428,7 @@ export default function TripsPage() {
           <div>
             <h2 className="text-base font-bold tracking-tight">Trip Records</h2>
             <p className="text-sm text-muted-foreground">
-              {admin
+              {canManageTrips
                 ? "Filter, edit, export, and generate payslips."
                 : "View trips and add new entries."}
             </p>
@@ -472,7 +475,7 @@ export default function TripsPage() {
                 className="w-full min-h-[44px] rounded-md border border-border bg-background text-sm pl-9 pr-3.5 focus:outline-none focus:border-ring transition-colors"
               />
             </div>
-            {!admin && (
+            {!canManageTrips && (
               <div className="flex rounded-[14px] border border-slate-200 dark:border-slate-700 overflow-hidden">
                 {(["ALL", "UNPAID", "PAID"] as const).map((s) => (
                   <button
@@ -489,7 +492,7 @@ export default function TripsPage() {
                 ))}
               </div>
             )}
-            {admin && (
+            {canManageTrips && (
               <>
                 <button
                   onClick={handleExportCsv}
@@ -578,27 +581,27 @@ export default function TripsPage() {
           loading={loading}
           verificationFilter={verificationFilter}
           showActions
-          selectable={admin}
-          selectedIds={admin ? selectedTripIds : []}
-          onSelectionChange={admin ? setSelectedTripIds : undefined}
-          onTogglePaid={admin ? handleTogglePaid : undefined}
+          selectable={canManageTrips}
+          selectedIds={canManageTrips ? selectedTripIds : []}
+          onSelectionChange={canManageTrips ? setSelectedTripIds : undefined}
+          onTogglePaid={canManageTrips ? handleTogglePaid : undefined}
           onEdit={(r) => {
             setEditRow(r);
             setDuplicateFrom(null);
             setTripModal(true);
           }}
           onDelete={(r) => setDeleteModal(r)}
-          onDuplicate={admin ? handleDuplicate : undefined}
+          onDuplicate={canManageTrips ? handleDuplicate : undefined}
           onExpenseClick={(data) => setExpenseBreakdown(data)}
-          canEditRow={admin ? undefined : (r) => !r.paid}
-          canDeleteRow={admin ? undefined : (r) => !r.paid}
+          canEditRow={canManageTrips ? undefined : (r) => !r.paid}
+          canDeleteRow={canManageTrips ? undefined : (r) => !r.paid}
           selectedTruck={selectedTruck}
           showTruckColumn={showTruckColumn}
           visibleColumns={visibleColumns}
-          onQuickEdit={admin ? quickEditTrip : undefined}
+          onQuickEdit={canManageTrips ? quickEditTrip : undefined}
           // ✅ ADD THIS
           onVerificationChange={
-            admin
+            canManageTrips
               ? async (id, status) => {
                   await quickEditTrip(id, "verificationStatus", status);
                 }

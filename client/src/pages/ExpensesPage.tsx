@@ -87,8 +87,9 @@ export default function ExpensesPage() {
     expenseCategories,
     theme,
   } = useAppStore();
-  const { isAdmin } = useAuthStore();
-  const admin = isAdmin();
+  const { user } = useAuthStore();
+
+  const canManageExpenses = user?.role === "admin" || user?.role === "manager";
   const [expenseModal, setExpenseModal] = useState(false);
   const [dateOpen, setDateOpen] = useState(false);
   const [editRow, setEditRow] = useState<ExpenseRow | null>(null);
@@ -118,25 +119,29 @@ export default function ExpensesPage() {
   const selectStyles = getSelectStyles(isDark);
 
   useEffect(() => {
-    if (admin) initApp();
-  }, [initApp, admin]);
+    if (canManageExpenses) {
+      initApp();
+    }
+  }, [initApp, canManageExpenses]);
 
   useEffect(() => {
-    if (admin) {
+    if (canManageExpenses) {
       const currentMonth = String(new Date().getMonth() + 1);
       setExpensesMonth(currentMonth);
     }
-  }, [admin, setExpensesMonth]);
+  }, [canManageExpenses, setExpensesMonth]);
 
   useEffect(() => {
-    if (admin) fetchExpenses();
-  }, [fetchExpenses, expensesMonth, admin]);
+    if (canManageExpenses) {
+      fetchExpenses();
+    }
+  }, [fetchExpenses, expensesMonth, canManageExpenses]);
 
   useEffect(() => {
-    if (admin) fetchExpenseCategories();
-  }, [expenseRows, admin, fetchExpenseCategories]);
-
-  if (!admin) return null;
+    if (canManageExpenses) {
+      fetchExpenseCategories();
+    }
+  }, [expenseRows, canManageExpenses, fetchExpenseCategories]);
 
   // Build category options: merge stored + defaults, dedup
   const categoryOptions = useMemo(() => {
@@ -192,7 +197,9 @@ export default function ExpensesPage() {
     setExpenseModal(true);
   };
 
-  useKeyboardShortcuts({ onNewExpense: admin ? openAdd : undefined });
+  useKeyboardShortcuts({
+    onNewExpense: canManageExpenses ? openAdd : undefined,
+  });
 
   const openEdit = (row: ExpenseRow) => {
     setEditRow(row);
@@ -250,7 +257,7 @@ export default function ExpensesPage() {
   const inputClass =
     "w-full min-h-[44px] rounded-[14px] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 px-3.5 text-sm focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10 outline-none transition-colors";
 
-  if (!admin) {
+  if (!canManageExpenses) {
     return <Navigate to="/trips" replace />;
   }
 
@@ -295,7 +302,7 @@ export default function ExpensesPage() {
         header: "Description",
         enableSorting: false,
       },
-      ...(admin
+      ...(canManageExpenses
         ? [
             {
               id: "reimbursed",
@@ -348,7 +355,7 @@ export default function ExpensesPage() {
         },
       },
     ],
-    [admin],
+    [canManageExpenses],
   );
 
   const table = useReactTable<ExpenseRow>({

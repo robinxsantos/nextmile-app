@@ -1,4 +1,4 @@
-import { Router, Request, Response } from "express";
+import { Router, Response } from "express";
 import { Trip } from "../models/Trip.js";
 import { Truck } from "../models/Truck.js";
 import {
@@ -12,7 +12,12 @@ import {
   validateTripUpdate,
   sanitizeString,
 } from "../middleware/validate.js";
-import { requireAdmin, type AuthRequest } from "../middleware/auth.js";
+import {
+  requireAuth,
+  requireManagerOrAdmin,
+  canAccessTruck,
+  type AuthRequest,
+} from "../middleware/auth.js";
 
 async function getFirstTripOfDay(truckId: any, date: Date) {
   const start = new Date(date);
@@ -57,14 +62,24 @@ async function recomputeTrip(tripId: any) {
 const router = Router();
 
 // GET /api/trips/last?truck=
-router.get("/last", async (req: Request, res: Response) => {
+router.get("/last", requireAuth, async (req: AuthRequest, res: Response) => {
   try {
     const { truck } = req.query;
     if (!truck) {
       res.status(400).json({ error: "Truck required" });
       return;
     }
-    const trip = await Trip.findOne({ truck })
+    const truckId = String(truck);
+
+    const allowed = await canAccessTruck(req, truckId);
+
+    if (!allowed) {
+      res.status(403).json({
+        error: "You do not have access to this truck.",
+      });
+      return;
+    }
+    const trip = await Trip.findOne({ truck: truckId })
       .populate("truck", "truckName")
       .sort({ date: -1, createdAt: -1 });
     res.json({ trip: trip ? formatTripResponse(trip as any) : null });
@@ -73,123 +88,232 @@ router.get("/last", async (req: Request, res: Response) => {
   }
 });
 
-// PATCH /api/trips/bulk-paid (admin only)
+// PATCH /api/trips/bulk-paid (admin or own-company manager)
 router.patch(
   "/bulk-paid",
-  requireAdmin,
-  async (req: Request, res: Response) => {
+  requireManagerOrAdmin,
+  async (req: AuthRequest, res: Response) => {
     try {
       const { ids, paid } = req.body;
+
       if (!Array.isArray(ids) || ids.length === 0) {
-        res.status(400).json({ error: "ids array is required" });
+        res.status(400).json({
+          error: "ids array is required",
+        });
         return;
       }
 
-      let updatedCount = 0;
-      for (const id of ids) {
-        const trip = await Trip.findById(id);
-        if (!trip) continue;
-        const totalPayable =
-          trip.crewSalary - trip.cashAdvance + trip.reimbursements;
-        await Trip.findByIdAndUpdate(id, {
-          paid: !!paid,
-          payable: paid ? 0 : totalPayable,
+      const trips = await Trip.find({
+        _id: { $in: ids },
+      });
+
+      if (trips.length !== ids.length) {
+        res.status(400).json({
+          error: "One or more trips were not found.",
         });
-        updatedCount++;
+        return;
       }
 
-      res.json({ ok: true, count: updatedCount });
+      // Validate ALL trips before modifying anything.
+      for (const trip of trips) {
+        const allowed = await canAccessTruck(req, String(trip.truck));
+
+        if (!allowed) {
+          res.status(403).json({
+            error: "One or more trips are outside your company access.",
+          });
+          return;
+        }
+      }
+
+      for (const trip of trips) {
+        const totalPayable =
+          Number(trip.crewSalary || 0) -
+          Number(trip.cashAdvance || 0) +
+          Number(trip.reimbursements || 0);
+
+        await Trip.findByIdAndUpdate(trip._id, {
+          paid: Boolean(paid),
+          payable: paid ? 0 : totalPayable,
+        });
+      }
+
+      res.json({
+        ok: true,
+        count: trips.length,
+      });
     } catch (err: any) {
-      res.status(500).json({ error: err.message });
+      res.status(500).json({
+        error: err.message,
+      });
     }
   },
 );
 
-// DELETE /api/trips/bulk-delete (admin only)
+// DELETE /api/trips/bulk-delete (admin or own-company manager)
 router.delete(
   "/bulk-delete",
-  requireAdmin,
-  async (req: Request, res: Response) => {
+  requireManagerOrAdmin,
+  async (req: AuthRequest, res: Response) => {
     try {
       const { ids } = req.body;
+
       if (!Array.isArray(ids) || ids.length === 0) {
-        res.status(400).json({ error: "ids array is required" });
+        res.status(400).json({
+          error: "ids array is required",
+        });
         return;
       }
 
-      // Collect affected truck+date combos for re-sync
-      const affectedDates: { truckId: any; date: Date }[] = [];
-      for (const id of ids) {
-        const trip = await Trip.findById(id);
-        if (trip) {
-          affectedDates.push({ truckId: trip.truck, date: trip.date });
-          await Trip.findByIdAndDelete(id);
+      const trips = await Trip.find({
+        _id: { $in: ids },
+      });
+
+      if (trips.length !== ids.length) {
+        res.status(400).json({
+          error: "One or more trips were not found.",
+        });
+        return;
+      }
+
+      // Validate ALL trips before deleting anything.
+      for (const trip of trips) {
+        const allowed = await canAccessTruck(req, String(trip.truck));
+
+        if (!allowed) {
+          res.status(403).json({
+            error: "One or more trips are outside your company access.",
+          });
+          return;
         }
       }
 
-      // Re-sync expenses for affected dates
+      const affectedDates = trips.map((trip) => ({
+        truckId: trip.truck,
+        date: trip.date,
+      }));
+
+      await Trip.deleteMany({
+        _id: { $in: trips.map((trip) => trip._id) },
+      });
+
       for (const { truckId, date } of affectedDates) {
         await syncTripsForDate(truckId as any, date);
       }
 
-      res.json({ ok: true, count: affectedDates.length });
+      res.json({
+        ok: true,
+        count: trips.length,
+      });
     } catch (err: any) {
-      res.status(500).json({ error: err.message });
+      res.status(500).json({
+        error: err.message,
+      });
     }
   },
 );
 
 // GET /api/trips?truck=&start=&end=
-router.get("/", async (req: AuthRequest, res: Response) => {
+router.get("/", requireAuth, async (req: AuthRequest, res: Response) => {
   try {
     const { truck, start, end } = req.query;
 
     const filter: any = {};
 
-    // Employees can only see trips for their assigned truck
+    // EMPLOYEE:
+    // assigned truck only
     if (req.user?.role === "employee") {
-      if (req.user.truck) {
-        filter.truck = req.user.truck;
-      } else {
-        // Employee with no assigned truck sees nothing
+      if (!req.user.truck) {
         res.json({ rows: [] });
         return;
       }
-    } else if (truck) {
-      // Admin can filter by any truck
-      const truckDoc = await Truck.findById(truck);
+
+      filter.truck = req.user.truck;
+    }
+
+    // MANAGER:
+    // requested truck must belong to manager's company.
+    // If no truck is requested, return trips from all trucks
+    // belonging to the manager's company.
+    else if (req.user?.role === "manager") {
+      const companyName = String(req.user.companyName || "").trim();
+
+      if (!companyName) {
+        res.json({ rows: [] });
+        return;
+      }
+
+      if (truck) {
+        const truckId = String(truck);
+
+        const allowed = await canAccessTruck(req, truckId);
+
+        if (!allowed) {
+          res.status(403).json({
+            error: "You do not have access to this truck.",
+          });
+          return;
+        }
+
+        filter.truck = truckId;
+      } else {
+        const allowedTrucks = await Truck.find({
+          companyName,
+        }).select("_id");
+
+        filter.truck = {
+          $in: allowedTrucks.map((item) => item._id),
+        };
+      }
+    }
+
+    // ADMIN:
+    // may request any truck or all trucks.
+    else if (req.user?.role === "admin" && truck) {
+      const truckId = String(truck);
+
+      const truckDoc = await Truck.findById(truckId);
+
       if (!truckDoc) {
         res.json({ rows: [] });
         return;
       }
+
       filter.truck = truckDoc._id;
     }
 
     if (start || end) {
       filter.date = {};
-      if (start) filter.date.$gte = new Date(start as string);
+
+      if (start) {
+        filter.date.$gte = new Date(String(start));
+      }
+
       if (end) {
-        const endDate = new Date(end as string);
+        const endDate = new Date(String(end));
         endDate.setHours(23, 59, 59, 999);
         filter.date.$lte = endDate;
       }
     }
 
     const trips = await Trip.find(filter)
-      .populate("truck", "truckName")
+      .populate("truck", "truckName companyName")
       .sort({ date: 1, createdAt: 1 });
 
     const rows = trips.map((t) => formatTripResponse(t as any));
+
     res.json({ rows });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({
+      error: err.message,
+    });
   }
 });
 
 // POST /api/trips/import-preview
 router.post(
   "/import-preview",
-  requireAdmin,
+  requireManagerOrAdmin,
   async (req: AuthRequest, res: Response) => {
     try {
       const { truckId, rows } = req.body;
@@ -198,6 +322,15 @@ router.post(
         return res.status(400).json({
           error: "Truck is required.",
         });
+      }
+
+      const allowed = await canAccessTruck(req, String(truckId));
+
+      if (!allowed) {
+        res.status(403).json({
+          error: "You do not have access to this truck.",
+        });
+        return;
       }
 
       if (!Array.isArray(rows) || rows.length === 0) {
@@ -273,7 +406,7 @@ router.post(
 // POST /api/trips/import
 router.post(
   "/import",
-  requireAdmin,
+  requireManagerOrAdmin,
   async (req: AuthRequest, res: Response) => {
     try {
       const { truckId, rows, importMode = "add" } = req.body;
@@ -282,6 +415,15 @@ router.post(
         return res.status(400).json({
           error: "Truck is required.",
         });
+      }
+
+      const allowed = await canAccessTruck(req, String(truckId));
+
+      if (!allowed) {
+        res.status(403).json({
+          error: "You do not have access to this truck.",
+        });
+        return;
       }
 
       if (!Array.isArray(rows) || rows.length === 0) {
@@ -419,131 +561,153 @@ router.post(
 );
 
 // POST /api/trips
-router.post("/", validateTripData, async (req: AuthRequest, res: Response) => {
-  try {
-    const {
-      truckId,
-      date,
-      status,
-      shipmentNumber,
-      rate,
-      vat,
-      trips,
-      crewSalary,
-      cashAdvance,
-      reimbursements,
-      note,
-    } = req.body;
-    const isAdmin = req.user?.role === "admin";
+router.post(
+  "/",
+  requireAuth,
+  validateTripData,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const {
+        truckId,
+        date,
+        status,
+        shipmentNumber,
+        rate,
+        vat,
+        trips,
+        crewSalary,
+        cashAdvance,
+        reimbursements,
+        note,
+      } = req.body;
+      const canManageTripFinancials =
+        req.user?.role === "admin" || req.user?.role === "manager";
 
-    if (!truckId) {
-      res.status(400).json({ error: "Truck is required." });
-      return;
-    }
-
-    const truck = await Truck.findById(truckId);
-    if (!truck) {
-      res.status(404).json({ error: "Truck not found." });
-      return;
-    }
-
-    if (!date) {
-      res.status(400).json({ error: "Date is required." });
-      return;
-    }
-
-    // Drivers/employees can add shipment number and note only.
-    // Admins still need rate and crew salary for Working Day trips.
-    if (isAdmin && status === "Working Day" && (!rate || Number(rate) <= 0)) {
-      res.status(400).json({ error: "Rate is required for Working Day." });
-      return;
-    }
-    if (
-      isAdmin &&
-      status === "Working Day" &&
-      (!crewSalary || Number(crewSalary) <= 0)
-    ) {
-      res
-        .status(400)
-        .json({ error: "Crew Salary is required for Working Day." });
-      return;
-    }
-
-    const parsedDate = new Date(date);
-    const { total: expenseTotal } = await getExpenseTotalForDate(
-      truck._id as any,
-      parsedDate,
-    );
-
-    // Check if this is the first trip for this date
-    const startOfDay = new Date(parsedDate);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(parsedDate);
-    endOfDay.setHours(23, 59, 59, 999);
-    const existingTrips = await Trip.countDocuments({
-      truck: truck._id,
-      date: { $gte: startOfDay, $lte: endOfDay },
-    });
-    const applyExpense = existingTrips === 0;
-
-    // 🔥 STEP 1: compute reimbursement FIRST
-    let finalReimbursement = isAdmin ? Number(reimbursements) || 0 : 0;
-
-    if (finalReimbursement > 0) {
-      const firstTrip = await getFirstTripOfDay(truck._id, parsedDate);
-
-      if (firstTrip && existingTrips > 0) {
-        await Trip.findByIdAndUpdate(firstTrip._id, {
-          $inc: { reimbursements: finalReimbursement },
-        });
-
-        // 🔥 ADD THIS LINE
-        await recomputeTrip(firstTrip._id);
-
-        finalReimbursement = 0;
+      if (!truckId) {
+        res.status(400).json({ error: "Truck is required." });
+        return;
       }
+
+      const allowed = await canAccessTruck(req, String(truckId));
+
+      if (!allowed) {
+        res.status(403).json({
+          error: "You do not have access to this truck.",
+        });
+        return;
+      }
+
+      const truck = await Truck.findById(truckId);
+      if (!truck) {
+        res.status(404).json({ error: "Truck not found." });
+        return;
+      }
+
+      if (!date) {
+        res.status(400).json({ error: "Date is required." });
+        return;
+      }
+
+      // Drivers/employees can add shipment number and note only.
+      // Admins still need rate and crew salary for Working Day trips.
+      if (
+        canManageTripFinancials &&
+        status === "Working Day" &&
+        (!rate || Number(rate) <= 0)
+      ) {
+        res.status(400).json({ error: "Rate is required for Working Day." });
+        return;
+      }
+      if (
+        canManageTripFinancials &&
+        status === "Working Day" &&
+        (!crewSalary || Number(crewSalary) <= 0)
+      ) {
+        res
+          .status(400)
+          .json({ error: "Crew Salary is required for Working Day." });
+        return;
+      }
+
+      const parsedDate = new Date(date);
+      const { total: expenseTotal } = await getExpenseTotalForDate(
+        truck._id as any,
+        parsedDate,
+      );
+
+      // Check if this is the first trip for this date
+      const startOfDay = new Date(parsedDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(parsedDate);
+      endOfDay.setHours(23, 59, 59, 999);
+      const existingTrips = await Trip.countDocuments({
+        truck: truck._id,
+        date: { $gte: startOfDay, $lte: endOfDay },
+      });
+      const applyExpense = existingTrips === 0;
+
+      // 🔥 STEP 1: compute reimbursement FIRST
+      let finalReimbursement = canManageTripFinancials
+        ? Number(reimbursements) || 0
+        : 0;
+
+      if (finalReimbursement > 0) {
+        const firstTrip = await getFirstTripOfDay(truck._id, parsedDate);
+
+        if (firstTrip && existingTrips > 0) {
+          await Trip.findByIdAndUpdate(firstTrip._id, {
+            $inc: { reimbursements: finalReimbursement },
+          });
+
+          // 🔥 ADD THIS LINE
+          await recomputeTrip(firstTrip._id);
+
+          finalReimbursement = 0;
+        }
+      }
+
+      // 🔥 STEP 2: NOW build tripData
+      const tripData = prepareTripData({
+        date: parsedDate,
+        status,
+        dayOff: truck.dayOff,
+        shipmentNumber,
+        rate: canManageTripFinancials ? Number(rate) || 0 : 0,
+        vat: canManageTripFinancials ? Number(vat) || 0 : 0,
+        trips: canManageTripFinancials ? Number(trips) || 0 : 0,
+        crewSalary: canManageTripFinancials ? Number(crewSalary) || 0 : 0,
+        cashAdvance: canManageTripFinancials ? Number(cashAdvance) || 0 : 0,
+        reimbursements: finalReimbursement, // ✅ CLEAN
+        note,
+        expenses: applyExpense ? expenseTotal : 0,
+      });
+
+      const trip = await Trip.create({
+        truck: truck._id,
+        createdBy: req.user?._id || null,
+        ...tripData,
+      });
+
+      // Re-sync all trips for this date if there are multiple
+      // if (existingTrips > 0) {
+      //   await syncTripsForDate(truck._id as any, parsedDate);
+      // }
+
+      const populated = await Trip.findById(trip._id).populate(
+        "truck",
+        "truckName",
+      );
+      res.status(201).json(formatTripResponse(populated as any));
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
     }
-
-    // 🔥 STEP 2: NOW build tripData
-    const tripData = prepareTripData({
-      date: parsedDate,
-      status,
-      dayOff: truck.dayOff,
-      shipmentNumber,
-      rate: isAdmin ? Number(rate) || 0 : 0,
-      vat: isAdmin ? Number(vat) || 0 : 0,
-      trips: isAdmin ? Number(trips) || 0 : 0,
-      crewSalary: isAdmin ? Number(crewSalary) || 0 : 0,
-      cashAdvance: isAdmin ? Number(cashAdvance) || 0 : 0,
-      reimbursements: finalReimbursement, // ✅ CLEAN
-      note,
-      expenses: applyExpense ? expenseTotal : 0,
-    });
-
-    const trip = await Trip.create({
-      truck: truck._id,
-      createdBy: req.user?._id || null,
-      ...tripData,
-    });
-
-    // Re-sync all trips for this date if there are multiple
-    // if (existingTrips > 0) {
-    //   await syncTripsForDate(truck._id as any, parsedDate);
-    // }
-
-    const populated = await Trip.findById(trip._id).populate(
-      "truck",
-      "truckName",
-    );
-    res.status(201).json(formatTripResponse(populated as any));
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
+  },
+);
 
 // PUT /api/trips/:id (admin, or owner of unpaid trip)
 router.put(
   "/:id",
+  requireAuth,
   validateTripUpdate,
   async (req: AuthRequest, res: Response) => {
     try {
@@ -569,15 +733,29 @@ router.put(
         return;
       }
 
-      // Non-admin can only edit their own unpaid trips
-      if (req.user?.role !== "admin") {
+      const tripTruckId =
+        (existingTrip.truck as any)?._id ?? existingTrip.truck;
+
+      const allowed = await canAccessTruck(req, String(tripTruckId));
+
+      if (!allowed) {
+        res.status(403).json({
+          error: "You do not have access to this trip.",
+        });
+        return;
+      }
+
+      // Employees can edit only their own unpaid trips.
+      // Managers can edit any trip under their own company.
+      if (req.user?.role === "employee") {
         const isOwner =
           existingTrip.createdBy &&
           String(existingTrip.createdBy) === String(req.user?._id);
+
         if (!isOwner || existingTrip.paid) {
-          res
-            .status(403)
-            .json({ error: "You can only edit your own unpaid trips." });
+          res.status(403).json({
+            error: "You can only edit your own unpaid trips.",
+          });
           return;
         }
       }
@@ -637,7 +815,7 @@ router.put(
 );
 
 // DELETE /api/trips/:id (admin, or owner of unpaid trip)
-router.delete("/:id", async (req: AuthRequest, res: Response) => {
+router.delete("/:id", requireAuth, async (req: AuthRequest, res: Response) => {
   try {
     const trip = await Trip.findById(req.params.id);
     if (!trip) {
@@ -645,14 +823,25 @@ router.delete("/:id", async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    // Non-admin can only delete their own unpaid trips
-    if (req.user?.role !== "admin") {
+    const allowed = await canAccessTruck(req, String(trip.truck));
+
+    if (!allowed) {
+      res.status(403).json({
+        error: "You do not have access to this trip.",
+      });
+      return;
+    }
+
+    // Employees can delete only their own unpaid trips.
+    // Managers can delete trips under their own company.
+    if (req.user?.role === "employee") {
       const isOwner =
         trip.createdBy && String(trip.createdBy) === String(req.user?._id);
+
       if (!isOwner || trip.paid) {
-        res
-          .status(403)
-          .json({ error: "You can only delete your own unpaid trips." });
+        res.status(403).json({
+          error: "You can only delete your own unpaid trips.",
+        });
         return;
       }
     }
@@ -671,11 +860,11 @@ router.delete("/:id", async (req: AuthRequest, res: Response) => {
   }
 });
 
-// PATCH /api/trips/:id/quick-edit (admin only)
+// PATCH /api/trips/:id/quick-edit (admin or own-company manager)
 router.patch(
   "/:id/quick-edit",
-  requireAdmin,
-  async (req: Request, res: Response) => {
+  requireManagerOrAdmin,
+  async (req: AuthRequest, res: Response) => {
     try {
       const { field, value } = req.body;
       const allowedFields = [
@@ -703,6 +892,17 @@ router.patch(
         return;
       }
 
+      const tripTruckId = (trip.truck as any)?._id ?? trip.truck;
+
+      const allowed = await canAccessTruck(req, String(tripTruckId));
+
+      if (!allowed) {
+        res.status(403).json({
+          error: "You do not have access to this trip.",
+        });
+        return;
+      }
+
       // Update the field
       // 1. Apply field update
       if (field === "note" || field === "verificationStatus") {
@@ -713,7 +913,7 @@ router.patch(
 
       if (field === "reimbursements") {
         const parsedDate = trip.date;
-        const firstTrip = await getFirstTripOfDay(trip.truck, parsedDate);
+        const firstTrip = await getFirstTripOfDay(tripTruckId, parsedDate);
         const isFirst = String(firstTrip?._id) === String(trip._id);
 
         if (!isFirst && Number(value) > 0) {
@@ -775,7 +975,7 @@ router.patch(
 // PATCH /api/trips/:id/collection-comment (admin only)
 router.patch(
   "/:id/collection-comment",
-  requireAdmin,
+  requireManagerOrAdmin,
   async (req: AuthRequest, res: Response) => {
     try {
       const { collectionComment } = req.body;
@@ -805,6 +1005,15 @@ router.patch(
         return;
       }
 
+      const allowed = await canAccessTruck(req, String(trip.truck));
+
+      if (!allowed) {
+        res.status(403).json({
+          error: "You do not have access to this trip.",
+        });
+        return;
+      }
+
       trip.collectionComment = cleanComment;
 
       await trip.save();
@@ -828,12 +1037,21 @@ router.patch(
 // PATCH /api/trips/:id/toggle-paid (admin only)
 router.patch(
   "/:id/toggle-paid",
-  requireAdmin,
-  async (req: Request, res: Response) => {
+  requireManagerOrAdmin,
+  async (req: AuthRequest, res: Response) => {
     try {
       const trip = await Trip.findById(req.params.id);
       if (!trip) {
         res.status(404).json({ error: "Trip not found." });
+        return;
+      }
+
+      const allowed = await canAccessTruck(req, String(trip.truck));
+
+      if (!allowed) {
+        res.status(403).json({
+          error: "You do not have access to this trip.",
+        });
         return;
       }
 

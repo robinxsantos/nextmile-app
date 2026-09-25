@@ -4,14 +4,15 @@ import { Trip } from "../models/Trip.js";
 import { Truck } from "../models/Truck.js";
 import {
   requireAuth,
-  requireAdmin,
+  requireManagerOrAdmin,
+  canAccessTruck,
   type AuthRequest,
 } from "../middleware/auth.js";
 
 const router = Router();
 
-// Collections are admin-only
-router.use(requireAuth, requireAdmin);
+// Collections are available to admins and company-scoped managers.
+router.use(requireAuth, requireManagerOrAdmin);
 
 // GET /api/collections?truck=
 router.get("/", async (req: AuthRequest, res: Response) => {
@@ -20,12 +21,42 @@ router.get("/", async (req: AuthRequest, res: Response) => {
 
     const filter: Record<string, any> = {};
 
-    if (truck) {
-      filter.truck = truck;
+    if (req.user?.role === "manager") {
+      const companyName = String(req.user.companyName || "").trim();
+
+      if (!companyName) {
+        res.json({ rows: [] });
+        return;
+      }
+
+      if (truck) {
+        const truckId = String(truck);
+
+        const allowed = await canAccessTruck(req, truckId);
+
+        if (!allowed) {
+          res.status(403).json({
+            error: "You do not have access to this truck.",
+          });
+          return;
+        }
+
+        filter.truck = truckId;
+      } else {
+        const allowedTrucks = await Truck.find({
+          companyName,
+        }).select("_id");
+
+        filter.truck = {
+          $in: allowedTrucks.map((item) => item._id),
+        };
+      }
+    } else if (req.user?.role === "admin" && truck) {
+      filter.truck = String(truck);
     }
 
     const collections = await Collection.find(filter)
-      .populate("truck", "truckName")
+      .populate("truck", "truckName companyName")
       .populate({
         path: "trips",
         select: "date shipmentNumber rate vat status",
@@ -64,6 +95,15 @@ router.post("/", async (req: AuthRequest, res: Response) => {
 
     if (!truckId) {
       res.status(400).json({ error: "Truck is required" });
+      return;
+    }
+
+    const allowed = await canAccessTruck(req, String(truckId));
+
+    if (!allowed) {
+      res.status(403).json({
+        error: "You do not have access to this truck.",
+      });
       return;
     }
 
@@ -299,6 +339,15 @@ router.put("/:id", async (req: AuthRequest, res: Response) => {
       return;
     }
 
+    const allowed = await canAccessTruck(req, String(collection.truck));
+
+    if (!allowed) {
+      res.status(403).json({
+        error: "You do not have access to this collection.",
+      });
+      return;
+    }
+
     const parsedCollectionDate = collectionDate
       ? new Date(collectionDate)
       : collection.collectionDate;
@@ -513,6 +562,15 @@ router.delete("/:id", async (req: AuthRequest, res: Response) => {
     if (!collection) {
       res.status(404).json({
         error: "Collection not found",
+      });
+      return;
+    }
+
+    const allowed = await canAccessTruck(req, String(collection.truck));
+
+    if (!allowed) {
+      res.status(403).json({
+        error: "You do not have access to this collection.",
       });
       return;
     }

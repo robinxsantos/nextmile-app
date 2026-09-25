@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useAppStore, type TruckRow } from "../store/useAppStore";
+import { useAuthStore } from "../store/useAuthStore";
 import KpiCard from "../components/shared/KpiCard";
 import {
   Dialog,
@@ -82,9 +83,14 @@ export default function TrucksPage() {
     updateChangeOilRecord,
     deleteChangeOilRecord,
   } = useAppStore();
+  const { user: currentUser } = useAuthStore();
+
+  const isManager = currentUser?.role === "manager";
   const [truckModal, setTruckModal] = useState(false);
   const [editRow, setEditRow] = useState<TruckRow | null>(null);
   const [deleteModal, setDeleteModal] = useState<TruckRow | null>(null);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [changeOilModal, setChangeOilModal] = useState<TruckRow | null>(null);
 
@@ -123,9 +129,10 @@ export default function TrucksPage() {
 
   const openAdd = () => {
     setEditRow(null);
+
     setForm({
       truckName: "",
-      companyName: "",
+      companyName: isManager ? currentUser?.companyName || "" : "",
       status: "Active",
       cutoffType: "weekly",
       billingType: "subcontracted",
@@ -136,6 +143,7 @@ export default function TrucksPage() {
       payday: "6",
       dayOff: "0",
     });
+
     setTruckModal(true);
   };
 
@@ -378,7 +386,8 @@ export default function TrucksPage() {
         <div className="flex flex-col md:flex-row justify-between md:items-end gap-3">
           <div>
             <h1 className="text-[1.45rem] font-bold tracking-tight">
-              Truck Management
+              Fleet Management
+              {currentUser?.companyName ? ` – ${currentUser.companyName}` : ""}
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
               Manage fleet records and dedicated data sheets per truck.
@@ -549,7 +558,10 @@ export default function TrucksPage() {
                             <Pencil size={14} />
                           </button>
                           <button
-                            onClick={() => setDeleteModal(r)}
+                            onClick={() => {
+                              setDeletePassword("");
+                              setDeleteModal(r);
+                            }}
                             className="w-[34px] h-[34px] rounded-md inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-500 transition-all"
                           >
                             <Trash2 size={14} />
@@ -655,7 +667,10 @@ export default function TrucksPage() {
                       <Pencil size={14} /> Edit
                     </button>
                     <button
-                      onClick={() => setDeleteModal(r)}
+                      onClick={() => {
+                        setDeletePassword("");
+                        setDeleteModal(r);
+                      }}
                       className="h-9 w-9 rounded-md inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-red-500/10 hover:text-red-500 transition-all"
                     >
                       <Trash2 size={14} />
@@ -707,10 +722,16 @@ export default function TrucksPage() {
                   type="text"
                   value={form.companyName}
                   onChange={(e) =>
-                    setForm({ ...form, companyName: e.target.value })
+                    setForm({
+                      ...form,
+                      companyName: e.target.value,
+                    })
                   }
-                  placeholder="e.g. StarTrak Trucking Services"
-                  className={inputClass}
+                  disabled={isManager}
+                  placeholder={isManager ? "" : "Company Name"}
+                  className={`${inputClass} ${
+                    isManager ? "opacity-60 cursor-not-allowed bg-muted" : ""
+                  }`}
                 />
               </div>
 
@@ -821,7 +842,7 @@ export default function TrucksPage() {
                     onChange={(e) =>
                       setForm({ ...form, billedTo: e.target.value })
                     }
-                    placeholder="e.g. StarTrak Trucking Services"
+                    placeholder="Company Name"
                     className={inputClass}
                   />
                 </div>
@@ -836,7 +857,7 @@ export default function TrucksPage() {
                   type="text"
                   value={form.client}
                   onChange={(e) => setForm({ ...form, client: e.target.value })}
-                  placeholder="e.g. Pepsi"
+                  placeholder="e.g. Shopee"
                   className={inputClass}
                 />
               </div>
@@ -1256,36 +1277,99 @@ export default function TrucksPage() {
         </Dialog>
 
         {/* DELETE TRUCK */}
-        <Dialog open={!!deleteModal} onOpenChange={() => setDeleteModal(null)}>
-          <DialogContent className="sm:max-w-[400px]">
+        <Dialog
+          open={!!deleteModal}
+          onOpenChange={(open) => {
+            if (!open && !deleteLoading) {
+              setDeleteModal(null);
+              setDeletePassword("");
+            }
+          }}
+        >
+          <DialogContent className="sm:max-w-[420px]">
             <DialogHeader>
               <DialogTitle>Delete truck?</DialogTitle>
             </DialogHeader>
 
-            <p>
-              Are you sure you want to delete this truck?
-              <br />
-              <strong>{deleteModal?.truckName}</strong>
-            </p>
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  You are about to permanently delete:
+                </p>
+
+                <p className="font-bold mt-1">{deleteModal?.truckName}</p>
+              </div>
+
+              <div className="rounded-md border border-red-500/20 bg-red-500/5 p-3">
+                <p className="text-xs text-red-600 dark:text-red-400">
+                  This will also permanently delete the truck's related trips
+                  and expenses. This action cannot be undone.
+                </p>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
+                  Enter your password to confirm
+                </label>
+
+                <input
+                  type="password"
+                  value={deletePassword}
+                  onChange={(e) => setDeletePassword(e.target.value)}
+                  placeholder="Enter password"
+                  autoComplete="current-password"
+                  disabled={deleteLoading}
+                  className={inputClass}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && deletePassword.trim()) {
+                      e.preventDefault();
+
+                      document.getElementById("confirm-delete-truck")?.click();
+                    }
+                  }}
+                />
+              </div>
+            </div>
 
             <DialogFooter className="mt-4">
               <button
-                onClick={() => setDeleteModal(null)}
-                className="px-4 py-2 border rounded-md text-sm"
+                type="button"
+                onClick={() => {
+                  setDeleteModal(null);
+                  setDeletePassword("");
+                }}
+                disabled={deleteLoading}
+                className="px-4 py-2.5 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>
 
               <button
+                id="confirm-delete-truck"
+                type="button"
+                disabled={deleteLoading || !deletePassword.trim()}
                 onClick={async () => {
-                  if (deleteModal) {
-                    await deleteTruck(deleteModal._id);
+                  if (!deleteModal || !deletePassword.trim()) {
+                    return;
+                  }
+
+                  setDeleteLoading(true);
+
+                  try {
+                    await deleteTruck(deleteModal._id, deletePassword);
+
                     setDeleteModal(null);
+                    setDeletePassword("");
+                  } catch {
+                    // Store already displays the backend error.
+                    // Keep modal open so the user can retry.
+                  } finally {
+                    setDeleteLoading(false);
                   }
                 }}
-                className="px-6 py-2 bg-red-500 text-white rounded-md text-sm"
+                className="px-6 py-2.5 rounded-md bg-red-500 text-white text-sm font-medium hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Delete
+                {deleteLoading ? "Deleting..." : "Delete"}
               </button>
             </DialogFooter>
           </DialogContent>

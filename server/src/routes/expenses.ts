@@ -1,4 +1,4 @@
-import { Router, Request, Response } from "express";
+import { Router, Response } from "express";
 import { Expense } from "../models/Expense.js";
 import { Truck } from "../models/Truck.js";
 import { syncTripsForDate } from "../services/tripService.js";
@@ -6,47 +6,118 @@ import {
   validateExpenseData,
   validateExpenseUpdate,
 } from "../middleware/validate.js";
-import { requireAdmin, type AuthRequest } from "../middleware/auth.js";
+import {
+  requireAuth,
+  requireManagerOrAdmin,
+  canAccessTruck,
+  type AuthRequest,
+} from "../middleware/auth.js";
 
 const router = Router();
 
 // GET /api/expenses/categories?truck=
-router.get("/categories", async (req: Request, res: Response) => {
-  try {
-    const { truck } = req.query;
-    const filter: any = {};
-    if (truck) filter.truck = truck;
+router.get(
+  "/categories",
+  requireAuth,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { truck } = req.query;
 
-    const categories: string[] =
-      await Expense.find(filter).distinct("category");
-    const cleaned = categories
-      .map((c: string) => c.trim())
-      .filter(Boolean)
-      .sort();
-    res.json({ categories: cleaned });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
+      const filter: any = {};
 
-// GET /api/expenses/by-date?truck=&date= (MUST be before /:id routes)
-router.get("/by-date", async (req: Request, res: Response) => {
+      if (req.user?.role === "employee") {
+        if (!req.user.truck) {
+          res.json({ categories: [] });
+          return;
+        }
+
+        filter.truck = req.user.truck;
+      } else if (req.user?.role === "manager") {
+        const companyName = String(req.user.companyName || "").trim();
+
+        if (!companyName) {
+          res.json({ categories: [] });
+          return;
+        }
+
+        if (truck) {
+          const truckId = String(truck);
+
+          const allowed = await canAccessTruck(req, truckId);
+
+          if (!allowed) {
+            res.status(403).json({
+              error: "You do not have access to this truck.",
+            });
+            return;
+          }
+
+          filter.truck = truckId;
+        } else {
+          const allowedTrucks = await Truck.find({
+            companyName,
+          }).select("_id");
+
+          filter.truck = {
+            $in: allowedTrucks.map((item) => item._id),
+          };
+        }
+      } else if (req.user?.role === "admin" && truck) {
+        filter.truck = String(truck);
+      }
+
+      const categories: string[] =
+        await Expense.find(filter).distinct("category");
+
+      const cleaned = categories
+        .map((c: string) => c.trim())
+        .filter(Boolean)
+        .sort();
+
+      res.json({ categories: cleaned });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  },
+);
+
+// GET /api/expenses/by-date?truck=&date=
+router.get("/by-date", requireAuth, async (req: AuthRequest, res: Response) => {
   try {
     const { truck, date } = req.query;
+
     if (!truck || !date) {
-      res.status(400).json({ error: "truck and date are required" });
+      res.status(400).json({
+        error: "truck and date are required",
+      });
       return;
     }
 
-    const d = new Date(date as string);
+    const truckId = String(truck);
+
+    const allowed = await canAccessTruck(req, truckId);
+
+    if (!allowed) {
+      res.status(403).json({
+        error: "You do not have access to this truck.",
+      });
+      return;
+    }
+
+    const d = new Date(String(date));
+
     const startOfDay = new Date(d);
     startOfDay.setHours(0, 0, 0, 0);
+
     const endOfDay = new Date(d);
     endOfDay.setHours(23, 59, 59, 999);
 
     const expenses = await Expense.find({
-      truck,
-      date: { $gte: startOfDay, $lte: endOfDay },
+      truck: truckId,
+      date: {
+        $gte: startOfDay,
+        $lte: endOfDay,
+      },
     }).sort({ createdAt: 1 });
 
     const items = expenses.map((e) => ({
@@ -61,42 +132,80 @@ router.get("/by-date", async (req: Request, res: Response) => {
 
     res.json({ items, total });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({
+      error: err.message,
+    });
   }
 });
 
 // GET /api/expenses?truck=&month=&start=&end=
-router.get("/", async (req: AuthRequest, res: Response) => {
+router.get("/", requireAuth, async (req: AuthRequest, res: Response) => {
   try {
     const { truck, month, start, end } = req.query;
 
     const filter: any = {};
 
-    // Employees can only see their own expenses
+    // Employee: own created expenses + assigned truck only.
     if (req.user?.role === "employee") {
-      filter.createdBy = req.user._id;
-      if (req.user.truck) {
-        filter.truck = req.user.truck;
+      if (!req.user.truck) {
+        res.json({ rows: [] });
+        return;
       }
-    } else if (truck) {
-      filter.truck = truck;
+
+      filter.createdBy = req.user._id;
+      filter.truck = req.user.truck;
     }
 
-    // Custom date range takes priority over month
+    // Manager: every expense under their company.
+    else if (req.user?.role === "manager") {
+      const companyName = String(req.user.companyName || "").trim();
+
+      if (!companyName) {
+        res.json({ rows: [] });
+        return;
+      }
+
+      if (truck) {
+        const truckId = String(truck);
+
+        const allowed = await canAccessTruck(req, truckId);
+
+        if (!allowed) {
+          res.status(403).json({
+            error: "You do not have access to this truck.",
+          });
+          return;
+        }
+
+        filter.truck = truckId;
+      } else {
+        const allowedTrucks = await Truck.find({
+          companyName,
+        }).select("_id");
+
+        filter.truck = {
+          $in: allowedTrucks.map((item) => item._id),
+        };
+      }
+    }
+
+    // Admin: all expenses, or requested truck.
+    else if (req.user?.role === "admin" && truck) {
+      filter.truck = String(truck);
+    }
+
     if (start || end) {
       filter.date = {};
 
       if (start) {
-        const startDate = new Date(start as string);
+        const startDate = new Date(String(start));
         startDate.setHours(0, 0, 0, 0);
-
         filter.date.$gte = startDate;
       }
 
       if (end) {
-        const endDate = new Date(end as string);
+        const endDate = new Date(String(end));
         endDate.setHours(23, 59, 59, 999);
-
         filter.date.$lte = endDate;
       }
     } else if (month && month !== "ALL") {
@@ -110,14 +219,14 @@ router.get("/", async (req: AuthRequest, res: Response) => {
     }
 
     const expenses = await Expense.find(filter)
-      .populate("truck", "truckName")
+      .populate("truck", "truckName companyName")
       .sort({ date: 1 });
 
     const rows = expenses.map((e: any) => ({
-      tripId: e.tripId, // 🔥 ADD THIS
+      tripId: e.tripId,
       _id: e._id,
       truck: e.truck,
-      truckName: (e.truck as any)?.truckName || "",
+      truckName: e.truck?.truckName || "",
       date: e.date,
       dateIso: e.date.toISOString().slice(0, 10),
       dateText: e.date.toLocaleDateString("en-US", {
@@ -133,32 +242,35 @@ router.get("/", async (req: AuthRequest, res: Response) => {
 
     res.json({ rows });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({
+      error: err.message,
+    });
   }
 });
 
 // POST /api/expenses (admin or employee for their truck)
 router.post(
   "/",
+  requireAuth,
   validateExpenseData,
   async (req: AuthRequest, res: Response) => {
     try {
       const { truckId, date, category, amount, description, tripId } = req.body;
 
-      // Employees can only add expenses for their assigned truck
-      if (req.user?.role === "employee") {
-        if (!req.user.truck || String(req.user.truck) !== truckId) {
-          res.status(403).json({
-            error: "You can only add expenses for your assigned truck.",
-          });
-          return;
-        }
-      }
-
       if (!truckId) {
         res.status(400).json({ error: "Truck is required." });
         return;
       }
+
+      const allowed = await canAccessTruck(req, String(truckId));
+
+      if (!allowed) {
+        res.status(403).json({
+          error: "You do not have access to this truck.",
+        });
+        return;
+      }
+
       if (!date) {
         res.status(400).json({ error: "Date is required." });
         return;
@@ -204,6 +316,7 @@ router.post(
 // PUT /api/expenses/:id (admin, or employee for their truck)
 router.put(
   "/:id",
+  requireAuth,
   validateExpenseUpdate,
   async (req: AuthRequest, res: Response) => {
     try {
@@ -215,17 +328,13 @@ router.put(
         return;
       }
 
-      // Employee can only edit expenses for their assigned truck
-      if (req.user?.role === "employee") {
-        if (
-          !req.user.truck ||
-          String(req.user.truck) !== String(existing.truck)
-        ) {
-          res.status(403).json({
-            error: "You can only edit expenses for your assigned truck.",
-          });
-          return;
-        }
+      const allowed = await canAccessTruck(req, String(existing.truck));
+
+      if (!allowed) {
+        res.status(403).json({
+          error: "You do not have access to this expense.",
+        });
+        return;
       }
 
       const parsedDate = date ? new Date(date) : existing.date;
@@ -255,12 +364,21 @@ router.put(
 // PATCH /api/expenses/:id/toggle-reimbursed (admin only)
 router.patch(
   "/:id/toggle-reimbursed",
-  requireAdmin,
-  async (req: Request, res: Response) => {
+  requireManagerOrAdmin,
+  async (req: AuthRequest, res: Response) => {
     try {
       const expense = await Expense.findById(req.params.id);
       if (!expense) {
         res.status(404).json({ error: "Expense not found." });
+        return;
+      }
+
+      const allowed = await canAccessTruck(req, String(expense.truck));
+
+      if (!allowed) {
+        res.status(403).json({
+          error: "You do not have access to this expense.",
+        });
         return;
       }
 
@@ -280,7 +398,7 @@ router.patch(
 );
 
 // DELETE /api/expenses/:id (admin, or employee for their truck)
-router.delete("/:id", async (req: AuthRequest, res: Response) => {
+router.delete("/:id", requireAuth, async (req: AuthRequest, res: Response) => {
   try {
     const expense = await Expense.findById(req.params.id);
     if (!expense) {
@@ -288,14 +406,13 @@ router.delete("/:id", async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    // Employee can only delete expenses for their assigned truck
-    if (req.user?.role === "employee") {
-      if (!req.user.truck || String(req.user.truck) !== String(expense.truck)) {
-        res.status(403).json({
-          error: "You can only delete expenses for your assigned truck.",
-        });
-        return;
-      }
+    const allowed = await canAccessTruck(req, String(expense.truck));
+
+    if (!allowed) {
+      res.status(403).json({
+        error: "You do not have access to this expense.",
+      });
+      return;
     }
 
     const truckId = expense.truck;

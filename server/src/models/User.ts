@@ -1,12 +1,16 @@
-import mongoose, { Schema, Document, Types } from 'mongoose';
-import bcrypt from 'bcryptjs';
+import mongoose, { Schema, Document, Types } from "mongoose";
+import bcrypt from "bcryptjs";
 
 export interface IUser extends Document {
   username: string;
   password: string;
   displayName: string;
-  role: 'admin' | 'employee';
+  role: "admin" | "manager" | "employee";
+
+  companyName?: string;
+
   truck?: Types.ObjectId;
+
   active: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -33,12 +37,19 @@ const UserSchema = new Schema<IUser>(
     },
     role: {
       type: String,
-      enum: ['admin', 'employee'],
-      default: 'employee',
+      enum: ["admin", "manager", "employee"],
+      default: "employee",
     },
+
+    companyName: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
     truck: {
       type: Schema.Types.ObjectId,
-      ref: 'Truck',
+      ref: "Truck",
       default: null,
     },
     active: {
@@ -48,20 +59,22 @@ const UserSchema = new Schema<IUser>(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 // Hash password before saving
-UserSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) return next();
+UserSchema.pre("save", async function (next) {
+  if (!this.isModified("password")) return next();
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
   next();
 });
 
 // Compare password method
-UserSchema.methods.comparePassword = async function (candidate: string): Promise<boolean> {
+UserSchema.methods.comparePassword = async function (
+  candidate: string,
+): Promise<boolean> {
   return bcrypt.compare(candidate, this.password);
 };
 
-export const User = mongoose.model<IUser>('User', UserSchema);
+export const User = mongoose.model<IUser>("User", UserSchema);
