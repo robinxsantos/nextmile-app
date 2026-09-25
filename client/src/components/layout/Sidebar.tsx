@@ -35,11 +35,14 @@ import LogoDark from "../../assets/logo-dark.png";
 
 type UserRole = "admin" | "manager" | "employee";
 
+type NavSection = "main" | "operations" | "finance" | "administration";
+
 type NavItem = {
   to: string;
   icon: LucideIcon;
   label: string;
   roles: UserRole[];
+  section: NavSection;
 };
 
 const allNavItems: NavItem[] = [
@@ -48,54 +51,69 @@ const allNavItems: NavItem[] = [
     icon: LayoutDashboard,
     label: "Dashboard",
     roles: ["admin", "manager"],
+    section: "main",
   },
+
+  // OPERATIONS
   {
     to: "/trips",
     icon: Route,
     label: "Trips",
     roles: ["admin", "manager", "employee"],
+    section: "operations",
   },
   {
     to: "/expenses",
     icon: HandCoins,
     label: "Expenses",
     roles: ["admin", "manager"],
+    section: "operations",
   },
-  {
-    to: "/reports",
-    icon: BarChart3,
-    label: "Reports",
-    roles: ["admin", "manager"],
-  },
+
+  // FINANCE
   {
     to: "/payments",
     icon: CreditCard,
     label: "Payments",
     roles: ["admin", "manager"],
+    section: "finance",
   },
   {
     to: "/collections",
     icon: WalletCards,
     label: "Collections",
     roles: ["admin", "manager"],
+    section: "finance",
   },
+  {
+    to: "/reports",
+    icon: BarChart3,
+    label: "Reports",
+    roles: ["admin", "manager"],
+    section: "finance",
+  },
+
+  // ADMINISTRATION
   {
     to: "/trucks",
     icon: Truck,
     label: "Trucks",
     roles: ["admin", "manager"],
+    section: "administration",
   },
   {
     to: "/users",
     icon: Users,
     label: "Users",
     roles: ["admin", "manager"],
+    section: "administration",
   },
   {
     to: "/settings",
     icon: Settings,
     label: "Settings",
     roles: ["admin", "manager", "employee"],
+    section: "administration",
   },
 ];
 
@@ -114,6 +132,32 @@ export default function Sidebar({
   const navItems = allNavItems.filter((item) =>
     user ? item.roles.includes(user.role) : false,
   );
+
+  const navSections = [
+    {
+      key: "main" as const,
+      label: "",
+    },
+    {
+      key: "operations" as const,
+      label: "Operations",
+    },
+    {
+      key: "finance" as const,
+      label: "Finance",
+    },
+    {
+      key: "administration" as const,
+      label: "Administration",
+    },
+  ];
+
+  const visibleSections = navSections
+    .map((section) => ({
+      ...section,
+      items: navItems.filter((item) => item.section === section.key),
+    }))
+    .filter((section) => section.items.length > 0);
 
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
@@ -168,30 +212,52 @@ export default function Sidebar({
         </div>
 
         {/* NAV */}
-        <nav className="flex-1 px-2 py-4 space-y-1">
-          {navItems.map(({ to, icon: Icon, label }) => {
-            const isActive =
-              location.pathname === to ||
-              (to === "/" && location.pathname === "/");
+        <nav className="flex-1 overflow-y-auto px-2 py-4">
+          {visibleSections.map((section, sectionIndex) => (
+            <div key={section.key} className={cn(sectionIndex > 0 && "mt-4")}>
+              {!sidebarCollapsed && section.label && (
+                <div className="mb-1.5 px-3">
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-400 dark:text-zinc-500">
+                    {section.label}
+                  </span>
+                </div>
+              )}
 
-            return (
-              <NavLink
-                key={to}
-                to={to}
-                end={to === "/"}
-                className={cn(
-                  "flex items-center gap-3 rounded-md text-sm transition-colors",
-                  sidebarCollapsed ? "justify-center px-2 py-2" : "px-3 py-2",
-                  isActive
-                    ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white font-medium"
-                    : "text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white",
-                )}
-              >
-                <Icon className="h-4 w-4" />
-                {!sidebarCollapsed && <span>{label}</span>}
-              </NavLink>
-            );
-          })}
+              {sidebarCollapsed && sectionIndex > 0 && (
+                <div className="mx-2 mb-2 border-t border-zinc-200 dark:border-zinc-800" />
+              )}
+
+              <div className="space-y-1">
+                {section.items.map(({ to, icon: Icon, label }) => {
+                  const isActive =
+                    location.pathname === to ||
+                    (to === "/" && location.pathname === "/");
+
+                  return (
+                    <NavLink
+                      key={to}
+                      to={to}
+                      end={to === "/"}
+                      title={sidebarCollapsed ? label : undefined}
+                      className={cn(
+                        "flex items-center gap-3 rounded-md text-sm transition-colors",
+                        sidebarCollapsed
+                          ? "justify-center px-2 py-2"
+                          : "px-3 py-2",
+                        isActive
+                          ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white font-medium"
+                          : "text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white",
+                      )}
+                    >
+                      <Icon className="h-4 w-4 shrink-0" />
+
+                      {!sidebarCollapsed && <span>{label}</span>}
+                    </NavLink>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </nav>
 
         {/* FOOTER */}
@@ -289,23 +355,47 @@ export default function Sidebar({
           />
 
           {/* Drawer */}
-          <div className="relative z-50 w-[240px] h-full bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 p-4">
+          <div className="relative z-50 w-[240px] h-full bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 p-4 flex flex-col">
             <button onClick={() => setOpenMobile(false)} className="mb-4">
               ✕
             </button>
 
             {/* NAV ITEMS */}
-            <nav className="flex flex-col gap-2">
-              {navItems.map(({ to, icon: Icon, label }) => (
-                <NavLink
-                  key={to}
-                  to={to}
-                  onClick={() => setOpenMobile(false)}
-                  className="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-muted"
+            <nav className="flex-1 overflow-y-auto">
+              {visibleSections.map((section, sectionIndex) => (
+                <div
+                  key={section.key}
+                  className={cn(sectionIndex > 0 && "mt-5")}
                 >
-                  <Icon className="h-4 w-4" />
-                  {label}
-                </NavLink>
+                  {section.label && (
+                    <div className="mb-1.5 px-3">
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-400 dark:text-zinc-500">
+                        {section.label}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="space-y-1">
+                    {section.items.map(({ to, icon: Icon, label }) => (
+                      <NavLink
+                        key={to}
+                        to={to}
+                        onClick={() => setOpenMobile(false)}
+                        className={({ isActive }) =>
+                          cn(
+                            "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
+                            isActive
+                              ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white font-medium"
+                              : "text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white",
+                          )
+                        }
+                      >
+                        <Icon className="h-4 w-4 shrink-0" />
+                        <span>{label}</span>
+                      </NavLink>
+                    ))}
+                  </div>
+                </div>
               ))}
             </nav>
             <div className="mt-auto pt-4 border-t border-zinc-200 dark:border-zinc-800 space-y-2">
