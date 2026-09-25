@@ -1,8 +1,16 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import api from "../api/client";
 import { useAuthStore } from "../store/useAuthStore";
-import { User, Lock, Save, Building2 } from "lucide-react";
+import {
+  User,
+  Lock,
+  Save,
+  Building2,
+  Plus,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,6 +24,29 @@ import {
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
+interface CompanyRow {
+  _id: string;
+  companyName: string;
+  status: "Active" | "Inactive";
+  createdAt: string;
+}
 
 export default function SettingsPage() {
   const { user, checkAuth } = useAuthStore();
@@ -34,6 +65,17 @@ export default function SettingsPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
+  const [companies, setCompanies] = useState<CompanyRow[]>([]);
+  const [loadingCompanies, setLoadingCompanies] = useState(false);
+  const [companyModal, setCompanyModal] = useState(false);
+  const [editingCompany, setEditingCompany] = useState<CompanyRow | null>(null);
+  const [companyName, setCompanyName] = useState("");
+  const [companyStatus, setCompanyStatus] = useState<"Active" | "Inactive">(
+    "Active",
+  );
+  const [savingCompany, setSavingCompany] = useState(false);
+  const [deleteCompany, setDeleteCompany] = useState<CompanyRow | null>(null);
+  const [deletingCompany, setDeletingCompany] = useState(false);
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,6 +126,104 @@ export default function SettingsPage() {
       toast.error(msg);
     } finally {
       setSavingPassword(false);
+    }
+  };
+
+  const fetchCompanies = async () => {
+    if (!isAdmin) return;
+
+    setLoadingCompanies(true);
+
+    try {
+      const { data } = await api.get("/companies");
+      setCompanies(data.rows || []);
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { error?: string } } })?.response?.data
+          ?.error || "Failed to load companies";
+
+      toast.error(msg);
+    } finally {
+      setLoadingCompanies(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isAdmin) {
+      fetchCompanies();
+    }
+  }, [isAdmin]);
+
+  const openAddCompany = () => {
+    setEditingCompany(null);
+    setCompanyName("");
+    setCompanyStatus("Active");
+    setCompanyModal(true);
+  };
+
+  const openEditCompany = (company: CompanyRow) => {
+    setEditingCompany(company);
+    setCompanyName(company.companyName);
+    setCompanyStatus(company.status);
+    setCompanyModal(true);
+  };
+
+  const handleSaveCompany = async () => {
+    if (!companyName.trim()) {
+      toast.error("Company name is required.");
+      return;
+    }
+
+    setSavingCompany(true);
+
+    try {
+      const payload = {
+        companyName: companyName.trim(),
+        status: companyStatus,
+      };
+
+      if (editingCompany) {
+        await api.put(`/companies/${editingCompany._id}`, payload);
+
+        toast.success("Company updated");
+      } else {
+        await api.post("/companies", payload);
+        toast.success("Company created");
+      }
+
+      setCompanyModal(false);
+      await fetchCompanies();
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { error?: string } } })?.response?.data
+          ?.error || "Failed to save company";
+
+      toast.error(msg);
+    } finally {
+      setSavingCompany(false);
+    }
+  };
+
+  const handleDeleteCompany = async () => {
+    if (!deleteCompany) return;
+
+    setDeletingCompany(true);
+
+    try {
+      await api.delete(`/companies/${deleteCompany._id}`);
+
+      toast.success("Company deleted");
+      setDeleteCompany(null);
+
+      await fetchCompanies();
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { error?: string } } })?.response?.data
+          ?.error || "Failed to delete company";
+
+      toast.error(msg);
+    } finally {
+      setDeletingCompany(false);
     }
   };
 
@@ -256,31 +396,247 @@ export default function SettingsPage() {
         {isAdmin && (
           <TabsContent value="companies">
             <Card className="max-w-3xl">
-              <CardHeader>
-                <CardTitle>Companies</CardTitle>
+              <CardHeader className="flex flex-row items-start justify-between gap-4">
+                <div>
+                  <CardTitle>Companies</CardTitle>
 
-                <CardDescription>
-                  Manage the companies available throughout the application.
-                </CardDescription>
+                  <CardDescription className="mt-1">
+                    Manage the companies available throughout the application.
+                  </CardDescription>
+                </div>
+
+                <Button
+                  type="button"
+                  onClick={openAddCompany}
+                  className="shrink-0"
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add company
+                </Button>
               </CardHeader>
 
               <Separator />
 
-              <CardContent className="pt-6">
-                <div className="flex min-h-[180px] flex-col items-center justify-center text-center">
-                  <Building2 className="mb-3 h-8 w-8 text-muted-foreground" />
+              <CardContent className="py-6">
+                {loadingCompanies ? (
+                  <div className="py-10 text-center text-sm text-muted-foreground">
+                    Loading companies...
+                  </div>
+                ) : companies.length === 0 ? (
+                  <div className="flex min-h-[180px] flex-col items-center justify-center text-center">
+                    <Building2 className="mb-3 h-8 w-8 text-muted-foreground" />
 
-                  <p className="text-sm font-medium">Company management</p>
+                    <p className="text-sm font-medium">No companies yet</p>
 
-                  <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-                    Company management will be configured here next.
-                  </p>
-                </div>
+                    <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+                      Add your first company to start assigning trucks and
+                      users.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="overflow-hidden rounded-md border">
+                    {companies.map((company, index) => (
+                      <div
+                        key={company._id}
+                        className={`flex items-center justify-between gap-4 px-4 py-3 ${
+                          index !== companies.length - 1 ? "border-b" : ""
+                        }`}
+                      >
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-medium">
+                            {company.companyName}
+                          </div>
+
+                          <div className="mt-0.5 text-xs text-muted-foreground">
+                            Added{" "}
+                            {new Date(company.createdAt).toLocaleDateString(
+                              "en-US",
+                              {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
+                              },
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex shrink-0 items-center gap-2">
+                          <span
+                            className={`inline-flex min-w-[70px] justify-center px-2.5 py-1 text-xs font-medium ${
+                              company.status === "Active"
+                                ? "bg-green-500/10 text-green-600 dark:text-green-400"
+                                : "bg-muted text-muted-foreground"
+                            }`}
+                          >
+                            {company.status}
+                          </span>
+
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={() => openEditCompany(company)}
+                            title="Edit company"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={() => setDeleteCompany(company)}
+                            title="Delete company"
+                            className="hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-500"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
         )}
       </Tabs>
+      {/* ADD / EDIT COMPANY */}
+      <Dialog
+        open={companyModal}
+        onOpenChange={(open) => {
+          if (!savingCompany) {
+            setCompanyModal(open);
+
+            if (!open) {
+              setEditingCompany(null);
+              setCompanyName("");
+              setCompanyStatus("Active");
+            }
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[460px]">
+          <DialogHeader>
+            <DialogTitle>
+              {editingCompany ? "Edit company" : "Add company"}
+            </DialogTitle>
+
+            <DialogDescription>
+              {editingCompany
+                ? "Update the company name or status."
+                : "Create a company that can be assigned to trucks and users."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="grid gap-2">
+              <Label htmlFor="companyName">Company Name</Label>
+
+              <Input
+                id="companyName"
+                value={companyName}
+                onChange={(e) => setCompanyName(e.target.value)}
+                placeholder="e.g. StarTrak Trucking Services"
+                disabled={savingCompany}
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label>Status</Label>
+
+              <Select
+                value={companyStatus}
+                onValueChange={(value) =>
+                  setCompanyStatus(value as "Active" | "Inactive")
+                }
+                disabled={savingCompany}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+
+                <SelectContent>
+                  <SelectItem value="Active">Active</SelectItem>
+
+                  <SelectItem value="Inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={savingCompany}
+              onClick={() => setCompanyModal(false)}
+            >
+              Cancel
+            </Button>
+
+            <Button
+              type="button"
+              disabled={savingCompany || !companyName.trim()}
+              onClick={handleSaveCompany}
+            >
+              {savingCompany
+                ? "Saving..."
+                : editingCompany
+                  ? "Save changes"
+                  : "Create company"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* DELETE COMPANY */}
+      <Dialog
+        open={!!deleteCompany}
+        onOpenChange={(open) => {
+          if (!open && !deletingCompany) {
+            setDeleteCompany(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle>Delete company?</DialogTitle>
+
+            <DialogDescription>
+              This will permanently remove the company from the company list.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="rounded-md border bg-muted/30 p-3">
+            <p className="text-sm font-medium">{deleteCompany?.companyName}</p>
+          </div>
+
+          <p className="text-sm text-muted-foreground">
+            A company cannot be deleted while it is still assigned to a truck or
+            user.
+          </p>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={deletingCompany}
+              onClick={() => setDeleteCompany(null)}
+            >
+              Cancel
+            </Button>
+
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={deletingCompany}
+              onClick={handleDeleteCompany}
+            >
+              {deletingCompany ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

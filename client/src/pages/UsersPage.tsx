@@ -44,6 +44,12 @@ interface UserRow {
   active: boolean;
 }
 
+interface CompanyOption {
+  _id: string;
+  companyName: string;
+  status: "Active" | "Inactive";
+}
+
 export default function UsersPage() {
   const { truckOptions, initApp } = useAppStore();
   const { user: currentUser } = useAuthStore();
@@ -52,6 +58,7 @@ export default function UsersPage() {
   const isManager = currentUser?.role === "manager";
 
   const [users, setUsers] = useState<UserRow[]>([]);
+  const [companies, setCompanies] = useState<CompanyOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [modal, setModal] = useState(false);
   const [editUser, setEditUser] = useState<UserRow | null>(null);
@@ -79,9 +86,32 @@ export default function UsersPage() {
     }
   };
 
+  const fetchCompanies = async () => {
+    // Manager does not need the master company list.
+    // Their company is fixed from their authenticated account.
+    if (!isAdmin) {
+      return;
+    }
+
+    try {
+      const { data } = await api.get("/companies");
+      setCompanies(data.rows || []);
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { error?: string } } })?.response?.data
+          ?.error || "Failed to load companies";
+
+      toast.error(msg);
+    }
+  };
+
   useEffect(() => {
     fetchUsers();
-  }, []);
+
+    if (isAdmin) {
+      fetchCompanies();
+    }
+  }, [isAdmin]);
 
   const openAdd = () => {
     setEditUser(null);
@@ -216,12 +246,13 @@ export default function UsersPage() {
       ];
 
   const companyOptions = Array.from(
-    new Set(
-      truckOptions
-        .map((t) => String(t.companyName || "").trim())
-        .filter(Boolean),
-    ),
-  ).sort();
+    new Set([
+      ...companies
+        .filter((company) => company.status === "Active")
+        .map((company) => company.companyName),
+      ...(editUser?.companyName ? [editUser.companyName] : []),
+    ]),
+  ).sort((a, b) => a.localeCompare(b));
 
   const filteredTruckOptions = truckOptions.filter((t) => {
     if (isManager) {

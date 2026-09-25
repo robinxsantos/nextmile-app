@@ -2,6 +2,7 @@ import { Router, Response } from "express";
 
 import { User } from "../models/User.js";
 import { Truck } from "../models/Truck.js";
+import { Company } from "../models/Company.js";
 
 import {
   requireAuth,
@@ -133,17 +134,26 @@ router.post("/", async (req: AuthRequest, res: Response) => {
         return;
       }
 
-      // Verify that this company actually exists on at least one truck.
-      const companyTruck = await Truck.findOne({
+      const company = await Company.findOne({
         companyName: finalCompanyName,
-      }).select("_id");
+      });
 
-      if (!companyTruck) {
+      if (!company) {
         res.status(400).json({
           error: "Selected company does not exist",
         });
         return;
       }
+
+      if (company.status !== "Active") {
+        res.status(400).json({
+          error: "Selected company is inactive",
+        });
+        return;
+      }
+
+      // Always use the canonical company name.
+      finalCompanyName = company.companyName;
 
       // Managers are company-scoped, not truck-scoped.
       finalTruck = null;
@@ -355,16 +365,31 @@ router.put("/:id", async (req: AuthRequest, res: Response) => {
         return;
       }
 
-      const companyTruck = await Truck.findOne({
+      const company = await Company.findOne({
         companyName: nextCompanyName,
-      }).select("_id");
+      });
 
-      if (!companyTruck) {
+      if (!company) {
         res.status(400).json({
           error: "Selected company does not exist",
         });
         return;
       }
+
+      const companyChanged =
+        String(user.companyName || "")
+          .trim()
+          .toLowerCase() !== company.companyName.trim().toLowerCase();
+
+      if (companyChanged && company.status !== "Active") {
+        res.status(400).json({
+          error: "Cannot assign a manager to an inactive company",
+        });
+        return;
+      }
+
+      user.companyName = company.companyName;
+      user.truck = undefined;
 
       user.companyName = nextCompanyName;
       user.truck = undefined;

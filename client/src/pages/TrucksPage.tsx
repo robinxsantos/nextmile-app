@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import api from "../api/client";
 import { useAppStore, type TruckRow } from "../store/useAppStore";
 import { useAuthStore } from "../store/useAuthStore";
 import KpiCard from "../components/shared/KpiCard";
@@ -27,6 +28,12 @@ import {
   SelectItem,
   SelectValue,
 } from "@/components/ui/select";
+
+interface CompanyOption {
+  _id: string;
+  companyName: string;
+  status: "Active" | "Inactive";
+}
 
 const formatNumberWithComma = (value: string) => {
   const num = value.replace(/,/g, "");
@@ -85,6 +92,9 @@ export default function TrucksPage() {
   const { user: currentUser } = useAuthStore();
 
   const isManager = currentUser?.role === "manager";
+  const isAdmin = currentUser?.role === "admin";
+
+  const [companies, setCompanies] = useState<CompanyOption[]>([]);
   const [truckModal, setTruckModal] = useState(false);
   const [editRow, setEditRow] = useState<TruckRow | null>(null);
   const [deleteModal, setDeleteModal] = useState<TruckRow | null>(null);
@@ -125,6 +135,36 @@ export default function TrucksPage() {
     initApp();
     fetchTrucks();
   }, [initApp, fetchTrucks]);
+
+  useEffect(() => {
+    if (!isAdmin) {
+      return;
+    }
+
+    const fetchCompanies = async () => {
+      try {
+        const { data } = await api.get("/companies");
+        setCompanies(data.rows || []);
+      } catch (err: unknown) {
+        const msg =
+          (err as { response?: { data?: { error?: string } } })?.response?.data
+            ?.error || "Failed to load companies";
+
+        toast.error(msg);
+      }
+    };
+
+    fetchCompanies();
+  }, [isAdmin]);
+
+  const companyOptions = Array.from(
+    new Set([
+      ...companies
+        .filter((company) => company.status === "Active")
+        .map((company) => company.companyName),
+      ...(editRow?.companyName ? [editRow.companyName] : []),
+    ]),
+  ).sort((a, b) => a.localeCompare(b));
 
   const openAdd = () => {
     setEditRow(null);
@@ -167,6 +207,13 @@ export default function TrucksPage() {
   const handleSave = async () => {
     if (!form.truckName.trim()) {
       toast.error("Truck name is required.", { duration: 6000 });
+      return;
+    }
+
+    if (!form.companyName.trim()) {
+      toast.error("Company name is required.", {
+        duration: 6000,
+      });
       return;
     }
 
@@ -625,25 +672,40 @@ export default function TrucksPage() {
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-muted-foreground mb-1 block">
+                <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
                   Company Name
                 </label>
 
-                <input
-                  type="text"
-                  value={form.companyName}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      companyName: e.target.value,
-                    })
-                  }
-                  disabled={isManager}
-                  placeholder={isManager ? "" : "Company Name"}
-                  className={`${inputClass} ${
-                    isManager ? "opacity-60 cursor-not-allowed bg-muted" : ""
-                  }`}
-                />
+                {isManager ? (
+                  <input
+                    type="text"
+                    value={currentUser?.companyName || ""}
+                    disabled
+                    className={`${inputClass} opacity-60 cursor-not-allowed bg-muted`}
+                  />
+                ) : (
+                  <UiSelect
+                    value={form.companyName}
+                    onValueChange={(val) =>
+                      setForm({
+                        ...form,
+                        companyName: val,
+                      })
+                    }
+                  >
+                    <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
+                      <SelectValue placeholder="Select company..." />
+                    </SelectTrigger>
+
+                    <SelectContent className="z-[9999]">
+                      {companyOptions.map((company) => (
+                        <SelectItem key={company} value={company}>
+                          {company}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </UiSelect>
+                )}
               </div>
 
               <div>

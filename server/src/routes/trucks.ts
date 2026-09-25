@@ -1,5 +1,6 @@
 import { Router, Response } from "express";
 import { Truck } from "../models/Truck.js";
+import { Company } from "../models/Company.js";
 import { Trip } from "../models/Trip.js";
 import { Expense } from "../models/Expense.js";
 import { User } from "../models/User.js";
@@ -166,6 +167,27 @@ router.post(
         }
       }
 
+      const company = await Company.findOne({
+        companyName: finalCompanyName,
+      });
+
+      if (!company) {
+        res.status(400).json({
+          error: "Selected company does not exist.",
+        });
+        return;
+      }
+
+      if (company.status !== "Active") {
+        res.status(400).json({
+          error: "Selected company is inactive.",
+        });
+        return;
+      }
+
+      // Use the canonical company name from the Company record.
+      finalCompanyName = company.companyName;
+
       const existing = await Truck.findOne({
         truckName: { $regex: new RegExp(`^${truckName.trim()}$`, "i") },
       });
@@ -236,7 +258,7 @@ router.put(
         dayOff,
       } = req.body;
 
-      const finalCompanyName =
+      let finalCompanyName =
         req.user?.role === "manager"
           ? String(req.user.companyName || "").trim()
           : String(companyName || "").trim();
@@ -247,6 +269,33 @@ router.put(
         });
         return;
       }
+
+      const company = await Company.findOne({
+        companyName: finalCompanyName,
+      });
+
+      if (!company) {
+        res.status(400).json({
+          error: "Selected company does not exist.",
+        });
+        return;
+      }
+
+      // Existing trucks may remain under an inactive company,
+      // but they cannot be moved into a different inactive company.
+      const companyChanged =
+        String(existingTruck.companyName || "")
+          .trim()
+          .toLowerCase() !== company.companyName.trim().toLowerCase();
+
+      if (companyChanged && company.status !== "Active") {
+        res.status(400).json({
+          error: "Cannot assign a truck to an inactive company.",
+        });
+        return;
+      }
+
+      finalCompanyName = company.companyName;
 
       if (!truckName?.trim()) {
         res.status(400).json({ error: "Truck name is required." });
