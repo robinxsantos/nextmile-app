@@ -2,6 +2,9 @@ import mongoose, { Schema, Document } from "mongoose";
 
 export interface ITruck extends Document {
   truckName: string;
+
+  companyName: string;
+
   status: "Active" | "Inactive";
   cutoffType: "weekly" | "monthly";
   client: string;
@@ -35,6 +38,13 @@ const TruckSchema = new Schema(
       unique: true,
       trim: true,
     },
+
+    companyName: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
     status: {
       type: String,
       enum: ["Active", "Inactive"],

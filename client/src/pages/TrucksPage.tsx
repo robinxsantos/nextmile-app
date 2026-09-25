@@ -104,6 +104,7 @@ export default function TrucksPage() {
   );
   const [form, setForm] = useState({
     truckName: "",
+    companyName: "",
     status: "Active",
     cutoffType: "weekly",
     billingType: "subcontracted",
@@ -124,6 +125,7 @@ export default function TrucksPage() {
     setEditRow(null);
     setForm({
       truckName: "",
+      companyName: "",
       status: "Active",
       cutoffType: "weekly",
       billingType: "subcontracted",
@@ -141,6 +143,7 @@ export default function TrucksPage() {
     setEditRow(row);
     setForm({
       truckName: row.truckName,
+      companyName: row.companyName || "",
       status: row.status,
       cutoffType: row.cutoffType || "weekly",
       billingType: row.billingType || "subcontracted",
@@ -176,6 +179,7 @@ export default function TrucksPage() {
     try {
       const payload = {
         truckName: form.truckName.trim(),
+        companyName: form.companyName.trim(),
         status: form.status,
         cutoffType: form.cutoffType,
 
@@ -442,6 +446,7 @@ export default function TrucksPage() {
                   Truck Name
                 </th>
                 {[
+                  "Company Name",
                   "Status",
                   "Date Added",
                   "Billed To",
@@ -467,7 +472,7 @@ export default function TrucksPage() {
             <tbody>
               {truckRows.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="text-center py-12 text-slate-400">
+                  <td colSpan={12} className="text-center py-12 text-slate-400">
                     No trucks found
                   </td>
                 </tr>
@@ -479,10 +484,13 @@ export default function TrucksPage() {
                       <td className="sticky left-0 z-[5] bg-white dark:bg-slate-900 text-center text-sm px-3 py-2.5 border-b border-slate-100 dark:border-slate-800 font-bold shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
                         {r.truckName}
                       </td>
+                      <td className="text-center text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800 whitespace-nowrap">
+                        {r.companyName || "—"}
+                      </td>
                       <td className="text-center text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800">
                         <span
                           className={cn(
-                            "inline-flex items-center justify-center min-w-[84px] px-2.5 py-1 rounded-full text-[0.72rem] font-bold",
+                            "inline-flex items-center justify-center min-w-[84px] px-2.5 py-1 rounded-md text-[0.72rem] font-bold",
                             r.status === "Active"
                               ? "bg-green-500/10 text-green-500"
                               : "bg-slate-400/12 text-slate-400",
@@ -573,13 +581,20 @@ export default function TrucksPage() {
                   <div className="flex justify-between items-start mb-3">
                     <div>
                       <div className="font-bold text-sm">{r.truckName}</div>
+
+                      {r.companyName && (
+                        <div className="text-xs font-medium text-muted-foreground mt-0.5">
+                          {r.companyName}
+                        </div>
+                      )}
+
                       <div className="text-xs text-slate-500 mt-0.5">
                         {r.dateAdded}
                       </div>
                     </div>
                     <span
                       className={cn(
-                        "inline-flex items-center justify-center px-2.5 py-1 rounded-full text-[0.72rem] font-bold",
+                        "inline-flex items-center justify-center min-w-[84px] px-2.5 py-1 rounded-md text-[0.72rem] font-bold",
                         r.status === "Active"
                           ? "bg-green-500/10 text-green-500"
                           : "bg-slate-400/12 text-slate-400",
@@ -667,17 +682,34 @@ export default function TrucksPage() {
 
             {/* ✅ ORIGINAL FORM (UNCHANGED) */}
             <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
+              <div>
                 <label className="text-xs font-semibold text-muted-foreground mb-1 block">
                   Truck Name
                 </label>
+
                 <input
                   type="text"
                   value={form.truckName}
                   onChange={(e) =>
                     setForm({ ...form, truckName: e.target.value })
                   }
-                  placeholder="e.g. AAA_1234"
+                  placeholder="e.g. CCK 5297"
+                  className={inputClass}
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground mb-1 block">
+                  Company Name
+                </label>
+
+                <input
+                  type="text"
+                  value={form.companyName}
+                  onChange={(e) =>
+                    setForm({ ...form, companyName: e.target.value })
+                  }
+                  placeholder="e.g. StarTrak Trucking Services"
                   className={inputClass}
                 />
               </div>

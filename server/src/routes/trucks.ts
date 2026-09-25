@@ -36,6 +36,8 @@ router.get("/", async (_req: Request, res: Response) => {
       return {
         _id: t._id,
         truckName: t.truckName,
+        companyName: t.companyName || "",
+
         status: t.status,
         cutoffType: t.cutoffType || "weekly",
         client: t.client || t.notes || "",
@@ -84,6 +86,7 @@ router.post(
     try {
       const {
         truckName,
+        companyName,
         status,
         cutoffType = "weekly",
         client,
@@ -112,6 +115,7 @@ router.post(
 
       const truck = await Truck.create({
         truckName: truckName.trim(),
+        companyName: String(companyName || "").trim(),
         status: status || "Active",
         cutoffType,
         client: client?.trim() || notes?.trim() || "",
@@ -142,6 +146,7 @@ router.put(
     try {
       const {
         truckName,
+        companyName,
         status,
         cutoffType = "weekly",
         client,
@@ -163,6 +168,7 @@ router.put(
         req.params.id,
         {
           truckName: truckName.trim(),
+          companyName: String(companyName || "").trim(),
           status: status || "Active",
           cutoffType,
           client: client?.trim() || notes?.trim() || "",

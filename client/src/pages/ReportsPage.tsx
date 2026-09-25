@@ -158,6 +158,7 @@ export default function ReportsPage() {
   const selectedTruckOption = truckOptions.find((t) => t._id === selectedTruck);
 
   const selectedTruckData = truckRows.find((t) => t._id === selectedTruck);
+  const selectedCompanyName = selectedTruckData?.companyName ?? "";
 
   const selectedTruckName =
     selectedTruckData?.truckName ?? selectedTruckOption?.truckName;
@@ -238,6 +239,7 @@ export default function ReportsPage() {
       selectedClient,
       selectedBilledTo,
       selectedBillingType,
+      selectedCompanyName,
     );
   };
 

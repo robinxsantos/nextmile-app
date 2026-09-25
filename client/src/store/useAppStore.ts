@@ -133,6 +133,7 @@ export interface ExpenseRow {
 export interface TruckRow {
   _id: string;
   truckName: string;
+  companyName?: string;
   status: string;
   cutoffType: "weekly" | "monthly";
 

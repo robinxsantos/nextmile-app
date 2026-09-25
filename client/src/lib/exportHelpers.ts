@@ -190,6 +190,7 @@ export function exportMonthlyReport(
   clientName = "",
   billedTo = "",
   billingType: "subcontracted" | "direct" = "subcontracted",
+  companyName = "",
 ) {
   const labels = getColumnLabels();
 
@@ -689,14 +690,6 @@ export function exportMonthlyReport(
       letter-spacing: 0.14em;
     }
 
-    .nextmile-red {
-      color: #dc2626;
-    }
-
-    .trucking-black {
-      color: #111827;
-    }
-
     .statement-title {
       font-size: 21px;
       font-weight: 800;
@@ -1044,15 +1037,15 @@ export function exportMonthlyReport(
     clientMode
       ? `
   <div class="statement-header">
-    <div class="statement-header-left">
-      <div class="statement-kicker">
-        <span class="nextmile-red">NEXTMILE</span>
-        <span class="trucking-black">TRUCKING SERVICES</span>
-      </div>
-      <div class="statement-title">
-        Statement for ${escHtml(truckLabel)}
-      </div>
+  <div class="statement-header-left">
+    <div class="statement-kicker">
+      ${escHtml(companyName || "—")}
     </div>
+
+    <div class="statement-title">
+      Statement for ${escHtml(truckLabel)}
+    </div>
+  </div>
 
     <div class="statement-generated">
       <span class="statement-generated-label">Generated</span>
@@ -1412,6 +1405,7 @@ export function exportClientMonthlyReport(
   clientName = "",
   billedTo = "",
   billingType: "subcontracted" | "direct" = "subcontracted",
+  companyName = "",
 ) {
   return exportMonthlyReport(
     rows,
@@ -1423,5 +1417,6 @@ export function exportClientMonthlyReport(
     clientName,
     billedTo,
     billingType,
+    companyName,
   );
 }
