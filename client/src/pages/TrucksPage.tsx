@@ -14,7 +14,6 @@ import {
   Truck,
   CheckCircle2,
   ArrowUpDown,
-  BarChart3,
   Plus,
   Pencil,
   Trash2,
@@ -407,7 +406,7 @@ export default function TrucksPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
         <KpiCard
           label="Total Trucks"
           value={truckStats.total.toLocaleString()}
@@ -429,13 +428,6 @@ export default function TrucksPage() {
           icon={<ArrowUpDown size={22} />}
           colorClass="bg-muted text-foreground"
         />
-        <KpiCard
-          label="Data Sheets"
-          value={truckStats.sheets.toLocaleString()}
-          subtitle="Auto-created truck sheets"
-          icon={<BarChart3 size={22} />}
-          colorClass="bg-muted text-foreground"
-        />
       </div>
 
       <div className="border rounded-lg bg-background p-3.5 overflow-hidden">
@@ -446,241 +438,160 @@ export default function TrucksPage() {
           </p>
         </div>
 
-        {/* Desktop Table */}
-        <div className="rounded-[18px] overflow-auto border border-slate-200/60 dark:border-slate-700/60 bg-background hidden md:block">
-          <table className="w-full border-separate border-spacing-0">
-            <thead>
-              <tr>
-                <th className="sticky top-0 left-0 z-20 bg-muted/40 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-muted-foreground px-3 py-3 whitespace-nowrap shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
-                  Truck Name
-                </th>
-                {[
-                  "Company Name",
-                  "Status",
-                  "Date Added",
-                  "Billed To",
-                  "Client",
-                  "Last Change Oil",
-                  "Cutoff Start",
-                  "Cutoff End",
-                  "Payday",
-                  "Day Off",
-                ].map((h) => (
-                  <th
-                    key={h}
-                    className="sticky top-0 z-10 bg-muted/40 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-muted-foreground px-3 py-3 whitespace-nowrap"
-                  >
-                    {h}
-                  </th>
-                ))}
-                <th className="sticky top-0 right-0 z-20 bg-muted/40 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-muted-foreground px-3 py-3 whitespace-nowrap shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)]">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {truckRows.length === 0 ? (
-                <tr>
-                  <td colSpan={12} className="text-center py-12 text-slate-400">
-                    No trucks found
-                  </td>
-                </tr>
-              ) : (
-                truckRows.map((r) => {
-                  const client = r.client ?? r.notes ?? "";
-                  return (
-                    <tr key={r._id} className="hover:bg-muted/50">
-                      <td className="sticky left-0 z-[5] bg-white dark:bg-slate-900 text-center text-sm px-3 py-2.5 border-b border-slate-100 dark:border-slate-800 font-bold shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
-                        {r.truckName}
-                      </td>
-                      <td className="text-center text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800 whitespace-nowrap">
-                        {r.companyName || "—"}
-                      </td>
-                      <td className="text-center text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800">
-                        <span
-                          className={cn(
-                            "inline-flex items-center justify-center min-w-[84px] px-2.5 py-1 rounded-md text-[0.72rem] font-bold",
-                            r.status === "Active"
-                              ? "bg-green-500/10 text-green-500"
-                              : "bg-slate-400/12 text-slate-400",
-                          )}
-                        >
-                          {r.status}
-                        </span>
-                      </td>
-                      <td className="text-center text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800">
-                        {r.dateAdded}
-                      </td>
-                      <td className="text-center text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800">
-                        {r.billingType === "direct"
-                          ? "Direct"
-                          : r.billedTo || "—"}
-                      </td>
-
-                      <td className="text-center text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800">
-                        {client}
-                      </td>
-
-                      <td className="text-center text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800">
-                        {kmDisplay(r.lastChangeOil)}
-                      </td>
-                      <td className="text-center text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800">
-                        {r.cutoffType === "monthly"
-                          ? String(r.cutoffStart)
-                          : r.cutoffStartText}
-                      </td>
-                      <td className="text-center text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800">
-                        {r.cutoffType === "monthly"
-                          ? String(r.cutoffEnd)
-                          : r.cutoffEndText}
-                      </td>
-                      <td className="text-center text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800">
-                        {r.cutoffType === "monthly"
-                          ? String(r.payday)
-                          : r.paydayText}
-                      </td>
-                      <td className="text-center text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800">
-                        {r.cutoffType === "monthly" ? "-" : r.dayOffText}
-                      </td>
-                      <td className="sticky right-0 z-[5] bg-white dark:bg-slate-900 text-center text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)]">
-                        <div className="flex items-center justify-center gap-1">
-                          <button
-                            onClick={() => openChangeOilHistory(r)}
-                            title="Change Oil"
-                            className="w-[34px] h-[34px] rounded-md inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-muted hover:text-foreground transition-all"
-                          >
-                            <Wrench size={14} />
-                          </button>
-                          <button
-                            onClick={() => openEdit(r)}
-                            className="w-[34px] h-[34px] rounded-md inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-muted hover:text-foreground transition-all"
-                          >
-                            <Pencil size={14} />
-                          </button>
-                          <button
-                            onClick={() => {
-                              setDeletePassword("");
-                              setDeleteModal(r);
-                            }}
-                            className="w-[34px] h-[34px] rounded-md inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-500 transition-all"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Mobile Cards */}
-        <div className="flex flex-col gap-3 md:hidden">
-          {truckRows.length === 0 ? (
-            <div className="text-center py-12 text-slate-400">
-              No trucks found
-            </div>
-          ) : (
-            truckRows.map((r) => {
+        {/* Fleet Cards */}
+        {truckRows.length === 0 ? (
+          <div className="py-12 text-center text-sm text-muted-foreground">
+            No trucks found
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-3">
+            {truckRows.map((r) => {
               const client = r.client ?? r.notes ?? "";
+
               return (
                 <div
                   key={r._id}
-                  className="border rounded-md bg-background p-4"
+                  className="rounded-lg border border-border bg-background p-4"
                 >
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <div className="font-bold text-sm">{r.truckName}</div>
+                  {/* HEADER */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-base font-bold tracking-tight">
+                        {r.truckName}
+                      </div>
 
-                      {r.companyName && (
-                        <div className="text-xs font-medium text-muted-foreground mt-0.5">
-                          {r.companyName}
-                        </div>
-                      )}
-
-                      <div className="text-xs text-slate-500 mt-0.5">
-                        {r.dateAdded}
+                      <div className="mt-0.5 truncate text-xs text-muted-foreground">
+                        {r.companyName || "No company"}
                       </div>
                     </div>
+
                     <span
                       className={cn(
-                        "inline-flex items-center justify-center min-w-[84px] px-2.5 py-1 rounded-md text-[0.72rem] font-bold",
+                        "inline-flex min-w-[76px] items-center justify-center px-2.5 py-1 text-[0.7rem] font-bold",
                         r.status === "Active"
                           ? "bg-green-500/10 text-green-500"
-                          : "bg-slate-400/12 text-slate-400",
+                          : "bg-slate-400/10 text-slate-400",
                       )}
                     >
                       {r.status}
                     </span>
                   </div>
 
-                  <div className="text-xs text-slate-500 mb-1">
-                    Billed To:{" "}
-                    {r.billingType === "direct" ? "Direct" : r.billedTo || "—"}
-                  </div>
+                  {/* DETAILS */}
+                  <div className="mt-4 grid grid-cols-2 gap-x-5 gap-y-3 text-xs">
+                    <div>
+                      <div className="text-muted-foreground">Client</div>
+                      <div className="mt-0.5 font-medium">{client || "—"}</div>
+                    </div>
 
-                  {client && (
-                    <div className="text-xs text-slate-500 mb-1">
-                      Client: {client}
+                    <div>
+                      <div className="text-muted-foreground">Billed To</div>
+                      <div className="mt-0.5 font-medium">
+                        {r.billingType === "direct"
+                          ? "Direct"
+                          : r.billedTo || "—"}
+                      </div>
                     </div>
-                  )}
-                  <div className="text-xs text-slate-500 mb-3">
-                    Last Change Oil:{" "}
-                    {r.lastChangeOil != null
-                      ? `${Number(r.lastChangeOil).toLocaleString()} km`
-                      : "-"}
-                  </div>
 
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs mb-3">
                     <div>
-                      <div className="text-slate-500">Cutoff Start</div>
-                      <div className="font-semibold">{r.cutoffStartText}</div>
+                      <div className="text-muted-foreground">
+                        Last Change Oil
+                      </div>
+                      <div className="mt-0.5 font-medium">
+                        {kmDisplay(r.lastChangeOil)}
+                      </div>
                     </div>
+
                     <div>
-                      <div className="text-slate-500">Cutoff End</div>
-                      <div className="font-semibold">{r.cutoffEndText}</div>
-                    </div>
-                    <div>
-                      <div className="text-slate-500">Payday</div>
-                      <div className="font-semibold">{r.paydayText}</div>
-                    </div>
-                    <div>
-                      <div className="text-slate-500">Day Off</div>
-                      <div className="font-semibold">{r.dayOffText}</div>
+                      <div className="text-muted-foreground">Date Added</div>
+                      <div className="mt-0.5 font-medium">{r.dateAdded}</div>
                     </div>
                   </div>
 
-                  <div className="flex gap-2 pt-3 border-t border-slate-200 dark:border-slate-700">
+                  {/* SCHEDULE */}
+                  <div className="mt-4 border-t border-border pt-3">
+                    <div className="grid grid-cols-4 gap-2 text-center">
+                      <div>
+                        <div className="text-[10px] text-muted-foreground">
+                          Cutoff Start
+                        </div>
+                        <div className="mt-1 text-xs font-semibold">
+                          {r.cutoffType === "monthly"
+                            ? String(r.cutoffStart)
+                            : r.cutoffStartText}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="text-[10px] text-muted-foreground">
+                          Cutoff End
+                        </div>
+                        <div className="mt-1 text-xs font-semibold">
+                          {r.cutoffType === "monthly"
+                            ? String(r.cutoffEnd)
+                            : r.cutoffEndText}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="text-[10px] text-muted-foreground">
+                          Payday
+                        </div>
+                        <div className="mt-1 text-xs font-semibold">
+                          {r.cutoffType === "monthly"
+                            ? String(r.payday)
+                            : r.paydayText}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="text-[10px] text-muted-foreground">
+                          Day Off
+                        </div>
+                        <div className="mt-1 text-xs font-semibold">
+                          {r.cutoffType === "monthly" ? "—" : r.dayOffText}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ACTIONS */}
+                  <div className="mt-4 flex items-center justify-end gap-1.5 border-t border-border pt-3">
                     <button
+                      type="button"
                       onClick={() => openChangeOilHistory(r)}
-                      className="h-9 px-3 rounded-md inline-flex items-center justify-center gap-1.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-muted hover:text-foreground transition-all text-xs font-semibold"
+                      title="Change Oil"
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                     >
                       <Wrench size={14} />
-                      Change Oil
                     </button>
+
                     <button
+                      type="button"
                       onClick={() => openEdit(r)}
-                      className="flex-1 h-9 rounded-md inline-flex items-center justify-center gap-1.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-blue-500/10 hover:text-blue-600 transition-all text-xs font-semibold"
+                      title="Edit Truck"
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                     >
-                      <Pencil size={14} /> Edit
+                      <Pencil size={14} />
                     </button>
+
                     <button
+                      type="button"
                       onClick={() => {
                         setDeletePassword("");
                         setDeleteModal(r);
                       }}
-                      className="h-9 w-9 rounded-md inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-red-500/10 hover:text-red-500 transition-all"
+                      title="Delete Truck"
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:border-red-500/20 hover:bg-red-500/10 hover:text-red-500"
                     >
                       <Trash2 size={14} />
                     </button>
                   </div>
                 </div>
               );
-            })
-          )}
-        </div>
+            })}
+          </div>
+        )}
       </div>
 
       {/* Truck Modal */}
@@ -1073,7 +984,6 @@ export default function TrucksPage() {
                           notes: e.target.value,
                         }))
                       }
-                      placeholder="e.g. Change oil + oil filter"
                       className={inputClass}
                     />
                   </div>
@@ -1168,7 +1078,7 @@ export default function TrucksPage() {
                                 key={record._id}
                                 className="border-t border-border"
                               >
-                                <td className="px-3 py-2 whitespace-nowrap">
+                                <td className="px-3 py-2 text-xs whitespace-nowrap">
                                   {new Date(record.date).toLocaleDateString(
                                     "en-US",
                                     {
@@ -1179,7 +1089,7 @@ export default function TrucksPage() {
                                   )}
                                 </td>
 
-                                <td className="px-3 py-2 text-right whitespace-nowrap font-semibold">
+                                <td className="px-3 py-2 text-xs text-right whitespace-nowrap font-semibold">
                                   {record.odometer != null
                                     ? `${Number(record.odometer).toLocaleString()} KM
                                     `

@@ -2,10 +2,31 @@ import { useState } from "react";
 import { toast } from "sonner";
 import api from "../api/client";
 import { useAuthStore } from "../store/useAuthStore";
-import { User, Lock, Save } from "lucide-react";
+import { User, Lock, Save, Building2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
 
 export default function SettingsPage() {
   const { user, checkAuth } = useAuthStore();
+  const isAdmin = user?.role === "admin";
+
+  const roleLabel =
+    user?.role === "admin"
+      ? "Admin"
+      : user?.role === "manager"
+        ? "Manager"
+        : "Employee";
 
   const [displayName, setDisplayName] = useState(user?.displayName || "");
   const [currentPassword, setCurrentPassword] = useState("");
@@ -66,164 +87,200 @@ export default function SettingsPage() {
     }
   };
 
-  const inputClass =
-    "w-full h-11 rounded-md border border-border bg-background px-3 text-sm focus:ring-2 focus:ring-ring focus:border-ring outline-none transition-colors";
-
   return (
-    <div>
-      <div className="mb-4">
-        <div className="flex flex-col md:flex-row justify-between md:items-end gap-3">
-          <div>
-            <h1 className="text-[1.45rem] font-bold tracking-tight">
-              Settings
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Update your profile and change your password.
-            </p>
-          </div>
-          <div className="text-right">
-            <div className="text-[0.72rem] font-bold tracking-wider uppercase text-muted-foreground">
-              Account
-            </div>
-            <div className="font-bold text-sm">@{user?.username}</div>
-          </div>
-        </div>
+    <div className="space-y-6">
+      {/* PAGE HEADER */}
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
+
+        <p className="mt-1 text-sm text-muted-foreground">
+          Manage your account and application settings.
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5 items-stretch">
-        {/* Profile Section */}
-        <div className="border rounded-lg bg-background p-5 flex flex-col h-full">
-          <div className="flex items-center gap-2.5 mb-4">
-            <div className="w-9 h-9 rounded-md bg-blue-600/10 dark:bg-blue-500/15 grid place-items-center text-blue-600 dark:text-blue-400">
-              <User size={18} />
-            </div>
-            <div>
-              <h2 className="text-base font-bold tracking-tight">Profile</h2>
-              <p className="text-xs text-slate-500">Update your display name</p>
-            </div>
-          </div>
+      <Separator />
 
-          <form
-            onSubmit={handleUpdateProfile}
-            className="flex flex-col gap-4 flex-1"
-          >
-            <div>
-              <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 block">
-                Username
-              </label>
-              <input
-                type="text"
-                value={user?.username || ""}
-                disabled
-                className={inputClass + " opacity-50 cursor-not-allowed"}
-              />
-              <p className="text-[0.65rem] text-slate-400 mt-1">
-                Username cannot be changed
-              </p>
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 block">
-                Display Name
-              </label>
-              <input
-                type="text"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                className={inputClass}
-                placeholder="Your name"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 block">
-                Role
-              </label>
-              <input
-                type="text"
-                value={user?.role === "admin" ? "Admin" : "Driver"}
-                disabled
-                className={inputClass + " opacity-50 cursor-not-allowed"}
-              />
-            </div>
-            <div className="flex-1" />
-            <button
-              type="submit"
-              disabled={savingProfile}
-              className="w-full min-h-[44px] rounded-md bg-gradient-to-br from-blue-600 to-blue-700 text-white text-sm font-semibold shadow-[0_10px_20px_rgba(37,99,235,0.18)] hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
-            >
-              <Save size={16} />{" "}
-              {savingProfile ? "Saving..." : "Update Profile"}
-            </button>
-          </form>
-        </div>
+      <Tabs defaultValue="profile" className="space-y-5">
+        <TabsList>
+          <TabsTrigger value="profile" className="gap-2">
+            <User className="h-4 w-4" />
+            Profile
+          </TabsTrigger>
 
-        {/* Password Section */}
-        <div className="border rounded-lg bg-background p-5 flex flex-col h-full">
-          <div className="flex items-center gap-2.5 mb-4">
-            <div className="w-9 h-9 rounded-md bg-amber-500/10 grid place-items-center text-amber-600 dark:text-amber-400">
-              <Lock size={18} />
-            </div>
-            <div>
-              <h2 className="text-base font-bold tracking-tight">
-                Change Password
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                Update your login credentials
-              </p>
-            </div>
-          </div>
+          <TabsTrigger value="security" className="gap-2">
+            <Lock className="h-4 w-4" />
+            Security
+          </TabsTrigger>
 
-          <form
-            onSubmit={handleChangePassword}
-            className="flex flex-col gap-4 flex-1"
-          >
-            <div>
-              <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 block">
-                Current Password
-              </label>
-              <input
-                type="password"
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                className={inputClass}
-                placeholder="Enter current password"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 block">
-                New Password
-              </label>
-              <input
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                className={inputClass}
-                placeholder="Enter new password"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 block">
-                Confirm New Password
-              </label>
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className={inputClass}
-                placeholder="Re-enter new password"
-              />
-            </div>
-            <div className="flex-1" />
-            <button
-              type="submit"
-              disabled={savingPassword}
-              className="w-full min-h-[44px] rounded-md bg-gradient-to-br from-amber-500 to-amber-600 text-white text-sm font-semibold shadow-[0_10px_20px_rgba(245,158,11,0.18)] hover:from-amber-600 hover:to-amber-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
-            >
-              <Lock size={16} />{" "}
-              {savingPassword ? "Changing..." : "Change Password"}
-            </button>
-          </form>
-        </div>
-      </div>
+          {isAdmin && (
+            <TabsTrigger value="companies" className="gap-2">
+              <Building2 className="h-4 w-4" />
+              Companies
+            </TabsTrigger>
+          )}
+        </TabsList>
+
+        {/* PROFILE */}
+        <TabsContent value="profile">
+          <Card className="max-w-3xl">
+            <CardHeader>
+              <CardTitle>Profile</CardTitle>
+
+              <CardDescription>
+                Manage your personal account information.
+              </CardDescription>
+            </CardHeader>
+
+            <Separator />
+
+            <form onSubmit={handleUpdateProfile}>
+              <CardContent className="space-y-5 py-6">
+                <div className="grid gap-2">
+                  <Label htmlFor="username">Username</Label>
+
+                  <Input id="username" value={user?.username || ""} disabled />
+
+                  <p className="text-xs text-muted-foreground">
+                    Your username cannot be changed.
+                  </p>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="displayName">Display Name</Label>
+
+                  <Input
+                    id="displayName"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    placeholder="Your name"
+                  />
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="role">Role</Label>
+
+                  <Input id="role" value={roleLabel} disabled />
+                </div>
+
+                {user?.companyName && (
+                  <div className="grid gap-2">
+                    <Label htmlFor="company">Company</Label>
+
+                    <Input id="company" value={user.companyName} disabled />
+                  </div>
+                )}
+              </CardContent>
+
+              <CardFooter className="justify-end border-t px-6 py-4">
+                <Button type="submit" disabled={savingProfile}>
+                  <Save className="mr-2 h-4 w-4" />
+
+                  {savingProfile ? "Saving..." : "Save changes"}
+                </Button>
+              </CardFooter>
+            </form>
+          </Card>
+        </TabsContent>
+
+        {/* SECURITY */}
+        <TabsContent value="security">
+          <Card className="max-w-3xl">
+            <CardHeader>
+              <CardTitle>Security</CardTitle>
+
+              <CardDescription>
+                Update the password used to sign in to your account.
+              </CardDescription>
+            </CardHeader>
+
+            <Separator />
+
+            <form onSubmit={handleChangePassword}>
+              <CardContent className="space-y-5 py-6">
+                <div className="grid gap-2">
+                  <Label htmlFor="currentPassword">Current Password</Label>
+
+                  <Input
+                    id="currentPassword"
+                    type="password"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    placeholder="Enter current password"
+                    autoComplete="current-password"
+                  />
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="newPassword">New Password</Label>
+
+                  <Input
+                    id="newPassword"
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Enter new password"
+                    autoComplete="new-password"
+                  />
+
+                  <p className="text-xs text-muted-foreground">
+                    Password must be at least 4 characters.
+                  </p>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="confirmPassword">Confirm New Password</Label>
+
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Re-enter new password"
+                    autoComplete="new-password"
+                  />
+                </div>
+              </CardContent>
+
+              <CardFooter className="justify-end border-t px-6 py-4">
+                <Button type="submit" disabled={savingPassword}>
+                  <Lock className="mr-2 h-4 w-4" />
+
+                  {savingPassword ? "Changing..." : "Change password"}
+                </Button>
+              </CardFooter>
+            </form>
+          </Card>
+        </TabsContent>
+
+        {/* COMPANIES — ADMIN ONLY */}
+        {isAdmin && (
+          <TabsContent value="companies">
+            <Card className="max-w-3xl">
+              <CardHeader>
+                <CardTitle>Companies</CardTitle>
+
+                <CardDescription>
+                  Manage the companies available throughout the application.
+                </CardDescription>
+              </CardHeader>
+
+              <Separator />
+
+              <CardContent className="pt-6">
+                <div className="flex min-h-[180px] flex-col items-center justify-center text-center">
+                  <Building2 className="mb-3 h-8 w-8 text-muted-foreground" />
+
+                  <p className="text-sm font-medium">Company management</p>
+
+                  <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+                    Company management will be configured here next.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
+      </Tabs>
     </div>
   );
 }
