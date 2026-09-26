@@ -2,11 +2,17 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import Papa from "papaparse";
 import { useAppStore, type TripRow } from "../store/useAppStore";
 import { useAuthStore } from "../store/useAuthStore";
-import FilterBar from "../components/shared/FilterBar";
 import TripModal from "../components/shared/TripModal";
 import TripTable from "../components/shared/TripTable";
 import { exportTripsCsv, exportPayslip } from "../lib/exportHelpers";
-
+import type { DateRange } from "react-day-picker";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { format } from "date-fns";
 import {
   Plus,
   Search,
@@ -14,6 +20,9 @@ import {
   Upload,
   FileText,
   FileDown,
+  CalendarDays,
+  Check,
+  ChevronsUpDown,
   AlertTriangle,
   CheckCheck,
   XCircle,
@@ -37,6 +46,13 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from "@/components/ui/command";
 
 const COLUMN_OPTIONS = [
   ["truck", "Truck"],
@@ -69,8 +85,12 @@ export default function TripsPage() {
     searchQuery,
     setSearchQuery,
     startDate,
+    setStartDate,
     endDate,
+    setEndDate,
     rangePreset,
+    setRangePreset,
+    setSelectedTruck,
     selectedTripIds,
     setSelectedTripIds,
     bulkTogglePaid,
@@ -116,6 +136,18 @@ export default function TripsPage() {
   const [verificationFilter, setVerificationFilter] = useState<
     "ALL" | "Verified" | "Pending" | "For Confirmation"
   >("ALL");
+  const [openDateRange, setOpenDateRange] = useState(false);
+  const [openTruck, setOpenTruck] = useState(false);
+  const [openVerification, setOpenVerification] = useState(false);
+
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
+    if (!startDate) return undefined;
+
+    return {
+      from: new Date(`${startDate}T00:00:00`),
+      to: endDate ? new Date(`${endDate}T00:00:00`) : undefined,
+    };
+  });
 
   const defaultVisibleColumns: Record<ColumnKey, boolean> = {
     truck: true,
@@ -154,6 +186,18 @@ export default function TripsPage() {
   });
 
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!startDate) {
+      setDateRange(undefined);
+      return;
+    }
+
+    setDateRange({
+      from: new Date(`${startDate}T00:00:00`),
+      to: endDate ? new Date(`${endDate}T00:00:00`) : undefined,
+    });
+  }, [startDate, endDate]);
 
   useEffect(() => {
     initApp();
@@ -399,142 +443,85 @@ export default function TripsPage() {
   return (
     <div>
       <div className="mb-4">
-        <div className="flex flex-col md:flex-row justify-between md:items-end gap-3">
+        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
             <h1 className="text-[20px] font-semibold tracking-[-0.03em]">
               {pageTitle}
             </h1>
           </div>
+
+          <button
+            type="button"
+            onClick={handleAddTrip}
+            className="h-10 px-4 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition flex items-center gap-2"
+          >
+            <Plus size={18} />
+            Add Trip
+          </button>
         </div>
       </div>
 
-      <div className="sticky top-0 z-30 bg-background">
-        <FilterBar
-          showTruck={canManageTrips}
-          showRange
-          showMonth={false}
-          allowedRangePresets={
-            canManageTrips ? undefined : (["CC", "LC"] as const)
-          }
-          actions={
-            <button
-              onClick={handleAddTrip}
-              className="h-10 px-4 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition flex items-center gap-2"
-            >
-              <Plus size={18} /> Add Trip
-            </button>
-          }
-        />
-      </div>
-
-      <div className="border border-border rounded-lg bg-background p-3.5 overflow-visible mt-4">
-        <div className="flex flex-col gap-3 mb-3">
+      <div className="border border-border rounded-lg bg-background overflow-visible">
+        {/* HEADER */}
+        <div className="flex flex-col gap-3 border-b border-border p-3.5 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h2 className="text-sm font-semibold">Trip Records</h2>
+
             <p className="text-xs text-muted-foreground">
               {canManageTrips
                 ? "Filter, edit, export, and generate payslips."
                 : "View trips and add new entries."}
             </p>
           </div>
-          <div className="flex gap-2 flex-wrap items-center">
-            <div className="flex items-center gap-1 border border-border rounded-md p-1 h-[44px]">
-              {["ALL", "Verified", "Pending", "For Confirmation"].map(
-                (status) => (
-                  <button
-                    key={status}
-                    onClick={() => setVerificationFilter(status as any)}
-                    className={cn(
-                      "h-full px-3 text-xs rounded-md flex items-center transition-colors",
 
-                      verificationFilter === status &&
-                        (status === "Verified"
-                          ? "bg-green-500/80 text-white"
-                          : status === "Pending"
-                            ? "bg-orange-500 text-white"
-                            : status === "For Confirmation"
-                              ? "bg-gray-500 text-white"
-                              : "bg-foreground text-background"),
-
-                      verificationFilter !== status &&
-                        "text-muted-foreground hover:bg-muted",
-                    )}
-                  >
-                    {status === "ALL" ? "All" : status}
-                  </button>
-                ),
-              )}
-            </div>
-            <div className="flex-grow min-w-[240px] relative">
-              <Search
-                size={14}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
-              />
-              <input
-                ref={searchInputRef}
-                type="text"
-                placeholder="Search Shipment Number..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full min-h-[44px] rounded-md border border-border bg-background text-xs pl-9 pr-3.5 focus:outline-none focus:border-ring transition-colors"
-              />
-            </div>
-            {!canManageTrips && (
-              <div className="flex rounded-[14px] border border-slate-200 dark:border-slate-700 overflow-hidden">
-                {(["ALL", "UNPAID", "PAID"] as const).map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => setDriverStatus(s)}
-                    className={`min-h-[44px] px-3.5 text-xs font-semibold transition-colors ${
-                      driverStatus === s
-                        ? "bg-blue-600 text-white"
-                        : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
-                    }`}
-                  >
-                    {s === "ALL" ? "All" : s === "UNPAID" ? "Unpaid" : "Paid"}
-                  </button>
-                ))}
-              </div>
-            )}
+          <div className="flex flex-wrap items-center gap-2">
             {canManageTrips && (
               <>
                 <button
+                  type="button"
                   onClick={handleExportCsv}
-                  className="h-10 px-3 rounded-md border border-border bg-background text-xs font-medium hover:bg-muted transition-colors flex items-center gap-2"
+                  className="h-9 px-3 rounded-md border border-border bg-background text-xs font-medium hover:bg-muted transition-colors flex items-center gap-2"
                 >
-                  <Download size={16} /> Export CSV
+                  <Download size={14} />
+                  Export CSV
                 </button>
+
                 <button
+                  type="button"
                   onClick={() => setImportModal(true)}
-                  className="h-10 px-3 rounded-md border border-border bg-background text-xs font-medium hover:bg-muted transition-colors flex items-center gap-2"
+                  className="h-9 px-3 rounded-md border border-border bg-background text-xs font-medium hover:bg-muted transition-colors flex items-center gap-2"
                 >
-                  <Upload size={16} />
+                  <Upload size={14} />
                   Import CSV
                 </button>
+
                 <button
+                  type="button"
                   onClick={handleExportPayslip}
-                  className="h-10 px-3 rounded-md border border-border bg-background text-xs font-medium hover:bg-muted transition-colors flex items-center gap-2"
+                  className="h-9 px-3 rounded-md border border-border bg-background text-xs font-medium hover:bg-muted transition-colors flex items-center gap-2"
                 >
-                  <FileText size={16} /> Payslip
+                  <FileText size={14} />
+                  Payslip
                 </button>
               </>
             )}
+
             <div ref={dropdownRef} className="relative z-[60]">
               <button
+                type="button"
                 onClick={() => setShowColumnsMenu((v) => !v)}
                 className={cn(
-                  "h-10 w-10 rounded-md border border-border flex items-center justify-center transition-colors",
-                  showColumnsMenu
-                    ? "bg-muted"
-                    : "bg-background hover:bg-muted text-muted-foreground",
+                  "h-9 w-9 rounded-md border border-border flex items-center justify-center text-foreground transition-colors",
+                  showColumnsMenu ? "bg-muted" : "bg-background hover:bg-muted",
                 )}
                 title="Show / Hide Columns"
               >
-                <Columns3 size={18} />
+                <Columns3 size={16} />
               </button>
+
               {showColumnsMenu && (
                 <div className="absolute right-0 mt-2 z-[70] w-64 max-h-[320px] overflow-y-auto rounded-md border border-border bg-background p-2 shadow-lg">
-                  <div className="px-2 pb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                  <div className="px-2 pb-2 text-[11px] font-semibold uppercase text-slate-500">
                     Show Columns
                   </div>
 
@@ -545,6 +532,7 @@ export default function TripsPage() {
                       return (
                         <button
                           key={key}
+                          type="button"
                           onClick={() =>
                             setVisibleColumns((prev) => ({
                               ...prev,
@@ -574,6 +562,296 @@ export default function TripsPage() {
               )}
             </div>
           </div>
+        </div>
+        {/* FILTERS */}
+        <div className="flex flex-wrap items-end gap-2 border-b border-border bg-background px-3.5 py-3">
+          {/* SEARCH */}
+          <div className="min-w-[200px] flex-1">
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">
+              Search
+            </label>
+
+            <div className="relative">
+              <Search
+                size={14}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+              />
+
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search shipment number..."
+                className="w-full h-9 rounded-md border border-border bg-background pl-9 pr-3 text-xs outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+          </div>
+
+          {/* TRUCK */}
+          {canManageTrips && (
+            <div className="min-w-[160px]">
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                Truck
+              </label>
+
+              <Popover open={openTruck} onOpenChange={setOpenTruck}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    role="combobox"
+                    className="h-9 w-full rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    <span className="truncate">
+                      {truckOptions.find((t) => t._id === selectedTruck)
+                        ?.truckName || "All Trucks"}
+                    </span>
+
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </button>
+                </PopoverTrigger>
+
+                <PopoverContent className="w-[220px] p-0" align="start">
+                  <Command>
+                    <CommandInput
+                      placeholder="Search truck..."
+                      className="text-xs"
+                    />
+
+                    <CommandEmpty className="text-xs">
+                      No truck found.
+                    </CommandEmpty>
+
+                    <CommandGroup>
+                      <CommandItem
+                        value="All Trucks"
+                        className="text-xs"
+                        onSelect={() => {
+                          setSelectedTruck("");
+                          setOpenTruck(false);
+                        }}
+                      >
+                        <Check
+                          className={`mr-2 h-4 w-4 ${
+                            !selectedTruck ? "opacity-100" : "opacity-0"
+                          }`}
+                        />
+                        All Trucks
+                      </CommandItem>
+
+                      {truckOptions.map((truck) => (
+                        <CommandItem
+                          key={truck._id}
+                          value={truck.truckName}
+                          className="text-xs"
+                          onSelect={() => {
+                            setSelectedTruck(truck._id);
+                            setOpenTruck(false);
+                          }}
+                        >
+                          <Check
+                            className={`mr-2 h-4 w-4 ${
+                              selectedTruck === truck._id
+                                ? "opacity-100"
+                                : "opacity-0"
+                            }`}
+                          />
+
+                          {truck.truckName}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+          )}
+
+          {/* VERIFICATION */}
+          {canManageTrips && (
+            <div className="min-w-[160px]">
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                Verification
+              </label>
+
+              <Popover
+                open={openVerification}
+                onOpenChange={setOpenVerification}
+              >
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    role="combobox"
+                    className="h-9 w-full rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    <span className="truncate">
+                      {verificationFilter === "ALL"
+                        ? "All"
+                        : verificationFilter}
+                    </span>
+
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </button>
+                </PopoverTrigger>
+
+                <PopoverContent className="w-[200px] p-0" align="start">
+                  <Command>
+                    <CommandGroup>
+                      {[
+                        ["ALL", "All"],
+                        ["Verified", "Verified"],
+                        ["Pending", "Pending"],
+                        ["For Confirmation", "For Confirmation"],
+                      ].map(([value, label]) => (
+                        <CommandItem
+                          key={value}
+                          value={label}
+                          className="text-xs"
+                          onSelect={() => {
+                            setVerificationFilter(
+                              value as
+                                | "ALL"
+                                | "Verified"
+                                | "Pending"
+                                | "For Confirmation",
+                            );
+
+                            setOpenVerification(false);
+                          }}
+                        >
+                          <Check
+                            className={`mr-2 h-4 w-4 ${
+                              verificationFilter === value
+                                ? "opacity-100"
+                                : "opacity-0"
+                            }`}
+                          />
+
+                          {label}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+          )}
+
+          {/* DRIVER PAYMENT STATUS */}
+          {!canManageTrips && (
+            <div className="min-w-[140px]">
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                Status
+              </label>
+
+              <select
+                value={driverStatus}
+                onChange={(e) =>
+                  setDriverStatus(e.target.value as "ALL" | "UNPAID" | "PAID")
+                }
+                className="h-9 w-full rounded-md border border-border bg-background px-3 text-xs outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value="ALL">All</option>
+                <option value="UNPAID">Unpaid</option>
+                <option value="PAID">Paid</option>
+              </select>
+            </div>
+          )}
+
+          {/* PERIOD */}
+          <div className="min-w-[260px] flex-1 max-w-[320px]">
+            <label className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1">
+              <CalendarDays size={12} />
+              Period
+            </label>
+
+            <Popover open={openDateRange} onOpenChange={setOpenDateRange}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="w-full h-9 justify-between rounded-md border border-border bg-background px-3 text-xs flex items-center"
+                >
+                  <span className={!startDate ? "text-muted-foreground" : ""}>
+                    {startDate && endDate
+                      ? `${format(
+                          new Date(`${startDate}T00:00:00`),
+                          "MMM d, yyyy",
+                        )} - ${format(
+                          new Date(`${endDate}T00:00:00`),
+                          "MMM d, yyyy",
+                        )}`
+                      : "Select date range"}
+                  </span>
+
+                  <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
+                </button>
+              </PopoverTrigger>
+
+              <PopoverContent className="w-auto p-0">
+                <Calendar
+                  mode="range"
+                  selected={dateRange}
+                  onSelect={(range: DateRange | undefined) => {
+                    setDateRange(range);
+
+                    if (!range?.from) {
+                      setStartDate("");
+                      setEndDate("");
+                      return;
+                    }
+
+                    setStartDate(format(range.from, "yyyy-MM-dd"));
+
+                    if (
+                      range.to &&
+                      range.to.getTime() !== range.from.getTime()
+                    ) {
+                      setEndDate(format(range.to, "yyyy-MM-dd"));
+
+                      setRangePreset("CUSTOM");
+                      setOpenDateRange(false);
+
+                      setTimeout(() => {
+                        fetchDashboard();
+                      }, 0);
+                    } else {
+                      setEndDate("");
+                    }
+                  }}
+                  numberOfMonths={2}
+                  defaultMonth={dateRange?.from}
+                  showOutsideDays
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* CLEAR */}
+          <button
+            type="button"
+            onClick={() => {
+              setSearchQuery("");
+              setVerificationFilter("ALL");
+              setDriverStatus("ALL");
+              setStartDate("");
+              setEndDate("");
+              setRangePreset("ALL");
+
+              setTimeout(() => {
+                fetchDashboard();
+              }, 0);
+            }}
+            disabled={
+              !searchQuery &&
+              verificationFilter === "ALL" &&
+              driverStatus === "ALL" &&
+              !startDate &&
+              !endDate
+            }
+            className="h-9 px-3 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:pointer-events-none"
+          >
+            Clear Filters
+          </button>
         </div>
 
         <TripTable
