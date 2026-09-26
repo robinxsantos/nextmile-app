@@ -59,7 +59,7 @@ export default function Pagination({
   };
 
   const btnBase =
-    "h-9 min-w-[36px] rounded-md inline-flex items-center justify-center text-sm font-medium transition-colors";
+    "h-9 min-w-[36px] rounded-md inline-flex items-center justify-center text-xs font-medium transition-colors";
   const btnInactive =
     "text-muted-foreground hover:bg-muted border border-transparent";
   const btnActive = "bg-foreground text-background";
@@ -68,13 +68,16 @@ export default function Pagination({
   return (
     <div className="w-full px-4 py-3 grid grid-cols-[auto_1fr_auto] items-center">
       {/* LEFT: TEXT */}
-      <div className="flex items-center gap-3 text-sm text-muted-foreground">
+      <div className="flex items-center gap-3 text-xs text-muted-foreground">
         <span>
           Showing{" "}
-          <span className="font-semibold text-foreground">
+          <span className="font-semibold text-xs text-foreground">
             {startItem}-{endItem}
           </span>{" "}
-          of <span className="font-semibold text-foreground">{totalItems}</span>
+          of{" "}
+          <span className="font-semibold text-xs text-foreground">
+            {totalItems}
+          </span>
         </span>
 
         {onPageSizeChange && (

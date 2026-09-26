@@ -431,13 +431,10 @@ export default function TrucksPage() {
       <div className="mb-4">
         <div className="flex flex-col md:flex-row justify-between md:items-end gap-3">
           <div>
-            <h1 className="text-[1.45rem] font-bold tracking-tight">
+            <h1 className="text-[20px] font-bold">
               Fleet Management
               {currentUser?.companyName ? ` – ${currentUser.companyName}` : ""}
             </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Manage fleet records and dedicated data sheets per truck.
-            </p>
           </div>
         </div>
       </div>
@@ -479,8 +476,8 @@ export default function TrucksPage() {
 
       <div className="border rounded-lg bg-background p-3.5 overflow-hidden">
         <div className="mb-3">
-          <h2 className="text-base font-bold tracking-tight">Fleet Records</h2>
-          <p className="text-sm text-muted-foreground">
+          <h2 className="text-sm font-semibold">Fleet Records</h2>
+          <p className="text-xs text-muted-foreground">
             Truck registry and linked data.
           </p>
         </div>
@@ -503,9 +500,7 @@ export default function TrucksPage() {
                   {/* HEADER */}
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="text-base font-bold tracking-tight">
-                        {r.truckName}
-                      </div>
+                      <div className="text-base font-bold">{r.truckName}</div>
 
                       <div className="mt-0.5 truncate text-xs text-muted-foreground">
                         {r.companyName || "No company"}
@@ -514,7 +509,7 @@ export default function TrucksPage() {
 
                     <span
                       className={cn(
-                        "inline-flex min-w-[76px] items-center justify-center px-2.5 py-1 text-[0.7rem] font-bold",
+                        "inline-flex min-w-[76px] rounded-md items-center justify-center px-2.5 py-1 text-[0.7rem] font-bold",
                         r.status === "Active"
                           ? "bg-green-500/10 text-green-500"
                           : "bg-slate-400/10 text-slate-400",

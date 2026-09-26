@@ -8,8 +8,8 @@ import {
   HandCoins,
   BarChart3,
   Truck,
-  ChevronLeft,
-  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   Sun,
   Moon,
   Users,
@@ -49,7 +49,7 @@ const allNavItems: NavItem[] = [
   {
     to: "/",
     icon: LayoutDashboard,
-    label: "Dashboard",
+    label: "Overview",
     roles: ["admin", "manager"],
     section: "main",
   },
@@ -204,9 +204,9 @@ export default function Sidebar({
             className="text-zinc-500"
           >
             {sidebarCollapsed ? (
-              <ChevronRight size={16} />
+              <ChevronsRight size={16} />
             ) : (
-              <ChevronLeft size={16} />
+              <ChevronsLeft size={16} />
             )}
           </Button>
         </div>
@@ -264,10 +264,10 @@ export default function Sidebar({
         <div className="border-t border-zinc-200 dark:border-zinc-800 p-2 space-y-2">
           <Button
             variant="outline"
-            size="lg"
+            size="sm"
             onClick={toggleTheme}
             className={cn(
-              "w-full justify-start",
+              "w-full justify-start text-xs",
               sidebarCollapsed && "justify-center",
             )}
           >
@@ -278,7 +278,7 @@ export default function Sidebar({
             )}
 
             {!sidebarCollapsed && (
-              <span className="ml-2">
+              <span className="ml-1">
                 {theme === "dark" ? "Dark Mode" : "Light Mode"}
               </span>
             )}
@@ -312,7 +312,7 @@ export default function Sidebar({
           >
             <LogOut className="h-4 w-4" />
 
-            {!sidebarCollapsed && <span className="ml-2">Logout</span>}
+            {!sidebarCollapsed && <span className="ml-1">Logout</span>}
           </Button>
         </div>
       </aside>

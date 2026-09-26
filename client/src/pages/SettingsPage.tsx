@@ -231,11 +231,7 @@ export default function SettingsPage() {
     <div className="space-y-6">
       {/* PAGE HEADER */}
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
-
-        <p className="mt-1 text-sm text-muted-foreground">
-          Manage your account and application settings.
-        </p>
+        <h1 className="text-2xl font-semibold">Settings</h1>
       </div>
 
       <Separator />
@@ -442,9 +438,22 @@ export default function SettingsPage() {
                           index !== companies.length - 1 ? "border-b" : ""
                         }`}
                       >
+                        {/* COMPANY INFO */}
                         <div className="min-w-0">
-                          <div className="truncate text-sm font-medium">
-                            {company.companyName}
+                          <div className="flex items-center gap-2">
+                            <div className="truncate text-sm font-medium">
+                              {company.companyName}
+                            </div>
+
+                            <span
+                              className={`inline-flex min-w-[76px] items-center justify-center rounded-md px-2.5 py-1 text-[0.7rem] font-bold ${
+                                company.status === "Active"
+                                  ? "bg-green-500/10 text-green-500"
+                                  : "bg-slate-400/10 text-slate-400"
+                              }`}
+                            >
+                              {company.status}
+                            </span>
                           </div>
 
                           <div className="mt-0.5 text-xs text-muted-foreground">
@@ -460,17 +469,8 @@ export default function SettingsPage() {
                           </div>
                         </div>
 
+                        {/* ACTIONS */}
                         <div className="flex shrink-0 items-center gap-2">
-                          <span
-                            className={`inline-flex min-w-[70px] justify-center px-2.5 py-1 text-xs font-medium ${
-                              company.status === "Active"
-                                ? "bg-green-500/10 text-green-600 dark:text-green-400"
-                                : "bg-muted text-muted-foreground"
-                            }`}
-                          >
-                            {company.status}
-                          </span>
-
                           <Button
                             type="button"
                             variant="outline"
@@ -537,7 +537,7 @@ export default function SettingsPage() {
                 id="companyName"
                 value={companyName}
                 onChange={(e) => setCompanyName(e.target.value)}
-                placeholder="e.g. StarTrak Trucking Services"
+                placeholder="e.g. Nextmile Trucking Services"
                 disabled={savingCompany}
               />
             </div>

@@ -269,6 +269,23 @@ interface AppState {
     value: number | string,
   ) => Promise<void>;
   addTrip: (data: Record<string, unknown>) => Promise<void>;
+  importTrips: (
+    truckId: string,
+    rows: any[],
+    importMode?: "add" | "update" | "upsert",
+  ) => Promise<{
+    imported: number;
+    duplicates: number;
+  }>;
+
+  previewImportTrips: (
+    truckId: string,
+    rows: any[],
+  ) => Promise<{
+    total: number;
+    newTrips: number;
+    duplicates: number;
+  }>;
   updateTrip: (id: string, data: Record<string, unknown>) => Promise<void>;
   deleteTrip: (id: string) => Promise<void>;
   toggleTripPaid: (id: string) => Promise<void>;

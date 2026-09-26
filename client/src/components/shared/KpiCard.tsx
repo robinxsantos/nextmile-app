@@ -62,11 +62,11 @@ export default function KpiCard({
     <div className="p-4 rounded-lg border border-border bg-background flex flex-col justify-between gap-2">
       <div className="flex items-start justify-between gap-2 sm:gap-3">
         <div className="min-w-0 flex-1">
-          <div className="text-[0.65rem] sm:text-[0.72rem] text-muted-foreground uppercase tracking-wider font-semibold mb-1 sm:mb-2 leading-none truncate">
+          <div className="text-[0.65rem] sm:text-[0.72rem] text-muted-foreground uppercase font-semibold mb-1 sm:mb-2 leading-none truncate">
             {label}
           </div>
 
-          <div className="text-lg sm:text-[1.7rem] font-bold leading-none tracking-tight truncate">
+          <div className="text-lg sm:text-[1.7rem] font-bold leading-none truncate">
             {format === "number"
               ? value.toLocaleString()
               : value.toLocaleString("en-PH", {
@@ -89,7 +89,7 @@ export default function KpiCard({
       </div>
 
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2">
-        <p className="text-xs sm:text-sm text-muted-foreground leading-tight truncate">
+        <p className="text-xs sm:text-xs text-muted-foreground leading-tight truncate">
           {subtitle}
         </p>
 

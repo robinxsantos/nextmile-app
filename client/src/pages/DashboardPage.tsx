@@ -506,13 +506,7 @@ export default function DashboardPage() {
       <div className="mb-4">
         <div className="flex flex-col md:flex-row justify-between md:items-end gap-3">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">
-              {pageTitle}
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Track revenue, costs, and payout summary across selected periods
-              and trucks.
-            </p>
+            <h1 className="text-[20px] font-semibold">{pageTitle}</h1>
           </div>
         </div>
       </div>
@@ -540,8 +534,8 @@ export default function DashboardPage() {
         <div className="lg:col-span-1">
           <Card className="p-5 min-h-[600px] flex flex-col justify-start">
             <div className="mb-2">
-              <h2 className="text-base font-semibold">Financial Summary</h2>
-              <p className="text-sm text-muted-foreground">
+              <h2 className="text-sm font-semibold">Financial Summary</h2>
+              <p className="text-xs text-muted-foreground">
                 Overview vs last period
               </p>
             </div>
@@ -740,7 +734,7 @@ export default function DashboardPage() {
             {/* AREA CHART */}
             <Card className="flex-1">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">
+                <CardTitle className="text-sm font-semibold">
                   {chartMode === "WEEKLY"
                     ? "Weekly Gross vs Net Income"
                     : "Monthly Gross vs Net Income"}
@@ -879,7 +873,7 @@ export default function DashboardPage() {
             {/* BAR CHART */}
             <Card className="flex-1">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">
+                <CardTitle className="text-sm font-semibold">
                   {chartMode === "WEEKLY" ? "Weekly Trips" : "Monthly Trips"}
                 </CardTitle>
                 <span className="text-xs text-muted-foreground">Volume</span>
@@ -958,8 +952,8 @@ export default function DashboardPage() {
       <div className="border rounded-lg bg-background p-3.5 overflow-visible mt-4">
         <div className="flex flex-col gap-3 mb-3">
           <div>
-            <h2 className="text-base font-bold tracking-tight">Trip Records</h2>
-            <p className="text-sm text-muted-foreground">
+            <h2 className="text-sm font-semibold">Trip Records</h2>
+            <p className="text-xs text-muted-foreground">
               Filter, edit, export, and generate payslips from the selected set.
             </p>
           </div>
@@ -1000,7 +994,7 @@ export default function DashboardPage() {
             </div>
             <div className="flex-grow min-w-[240px] relative">
               <Search
-                size={16}
+                size={14}
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
               />
               <input
@@ -1009,18 +1003,18 @@ export default function DashboardPage() {
                 placeholder="Search Shipment Number..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full min-h-[44px] rounded-md border border-border bg-background text-sm pl-9 pr-3.5 focus:outline-none focus:border-ring transition-colors"
+                className="w-full min-h-[44px] rounded-md border border-border bg-background text-xs pl-9 pr-3.5 focus:outline-none focus:border-ring transition-colors"
               />
             </div>
             <button
               onClick={handleExportCsv}
-              className="h-10 px-3 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors flex items-center gap-2"
+              className="h-10 px-3 rounded-md border border-border bg-background text-xs font-medium hover:bg-muted transition-colors flex items-center gap-2"
             >
               <Download size={16} /> CSV
             </button>
             <button
               onClick={handleExportPayslip}
-              className="h-10 px-3 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors flex items-center gap-2"
+              className="h-10 px-3 rounded-md border border-border bg-background text-xs font-medium hover:bg-muted transition-colors flex items-center gap-2"
             >
               <FileText size={16} /> Payslip
             </button>

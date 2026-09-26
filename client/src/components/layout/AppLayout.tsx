@@ -54,9 +54,7 @@ export default function AppLayout() {
             N
           </div>
           <div className="flex flex-col">
-            <span className="font-bold tracking-tight text-xs leading-none">
-              NextmileOS
-            </span>
+            <span className="font-bold text-xs leading-none">NextmileOS</span>
             <span className="text-[0.65rem] text-slate-500 dark:text-slate-400 leading-none mt-0.5">
               {currentPageName}
             </span>

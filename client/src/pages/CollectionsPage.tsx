@@ -9,6 +9,7 @@ import {
   HandCoins,
   PhilippinePeso,
   Clock3,
+  Search,
   CalendarDays,
   ChevronsUpDown,
   CheckCheck,
@@ -569,11 +570,7 @@ export default function CollectionsPage() {
   return (
     <div className="space-y-3.5">
       <div className="mb-4">
-        <h1 className="text-[1.45rem] font-bold tracking-tight">{pageTitle}</h1>
-
-        <p className="text-sm text-muted-foreground mt-1">
-          Track client collections by trip and billing batch.
-        </p>
+        <h1 className="text-[1.45rem] font-bold">{pageTitle}</h1>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
@@ -585,7 +582,7 @@ export default function CollectionsPage() {
                 Total Receivables
               </div>
 
-              <div className="mt-2 text-2xl font-bold tracking-tight tabular-nums text-blue-600 dark:text-blue-400">
+              <div className="mt-2 text-2xl font-bold tabular-nums text-blue-600 dark:text-blue-400">
                 {loading ? "—" : peso(stats.totalBillings)}
               </div>
 
@@ -610,7 +607,7 @@ export default function CollectionsPage() {
                 Collected
               </div>
 
-              <div className="mt-2 text-2xl font-bold tracking-tight tabular-nums text-green-600 dark:text-green-400">
+              <div className="mt-2 text-2xl font-bold tabular-nums text-green-600 dark:text-green-400">
                 {loading ? "—" : peso(stats.collected)}
               </div>
 
@@ -635,7 +632,7 @@ export default function CollectionsPage() {
                 Outstanding
               </div>
 
-              <div className="mt-2 text-2xl font-bold tracking-tight tabular-nums text-red-500">
+              <div className="mt-2 text-2xl font-bold tabular-nums text-red-500">
                 {loading ? "—" : peso(stats.outstanding)}
               </div>
 
@@ -655,11 +652,9 @@ export default function CollectionsPage() {
 
       <div className="border rounded-lg bg-background overflow-hidden">
         <div className="p-3.5 border-b border-border">
-          <h2 className="text-base font-bold tracking-tight">
-            Collection Trips
-          </h2>
+          <h2 className="text-sm font-semibold">Collection Trips</h2>
 
-          <p className="text-sm text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             Select trips included in a client payment.
           </p>
         </div>
@@ -670,13 +665,20 @@ export default function CollectionsPage() {
               Search
             </label>
 
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search shipment number..."
-              className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-            />
+            <div className="relative">
+              <Search
+                size={14}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+              />
+
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search shipment number..."
+                className="w-full h-9 rounded-md border border-border bg-background pl-9 pr-3 text-xs outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
           </div>
 
           <div>
@@ -691,7 +693,7 @@ export default function CollectionsPage() {
                   e.target.value as "ALL" | "Collected" | "Pending",
                 )
               }
-              className="h-9 rounded-md border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+              className="h-9 rounded-md border border-border bg-background px-3 text-xs outline-none focus:ring-2 focus:ring-ring"
             >
               <option value="ALL">All</option>
               <option value="Pending">Pending</option>
@@ -711,7 +713,11 @@ export default function CollectionsPage() {
                   type="button"
                   className="w-full h-9 justify-between rounded-md border border-border bg-background px-3 text-sm flex items-center"
                 >
-                  <span className={!startDate ? "text-muted-foreground" : ""}>
+                  <span
+                    className={
+                      !startDate ? "text-muted-foreground text-xs" : ""
+                    }
+                  >
                     {startDate && endDate
                       ? `${format(
                           new Date(`${startDate}T00:00:00`),
@@ -1087,11 +1093,9 @@ export default function CollectionsPage() {
       {/* Collection History */}
       <div className="border rounded-lg bg-background overflow-hidden">
         <div className="p-3.5 border-b border-border">
-          <h2 className="text-base font-bold tracking-tight">
-            Collection History
-          </h2>
+          <h2 className="text-sm font-semibold">Collection History</h2>
 
-          <p className="text-sm text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             Recorded client payment batches.
           </p>
         </div>
@@ -1725,8 +1729,15 @@ export default function CollectionsPage() {
 
             {/* COVERED TRIPS */}
             <div>
-              <div className="text-xs font-medium text-foreground mb-2">
-                Covered Trips
+              <div className="mb-2 flex items-center gap-2">
+                <div className="text-xs font-medium text-foreground">
+                  Covered Trips
+                </div>
+
+                <span className="text-xs text-muted-foreground">
+                  {viewCollection.trips.length}{" "}
+                  {viewCollection.trips.length === 1 ? "trip" : "trips"}
+                </span>
               </div>
 
               <div className="border border-border rounded-md overflow-x-auto">

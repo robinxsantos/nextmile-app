@@ -452,12 +452,7 @@ export default function PaymentsPage() {
       <div className="mb-4">
         <div className="flex flex-col md:flex-row justify-between md:items-end gap-3">
           <div>
-            <h1 className="text-[1.45rem] font-bold tracking-tight">
-              {pageTitle}
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Upload screenshots sent via GCash, Cash, or Bank Transfer.
-            </p>
+            <h1 className="text-[20px] font-bold">{pageTitle}</h1>
           </div>
           <div className="text-right">
             <div className="text-[0.72rem] font-bold tracking-wider uppercase text-muted-foreground">
@@ -473,9 +468,7 @@ export default function PaymentsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-[420px_minmax(0,1fr)] gap-3.5 items-start">
         <div className="border rounded-lg bg-background p-4">
           <div className="mb-4">
-            <h2 className="text-base font-bold tracking-tight">
-              Upload Payment Proof
-            </h2>
+            <h2 className="text-sm font-semibold">Upload Payment Proof</h2>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -485,7 +478,7 @@ export default function PaymentsPage() {
               </label>
               <Popover open={openDate} onOpenChange={setOpenDate}>
                 <PopoverTrigger asChild>
-                  <button className="w-full h-11 px-3 flex items-center justify-between rounded-md border border-border bg-background text-sm">
+                  <button className="w-full h-11 px-3 flex items-center justify-between rounded-md border border-border bg-background text-xs">
                     {date
                       ? format(new Date(`${date}T00:00:00`), "MMM d, yyyy")
                       : "Select date"}
@@ -517,7 +510,7 @@ export default function PaymentsPage() {
                 value={category}
                 onValueChange={(val) => setCategory(val)}
               >
-                <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
+                <SelectTrigger className="w-full min-h-[44px] px-3.5 text-xs">
                   <SelectValue />
                 </SelectTrigger>
 
@@ -536,7 +529,7 @@ export default function PaymentsPage() {
                 Payment Method
               </label>
               <UiSelect value={method} onValueChange={(val) => setMethod(val)}>
-                <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
+                <SelectTrigger className="w-full min-h-[44px] px-3.5 text-xs">
                   <SelectValue />
                 </SelectTrigger>
 
@@ -559,7 +552,7 @@ export default function PaymentsPage() {
                 value={recipient}
                 onChange={(e) => setRecipient(e.target.value)}
                 placeholder="Driver / Crew.."
-                className={inputClass}
+                className={`${inputClass} text-xs`}
               />
             </div>
 
@@ -572,7 +565,7 @@ export default function PaymentsPage() {
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="0.00"
-                className={inputClass}
+                className={`${inputClass} text-xs`}
               />
             </div>
 
@@ -585,7 +578,7 @@ export default function PaymentsPage() {
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder="Add a note..."
-                className={inputClass}
+                className={`${inputClass} text-xs`}
               />
             </div>
 
@@ -695,10 +688,8 @@ export default function PaymentsPage() {
         <div className="border rounded-lg bg-background overflow-hidden min-w-0">
           <div className="p-3.5 pb-2 flex items-end justify-between gap-4">
             <div>
-              <h2 className="text-base font-bold tracking-tight">
-                Uploaded Payments
-              </h2>
-              <p className="text-sm text-muted-foreground">
+              <h2 className="text-sm font-semibold">Uploaded Payments</h2>
+              <p className="text-xs text-muted-foreground">
                 Click View to open the image in a preview window.
               </p>
             </div>
@@ -757,7 +748,7 @@ export default function PaymentsPage() {
                       </td>
 
                       <td className="text-center text-xs px-2.5 py-2.5 border-b border-border">
-                        <span className="inline-block px-2.5 py-1 rounded-full text-[0.72rem] font-bold bg-muted text-foreground">
+                        <span className="inline-block px-2.5 py-1 rounded-md text-[0.72rem] font-bold bg-muted text-foreground">
                           {p.category}
                         </span>
                       </td>

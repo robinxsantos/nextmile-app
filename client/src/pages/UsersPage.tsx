@@ -9,6 +9,8 @@ import {
   Trash2,
   Users,
   Shield,
+  LifeBuoy,
+  UserShield,
   Truck as TruckIcon,
 } from "lucide-react";
 import {
@@ -25,6 +27,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 
 interface UserRow {
   _id: string;
@@ -332,16 +335,12 @@ export default function UsersPage() {
       <div className="mb-4">
         <div className="flex flex-col md:flex-row justify-between md:items-end gap-3">
           <div>
-            <h1 className="text-[1.45rem] font-bold tracking-tight">
+            <h1 className="text-[20px] font-bold">
               User List
               {isManager && currentUser?.companyName
                 ? ` – ${currentUser.companyName}`
                 : ""}
             </h1>
-
-            <p className="text-sm text-slate-500 mt-1">
-              Create and manage user accounts.
-            </p>
           </div>
           <button
             onClick={openAdd}
@@ -360,15 +359,21 @@ export default function UsersPage() {
             </label>
 
             <UiSelect value={companyFilter} onValueChange={setCompanyFilter}>
-              <SelectTrigger className="w-full min-h-[40px]">
+              <SelectTrigger className="w-full min-h-[40px] text-xs">
                 <SelectValue />
               </SelectTrigger>
 
               <SelectContent>
-                <SelectItem value="ALL">All Companies</SelectItem>
+                <SelectItem value="ALL" className="text-xs">
+                  All Companies
+                </SelectItem>
 
                 {companies.map((company) => (
-                  <SelectItem key={company._id} value={company.companyName}>
+                  <SelectItem
+                    key={company._id}
+                    value={company.companyName}
+                    className="text-xs"
+                  >
                     {company.companyName}
                   </SelectItem>
                 ))}
@@ -397,7 +402,7 @@ export default function UsersPage() {
                 ].map((h) => (
                   <th
                     key={h}
-                    className="sticky top-0 bg-muted/40 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-muted-foreground px-3 py-3 whitespace-nowrap"
+                    className="sticky top-0 bg-muted/40 border-b border-slate-200 dark:border-slate-700 text-left text-xs font-semibold text-muted-foreground px-3 py-3 whitespace-nowrap"
                   >
                     {h}
                   </th>
@@ -407,7 +412,7 @@ export default function UsersPage() {
             <tbody>
               {filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="text-center py-12 text-slate-400">
+                  <td colSpan={9} className="text-left py-12 text-slate-400">
                     <Users size={40} className="mx-auto mb-3 opacity-30" />
                     <div className="font-semibold">No users found</div>
                     <div className="text-sm">
@@ -421,15 +426,15 @@ export default function UsersPage() {
                     key={u._id}
                     className="hover:bg-blue-50/50 dark:hover:bg-slate-800/50"
                   >
-                    <td className="text-center text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800 font-mono font-semibold">
+                    <td className="text-left text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800 font-mono font-semibold">
                       {u.username}
                     </td>
-                    <td className="text-center text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800 font-semibold">
+                    <td className="text-left text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800 font-semibold">
                       {u.displayName}
                     </td>
-                    <td className="text-center text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800">
+                    <td className="text-left text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800">
                       <span
-                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[0.72rem] font-bold ${
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold ${
                           u.role === "admin"
                             ? "bg-purple-500/10 text-purple-600 dark:text-purple-400"
                             : u.role === "manager"
@@ -437,13 +442,20 @@ export default function UsersPage() {
                               : "bg-blue-500/10 text-blue-600 dark:text-blue-400"
                         }`}
                       >
-                        <Shield size={12} />{" "}
+                        {u.role === "employee" ? (
+                          <LifeBuoy size={12} />
+                        ) : u.role === "manager" ? (
+                          <UserShield size={12} />
+                        ) : (
+                          <Shield size={12} />
+                        )}
+
                         {u.role === "employee"
-                          ? "DRIVER"
-                          : u.role.toUpperCase()}
+                          ? "Driver"
+                          : u.role.charAt(0).toUpperCase() + u.role.slice(1)}
                       </span>
                     </td>
-                    <td className="text-center text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800">
+                    <td className="text-left text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800">
                       {u.companyName ? (
                         <span className="font-medium text-slate-700 dark:text-slate-300">
                           {u.companyName}
@@ -454,7 +466,7 @@ export default function UsersPage() {
                         </span>
                       )}
                     </td>
-                    <td className="text-center text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800">
+                    <td className="text-left text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800">
                       {u.truckName ? (
                         <span className="inline-flex items-center gap-1 text-slate-700 dark:text-slate-300">
                           <TruckIcon size={12} /> {u.truckName}
@@ -465,7 +477,7 @@ export default function UsersPage() {
                         </span>
                       )}
                     </td>
-                    <td className="text-center text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800">
+                    <td className="text-left text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800">
                       {u.role === "employee" && u.licenseNumber ? (
                         <span className="font-medium">{u.licenseNumber}</span>
                       ) : (
@@ -475,7 +487,7 @@ export default function UsersPage() {
                       )}
                     </td>
 
-                    <td className="text-center text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800 whitespace-nowrap">
+                    <td className="text-left text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800 whitespace-nowrap">
                       {u.role !== "admin" && u.startDate ? (
                         new Date(u.startDate).toLocaleDateString("en-US", {
                           month: "short",
@@ -488,14 +500,19 @@ export default function UsersPage() {
                         </span>
                       )}
                     </td>
-                    <td className="text-center text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800">
+                    <td className="text-left text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800">
                       <span
-                        className={`inline-block px-2 py-0.5 rounded-md text-[0.65rem] font-bold ${u.active ? "bg-green-500/10 text-green-600" : "bg-red-500/10 text-red-500"}`}
+                        className={cn(
+                          "inline-flex min-w-[76px] rounded-md items-center justify-center px-2.5 py-1 text-[0.7rem] font-bold",
+                          u.active
+                            ? "bg-green-500/10 text-green-500"
+                            : "bg-slate-400/10 text-slate-400",
+                        )}
                       >
-                        {u.active ? "ACTIVE" : "INACTIVE"}
+                        {u.active ? "Active" : "Inactive"}
                       </span>
                     </td>
-                    <td className="text-center text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800">
+                    <td className="text-left text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800">
                       {isManager && u._id === currentUser?._id ? (
                         <span className="text-[11px] text-muted-foreground">
                           Your account
@@ -528,7 +545,7 @@ export default function UsersPage() {
         {/* Mobile Cards */}
         <div className="flex flex-col gap-3 md:hidden p-3">
           {filteredUsers.length === 0 ? (
-            <div className="text-center py-8 text-slate-400">
+            <div className="text-left py-8 text-slate-400">
               <Users size={40} className="mx-auto mb-3 opacity-30" />
               <div className="font-semibold">No users found</div>
             </div>
@@ -554,8 +571,16 @@ export default function UsersPage() {
                           : "bg-blue-500/10 text-blue-600"
                     }`}
                   >
-                    <Shield size={12} />{" "}
-                    {u.role === "employee" ? "DRIVER" : u.role.toUpperCase()}
+                    {u.role === "employee" ? (
+                      <LifeBuoy size={12} />
+                    ) : u.role === "manager" ? (
+                      <UserShield size={12} />
+                    ) : (
+                      <Shield size={12} />
+                    )}
+                    {u.role === "employee"
+                      ? "Driver"
+                      : u.role.charAt(0).toUpperCase() + u.role.slice(1)}
                   </span>
                 </div>
                 {u.companyName && (

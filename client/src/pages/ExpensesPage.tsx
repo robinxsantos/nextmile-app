@@ -274,7 +274,7 @@ export default function ExpensesPage() {
         accessorKey: "category",
         header: "Category",
         cell: ({ row }) => (
-          <span className="inline-block px-2.5 py-1 rounded-full text-[0.72rem] font-bold bg-muted text-foreground">
+          <span className="inline-block px-2.5 py-1 rounded-md text-[11px] font-bold bg-muted text-foreground">
             {row.original.category}
           </span>
         ),
@@ -287,7 +287,6 @@ export default function ExpensesPage() {
         cell: ({ row }) => (
           <span
             className={cn(
-              "font-semibold",
               row.original.reimbursed
                 ? "text-green-500 line-through"
                 : "text-red-500",
@@ -377,12 +376,7 @@ export default function ExpensesPage() {
       <div className="mb-4">
         <div className="flex flex-col md:flex-row justify-between md:items-end gap-3">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">
-              {pageTitle}
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Track company expenses by category, month, and total distribution.
-            </p>
+            <h1 className="text-[20px] font-semibold">{pageTitle}</h1>
           </div>
         </div>
       </div>
@@ -412,10 +406,8 @@ export default function ExpensesPage() {
           <div className="p-3.5 pb-2 flex items-start justify-between gap-3">
             {/* LEFT SIDE */}
             <div>
-              <h2 className="text-base font-bold tracking-tight">
-                Expense Records
-              </h2>
-              <p className="text-sm text-muted-foreground">
+              <h2 className="text-sm font-semibold">Expense Records</h2>
+              <p className="text-xs text-muted-foreground">
                 Operational costs and maintenance logs
               </p>
             </div>
@@ -425,7 +417,7 @@ export default function ExpensesPage() {
               <PopoverTrigger asChild>
                 <button
                   role="combobox"
-                  className="h-10 w-[200px] justify-between rounded-md border border-border bg-background px-3 text-sm flex items-center"
+                  className="h-10 w-[200px] justify-between rounded-md border border-border bg-background px-3 text-xs flex items-center"
                 >
                   {categoryFilter === "ALL" ? "All Categories" : categoryFilter}
                   <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
@@ -434,11 +426,15 @@ export default function ExpensesPage() {
 
               <PopoverContent className="w-[200px] p-0">
                 <Command>
-                  <CommandInput placeholder="Search category..." />
+                  <CommandInput
+                    className="text-xs"
+                    placeholder="Search category..."
+                  />
                   <CommandEmpty>No category found.</CommandEmpty>
 
                   <CommandGroup>
                     <CommandItem
+                      className="text-xs"
                       onSelect={() => {
                         setCategoryFilter("ALL");
                         setOpenCategory(false);
@@ -449,11 +445,12 @@ export default function ExpensesPage() {
                           categoryFilter === "ALL" ? "opacity-100" : "opacity-0"
                         }`}
                       />
-                      All Categories
+                      ALL
                     </CommandItem>
 
                     {categoryOptions.map((c) => (
                       <CommandItem
+                        className="text-xs"
                         key={c.value}
                         value={c.label}
                         onSelect={() => {
@@ -659,10 +656,8 @@ export default function ExpensesPage() {
         {/* Sidebar */}
         <div className="flex flex-col gap-3">
           <div className="border rounded-lg bg-background p-4">
-            <h2 className="text-base font-bold tracking-tight mb-1">
-              Expense Breakdown
-            </h2>
-            <p className="text-sm text-slate-500 mb-4">
+            <h2 className="text-sm font-semibold mb-1">Expense Breakdown</h2>
+            <p className="text-xs text-slate-500 mb-4">
               Distribution by category
             </p>
             <div className="flex flex-col gap-4">
@@ -673,7 +668,7 @@ export default function ExpensesPage() {
                   const pct = item.percent;
                   return (
                     <div key={item.category} className="flex flex-col gap-1.5">
-                      <div className="flex justify-between items-center gap-3 font-bold text-sm tracking-tight">
+                      <div className="flex justify-between items-center gap-3 font-bold text-xs">
                         <span>{item.category}</span>
                         <span>{pct.toFixed(1)}%</span>
                       </div>
@@ -694,19 +689,17 @@ export default function ExpensesPage() {
             <div className="text-[0.72rem] text-slate-500 uppercase tracking-wider font-semibold">
               Total Expenses
             </div>
-            <div className="text-[1.8rem] font-extrabold tracking-tight leading-none mt-1.5">
+            <div className="text-[1.8rem] font-extrabold leading-none mt-1.5">
               {peso(breakdown.total)}
             </div>
           </div>
 
           <div className="border rounded-lg bg-background p-4">
-            <h2 className="text-base font-bold tracking-tight mb-1">
-              Categories
-            </h2>
-            <p className="text-sm text-slate-500 mb-3">
+            <h2 className="text-sm font-bold mb-1">Categories</h2>
+            <p className="text-xs text-slate-500 mb-3">
               Available expense categories
             </p>
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap gap-1.5 text-xs">
               {categoryOptions.map((c) => (
                 <span
                   key={c.value}
@@ -716,7 +709,7 @@ export default function ExpensesPage() {
                 </span>
               ))}
             </div>
-            <p className="text-[0.65rem] text-slate-400 mt-3">
+            <p className="text-xs text-slate-400 mt-3">
               💡 To add a new category, type it in the Category field when
               adding an expense. It will be saved automatically.
             </p>

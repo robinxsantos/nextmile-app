@@ -148,7 +148,7 @@ export default function FilterBar({
       <div className="flex flex-wrap gap-3 items-end">
         {reportPeriodType && onReportPeriodTypeChange && (
           <div className="min-w-[180px] flex-1 max-w-[220px]">
-            <label className="text-[0.72rem] font-bold tracking-wider uppercase text-muted-foreground mb-1.5 block">
+            <label className="text-[10px] font-bold tracking-wider uppercase text-muted-foreground mb-1.5 block">
               Report Period
             </label>
 
@@ -156,7 +156,7 @@ export default function FilterBar({
               <PopoverTrigger asChild>
                 <button
                   role="combobox"
-                  className="w-full h-[44px] justify-between rounded-md border border-border bg-background px-3 text-sm flex items-center"
+                  className="w-full h-[44px] justify-between rounded-md border border-border bg-background px-3 text-xs flex items-center"
                 >
                   {reportPeriodType === "monthly" ? "Monthly" : "Custom Range"}
 
@@ -208,7 +208,7 @@ export default function FilterBar({
         )}
         {showRange && (
           <div className="min-w-[180px] flex-1 max-w-[220px]">
-            <label className="text-[0.72rem] font-bold tracking-wider uppercase text-muted-foreground mb-1.5 block">
+            <label className="text-[10px] font-bold tracking-wider uppercase text-muted-foreground mb-1.5 block">
               Date Range
             </label>
 
@@ -216,7 +216,7 @@ export default function FilterBar({
               <PopoverTrigger asChild>
                 <button
                   role="combobox"
-                  className="w-full h-[44px] justify-between rounded-md border border-border bg-background px-3 text-sm flex items-center"
+                  className="w-full h-[44px] justify-between rounded-md border border-border bg-background px-3 text-xs flex items-center"
                 >
                   {rangeOptions.find((o) => o.value === rangePreset)?.label ||
                     "Select range"}
@@ -264,14 +264,14 @@ export default function FilterBar({
 
         {showTruck && (
           <div className="min-w-[180px] flex-1 max-w-[220px]">
-            <label className="text-[0.72rem] font-bold tracking-wider uppercase text-muted-foreground mb-1.5 block">
+            <label className="text-[10px] font-bold tracking-wider uppercase text-muted-foreground mb-1.5 block">
               Truck
             </label>
             <Popover open={openTruck} onOpenChange={setOpenTruck}>
               <PopoverTrigger asChild>
                 <button
                   role="combobox"
-                  className="w-full h-[44px] justify-between rounded-md border border-border bg-background px-3 text-sm flex items-center"
+                  className="w-full h-[44px] justify-between rounded-md border border-border bg-background px-3 text-xs flex items-center"
                 >
                   {truckSelectOptions.find((o) => o.value === selectedTruck)
                     ?.label || "Select truck"}
@@ -317,14 +317,14 @@ export default function FilterBar({
 
         {showRange && (
           <div className="min-w-[260px] flex-1 max-w-[320px]">
-            <label className="text-[0.72rem] font-bold tracking-wider uppercase text-muted-foreground mb-1.5 flex items-center gap-1">
+            <label className="text-[10px] font-bold tracking-wider uppercase text-muted-foreground mb-1.5 flex items-center gap-1">
               <CalendarDays size={12} />
               Period
             </label>
 
             <Popover open={openRange} onOpenChange={setOpenRange}>
               <PopoverTrigger asChild>
-                <button className="w-full h-[44px] justify-between rounded-md border border-border bg-background px-3 text-sm flex items-center">
+                <button className="w-full h-[44px] justify-between rounded-md border border-border bg-background px-3 text-xs flex items-center">
                   {dateRange?.from && dateRange?.to
                     ? `${format(dateRange!.from, "MMM d, yyyy")} - ${format(dateRange!.to, "MMM d, yyyy")}`
                     : "Select date range"}
@@ -361,7 +361,7 @@ export default function FilterBar({
 
         {showMonth && reportPeriodType !== "custom" && (
           <div className="min-w-[180px] flex-1 max-w-[220px]">
-            <label className="text-[0.72rem] font-bold tracking-wider uppercase text-muted-foreground mb-1.5 block">
+            <label className="text-[10px] font-bold tracking-wider uppercase text-muted-foreground mb-1.5 block">
               Range
             </label>
 
@@ -369,7 +369,7 @@ export default function FilterBar({
               <PopoverTrigger asChild>
                 <button
                   role="combobox"
-                  className="w-full h-[44px] justify-between rounded-md border border-border bg-background px-3 text-sm flex items-center"
+                  className="w-full h-[44px] justify-between rounded-md border border-border bg-background px-3 text-xs flex items-center"
                 >
                   {MONTHS.find((m) => m.value === (monthValue || "ALL"))
                     ?.label || "Select month"}
@@ -481,9 +481,9 @@ export default function FilterBar({
         {showRange && (
           <button
             onClick={handleReset}
-            className="h-[44px] px-4 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors flex items-center gap-2"
+            className="h-[44px] px-4 rounded-md border border-border bg-background text-xs font-medium hover:bg-muted transition-colors flex items-center gap-2"
           >
-            <RotateCcw size={16} />
+            <RotateCcw size={14} />
             Reset
           </button>
         )}

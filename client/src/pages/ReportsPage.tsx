@@ -248,12 +248,7 @@ export default function ReportsPage() {
       <div className="mb-4">
         <div className="flex flex-col md:flex-row justify-between md:items-end gap-3">
           <div>
-            <h1 className="text-[1.45rem] font-bold tracking-tight">
-              {pageTitle}
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Monthly report view using the same table columns.
-            </p>
+            <h1 className="text-[20px] font-bold">{pageTitle}</h1>
           </div>
         </div>
       </div>
@@ -274,7 +269,7 @@ export default function ReportsPage() {
             <div className="flex items-center gap-2">
               <button
                 onClick={handleDownloadReport}
-                className="h-10 px-4 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors flex items-center gap-2"
+                className="h-10 px-4 rounded-md border border-border bg-background text-xs font-medium hover:bg-muted transition-colors flex items-center gap-2"
               >
                 <Download size={16} />
                 Internal Report
@@ -282,12 +277,12 @@ export default function ReportsPage() {
 
               <button
                 onClick={handleClientReport}
-                className="h-10 px-4 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors flex items-center gap-2"
+                className="h-10 px-4 rounded-md border border-border bg-background text-xs font-medium hover:bg-muted transition-colors flex items-center gap-2"
               >
                 <Download size={16} />
                 Client Report
               </button>
-              <label className="h-10 px-3 rounded-md border border-border bg-background flex items-center gap-2 text-sm cursor-pointer select-none">
+              <label className="h-10 px-3 rounded-md border border-border bg-background flex items-center gap-2 text-xs cursor-pointer select-none">
                 <input
                   type="checkbox"
                   checked={deductFuel}
@@ -304,10 +299,8 @@ export default function ReportsPage() {
         <div className="flex justify-between items-center mb-3 w-full">
           {/* LEFT SIDE */}
           <div>
-            <h2 className="text-base font-bold tracking-tight">
-              MONTHLY REPORTS
-            </h2>
-            <p className="text-sm text-muted-foreground">
+            <h2 className="text-sm font-semibold">Monthly Reports</h2>
+            <p className="text-xs text-muted-foreground">
               Same columns as the trip table, filtered by month.
             </p>
           </div>
@@ -319,7 +312,6 @@ export default function ReportsPage() {
                 onClick={() => setShowColumnsMenu((v) => !v)}
                 className="h-10 px-3 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors flex items-center gap-2"
               >
-                <span>Columns</span>
                 <Columns3 size={18} />
               </button>
 
