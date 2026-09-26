@@ -240,7 +240,7 @@ export default function Sidebar({
                       end={to === "/"}
                       title={sidebarCollapsed ? label : undefined}
                       className={cn(
-                        "flex items-center gap-3 rounded-md text-sm transition-colors",
+                        "flex items-center gap-3 rounded-md text-[13px] transition-colors",
                         sidebarCollapsed
                           ? "justify-center px-2 py-2"
                           : "px-3 py-2",

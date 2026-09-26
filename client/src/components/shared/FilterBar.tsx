@@ -169,6 +169,7 @@ export default function FilterBar({
                   <CommandGroup>
                     <CommandItem
                       value="Monthly"
+                      className="text-xs"
                       onSelect={() => {
                         onReportPeriodTypeChange("monthly");
                         setOpenRangePreset(false);
@@ -186,6 +187,7 @@ export default function FilterBar({
 
                     <CommandItem
                       value="Custom Range"
+                      className="text-xs"
                       onSelect={() => {
                         onReportPeriodTypeChange("custom");
                         setOpenRangePreset(false);
@@ -226,14 +228,20 @@ export default function FilterBar({
 
               <PopoverContent className="w-full p-0">
                 <Command>
-                  <CommandInput placeholder="Search range..." />
-                  <CommandEmpty>No results found.</CommandEmpty>
+                  <CommandInput
+                    className="text-xs"
+                    placeholder="Search range..."
+                  />
+                  <CommandEmpty className="text-xs">
+                    No results found.
+                  </CommandEmpty>
 
                   <CommandGroup>
                     {rangeOptions.map((opt) => (
                       <CommandItem
                         key={opt.value}
                         value={opt.label}
+                        className="text-xs"
                         onSelect={() => {
                           setRangePreset(opt.value as RangePreset);
 
@@ -281,14 +289,20 @@ export default function FilterBar({
 
               <PopoverContent className="w-full p-0">
                 <Command>
-                  <CommandInput placeholder="Search truck..." />
-                  <CommandEmpty>No truck found.</CommandEmpty>
+                  <CommandInput
+                    className="text-xs"
+                    placeholder="Search truck..."
+                  />
+                  <CommandEmpty className="text-xs">
+                    No truck found.
+                  </CommandEmpty>
 
                   <CommandGroup>
                     {truckSelectOptions.map((t) => (
                       <CommandItem
                         key={t.value}
                         value={t.label}
+                        className="text-xs"
                         onSelect={() => {
                           setSelectedTruck(t.value);
                           setTimeout(() => {
@@ -379,7 +393,10 @@ export default function FilterBar({
 
               <PopoverContent className="w-full p-0">
                 <Command>
-                  <CommandInput placeholder="Search month..." />
+                  <CommandInput
+                    className="text-xs"
+                    placeholder="Search month..."
+                  />
                   <CommandEmpty>No results found.</CommandEmpty>
 
                   <CommandGroup>
@@ -387,6 +404,7 @@ export default function FilterBar({
                       <CommandItem
                         key={m.value}
                         value={m.label}
+                        className="text-xs"
                         onSelect={() => {
                           onMonthChange?.(m.value);
                           setOpenMonth(false);
@@ -418,7 +436,7 @@ export default function FilterBar({
 
             <Popover open={openRange} onOpenChange={setOpenRange}>
               <PopoverTrigger asChild>
-                <button className="w-full h-[44px] justify-between rounded-md border border-border bg-background px-3 text-sm flex items-center">
+                <button className="w-full h-[44px] justify-between rounded-md border border-border bg-background px-3 text-xs flex items-center">
                   {customStartDate && customEndDate
                     ? `${format(new Date(`${customStartDate}T00:00:00`), "MMM d, yyyy")} - ${format(
                         new Date(`${customEndDate}T00:00:00`),

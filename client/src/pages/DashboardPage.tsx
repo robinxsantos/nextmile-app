@@ -519,15 +519,6 @@ export default function DashboardPage() {
           allowedRangePresets={
             canManageDashboard ? undefined : (["CC", "LC"] as const)
           }
-          actions={
-            <button
-              onClick={handleAddTrip}
-              className="h-10 px-4 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition flex items-center gap-2"
-            >
-              <Plus className="h-4 w-4" />
-              Add Trip
-            </button>
-          }
         />
       </div>
 
