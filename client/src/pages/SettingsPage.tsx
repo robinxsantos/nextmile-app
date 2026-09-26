@@ -231,7 +231,9 @@ export default function SettingsPage() {
     <div className="space-y-6">
       {/* PAGE HEADER */}
       <div>
-        <h1 className="text-2xl font-semibold">Settings</h1>
+        <h1 className="text-[20px] font-semibold tracking-[-0.03em]">
+          Settings
+        </h1>
       </div>
 
       <Separator />

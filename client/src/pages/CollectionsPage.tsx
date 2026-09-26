@@ -570,7 +570,9 @@ export default function CollectionsPage() {
   return (
     <div className="space-y-3.5">
       <div className="mb-4">
-        <h1 className="text-[1.45rem] font-bold">{pageTitle}</h1>
+        <h1 className="text-[20px] font-bold tracking-[-0.03em]">
+          {pageTitle}
+        </h1>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">

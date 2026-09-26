@@ -335,7 +335,7 @@ export default function UsersPage() {
       <div className="mb-4">
         <div className="flex flex-col md:flex-row justify-between md:items-end gap-3">
           <div>
-            <h1 className="text-[20px] font-bold">
+            <h1 className="text-[20px] font-bold tracking-[-0.03em]">
               User List
               {isManager && currentUser?.companyName
                 ? ` – ${currentUser.companyName}`

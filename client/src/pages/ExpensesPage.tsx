@@ -376,7 +376,9 @@ export default function ExpensesPage() {
       <div className="mb-4">
         <div className="flex flex-col md:flex-row justify-between md:items-end gap-3">
           <div>
-            <h1 className="text-[20px] font-semibold">{pageTitle}</h1>
+            <h1 className="text-[20px] font-semibold tracking-[-0.03em]">
+              {pageTitle}
+            </h1>
           </div>
         </div>
       </div>
@@ -699,7 +701,7 @@ export default function ExpensesPage() {
             <p className="text-xs text-slate-500 mb-3">
               Available expense categories
             </p>
-            <div className="flex flex-wrap gap-1.5 text-xs">
+            <div className="flex flex-wrap gap-1.5">
               {categoryOptions.map((c) => (
                 <span
                   key={c.value}

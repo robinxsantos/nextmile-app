@@ -401,7 +401,9 @@ export default function TripsPage() {
       <div className="mb-4">
         <div className="flex flex-col md:flex-row justify-between md:items-end gap-3">
           <div>
-            <h1 className="text-[20px] font-semibold">{pageTitle}</h1>
+            <h1 className="text-[20px] font-semibold tracking-[-0.03em]">
+              {pageTitle}
+            </h1>
           </div>
         </div>
       </div>
