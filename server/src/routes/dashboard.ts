@@ -3,7 +3,7 @@ import { Trip } from "../models/Trip.js";
 import { Expense } from "../models/Expense.js";
 import { Truck } from "../models/Truck.js";
 import { formatTripResponse } from "../services/tripService.js";
-// import { toISODateString } from "../utils/calculations.js";
+import { toISODateString } from "../utils/calculations.js";
 import { attachExpenseNotes } from "../utils/enrichNotes.js";
 import {
   previousRangeForPreset,
@@ -577,42 +577,59 @@ router.get("/reports", requireAuth, async (req: AuthRequest, res: Response) => {
 
     const allExpenses = await Expense.find(expenseFilter);
 
+    const expensesByDate = new Map<string, number>();
+
+    for (const expense of allExpenses) {
+      const dateKey = toISODateString(new Date(expense.date));
+
+      expensesByDate.set(
+        dateKey,
+        (expensesByDate.get(dateKey) || 0) + Number(expense.amount || 0),
+      );
+    }
+
     const formattedTrips = trips.map((t) => formatTripResponse(t as any));
+
+    const tripDateKeys = new Set(
+      formattedTrips.map((trip: any) => trip.dateIso),
+    );
+
+    const unmatchedExpenses = [...expensesByDate.entries()].filter(
+      ([dateKey]) => !tripDateKeys.has(dateKey),
+    );
+
     const enriched = attachExpenseNotes(formattedTrips, allExpenses);
 
     const seenDates = new Set<string>();
 
     const rows = enriched.map((response: any) => {
       const dateKey = response.dateIso;
+      const isFirstRowForDate = !seenDates.has(dateKey);
 
-      if (seenDates.has(dateKey)) {
-        const net =
-          response.grossIncome - response.crewSalary - response.expenses;
-
-        return {
-          ...response,
-          expenses: 0,
-          netIncome: net,
-          reportPayable:
-            response.crewSalary -
-            response.cashAdvance +
-            response.reimbursements,
-          reportNetIncome: net,
-        };
+      if (isFirstRowForDate) {
+        seenDates.add(dateKey);
       }
 
-      seenDates.add(dateKey);
-
-      const reportPayable =
-        response.crewSalary - response.cashAdvance + response.reimbursements;
+      const reportExpenses = isFirstRowForDate
+        ? Number(expensesByDate.get(dateKey) || 0)
+        : 0;
 
       const reportNetIncome =
-        response.grossIncome - response.crewSalary - response.expenses;
+        Number(response.grossIncome || 0) -
+        Number(response.crewSalary || 0) -
+        reportExpenses;
+
+      const reportPayable = response.paid
+        ? 0
+        : Number(response.crewSalary || 0) -
+          Number(response.cashAdvance || 0) +
+          Number(response.reimbursements || 0);
 
       return {
         ...response,
-        reportPayable,
+        expenses: reportExpenses,
         reportNetIncome,
+        reportPayable,
       };
     });
 

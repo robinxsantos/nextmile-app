@@ -638,7 +638,7 @@ export default function DashboardPage() {
                   invert: true,
                 },
                 {
-                  label: "Cash Outflow",
+                  label: "Crew Payments",
                   value: kpis.cashOutflow,
                   prev: previousKpis.cashOutflow,
                   icon: ArrowUpDown,
@@ -697,8 +697,8 @@ export default function DashboardPage() {
                         </div>
 
                         <div>
-                          <p className="text-sm font-medium">{item.label}</p>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-xs font-medium">{item.label}</p>
+                          <p className="text-[11px] text-muted-foreground">
                             vs last period
                           </p>
                         </div>

@@ -29,9 +29,8 @@ import {
   Trash2,
   Route,
   Columns3,
-  CircleCheckBig,
+  CircleCheck,
   CopyCheck,
-  ChevronDown,
   RotateCcw,
   Clock3,
 } from "lucide-react";
@@ -1210,7 +1209,7 @@ export default function TripsPage() {
 
                         <div className="mt-3 flex items-center justify-center gap-6 text-xs">
                           <div className="flex items-center gap-2 text-green-600">
-                            <CircleCheckBig size={18} />
+                            <CircleCheck size={18} />
                             <span>
                               New: <strong>{previewResult.newTrips}</strong>
                             </span>

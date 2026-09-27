@@ -37,7 +37,7 @@ import {
   Route,
   X,
   MoreVertical,
-  CheckCircle,
+  CircleCheck,
   AlertCircle,
   HelpCircle,
   CheckCheck,
@@ -1037,7 +1037,7 @@ export default function TripTable({
         const getIcon = () => {
           if (status === "Verified")
             return (
-              <CheckCircle
+              <CircleCheck
                 size={14}
                 className="text-blue-600 dark:text-blue-400"
               />
@@ -1083,7 +1083,7 @@ export default function TripTable({
                           onVerificationChange?.(r._id, "Verified")
                         }
                       >
-                        <CheckCircle
+                        <CircleCheck
                           size={14}
                           className="mr-2 text-blue-600 dark:text-blue-400"
                         />
