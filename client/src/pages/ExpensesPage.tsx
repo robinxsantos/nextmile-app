@@ -3,8 +3,6 @@ import { Navigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAppStore, type ExpenseRow } from "../store/useAppStore";
 import { useAuthStore } from "../store/useAuthStore";
-import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
-import FilterBar from "../components/shared/FilterBar";
 import {
   Dialog,
   DialogContent,
@@ -18,18 +16,17 @@ import {
   Pencil,
   Trash2,
   AlertTriangle,
-  Coins,
   Check,
   ChevronsUpDown,
   ArrowUp,
   ArrowDown,
   ArrowUpDown,
+  ReceiptText,
+  Calendar as CalendarIcon,
 } from "lucide-react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import Pagination from "../components/shared/Pagination";
-import CreatableSelect from "react-select/creatable";
-import { getSelectStyles } from "../lib/selectStyles";
 import EmptyState from "../components/shared/EmptyState";
 import { getExpenseBreakdown } from "../lib/expenseSummary";
 import {
@@ -54,7 +51,6 @@ import {
 } from "@/components/ui/command";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
-import { Calendar as CalendarIcon } from "lucide-react";
 
 const DEFAULT_CATEGORIES = [
   "FUEL",
@@ -70,10 +66,27 @@ function isReimbursableCategory(category?: string) {
   return REIMBURSABLE_CATEGORIES.has((category || "").trim().toUpperCase());
 }
 
+const MONTH_OPTIONS = [
+  { value: "ALL", label: "All Months" },
+  { value: "1", label: "January" },
+  { value: "2", label: "February" },
+  { value: "3", label: "March" },
+  { value: "4", label: "April" },
+  { value: "5", label: "May" },
+  { value: "6", label: "June" },
+  { value: "7", label: "July" },
+  { value: "8", label: "August" },
+  { value: "9", label: "September" },
+  { value: "10", label: "October" },
+  { value: "11", label: "November" },
+  { value: "12", label: "December" },
+];
+
 export default function ExpensesPage() {
   const {
     expenseRows,
     selectedTruck,
+    setSelectedTruck,
     truckOptions,
     expensesMonth,
     setExpensesMonth,
@@ -85,7 +98,6 @@ export default function ExpensesPage() {
     deleteExpense,
     toggleExpenseReimbursed,
     expenseCategories,
-    theme,
   } = useAppStore();
   const { user } = useAuthStore();
 
@@ -108,15 +120,17 @@ export default function ExpensesPage() {
   });
   const [categoryFilter, setCategoryFilter] = useState<string>("ALL");
   const [openCategory, setOpenCategory] = useState(false);
+  const [openTruck, setOpenTruck] = useState(false);
+  const [openMonth, setOpenMonth] = useState(false);
+
+  const [openFormCategory, setOpenFormCategory] = useState(false);
+  const [formCategorySearch, setFormCategorySearch] = useState("");
   const [form, setForm] = useState({
     date: toInputDate(new Date()),
     category: "",
     amount: "",
     description: "",
   });
-
-  const isDark = theme === "dark";
-  const selectStyles = getSelectStyles(isDark);
 
   useEffect(() => {
     if (canManageExpenses) {
@@ -135,7 +149,7 @@ export default function ExpensesPage() {
     if (canManageExpenses) {
       fetchExpenses();
     }
-  }, [fetchExpenses, expensesMonth, canManageExpenses]);
+  }, [fetchExpenses, expensesMonth, selectedTruck, canManageExpenses]);
 
   useEffect(() => {
     if (canManageExpenses) {
@@ -194,12 +208,9 @@ export default function ExpensesPage() {
       amount: "",
       description: "",
     });
+    setFormCategorySearch("");
     setExpenseModal(true);
   };
-
-  useKeyboardShortcuts({
-    onNewExpense: canManageExpenses ? openAdd : undefined,
-  });
 
   const openEdit = (row: ExpenseRow) => {
     setEditRow(row);
@@ -209,6 +220,7 @@ export default function ExpensesPage() {
       amount: String(row.amount),
       description: row.description,
     });
+    setFormCategorySearch("");
     setExpenseModal(true);
   };
 
@@ -255,7 +267,7 @@ export default function ExpensesPage() {
   };
 
   const inputClass =
-    "w-full min-h-[44px] rounded-[14px] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 px-3.5 text-sm focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10 outline-none transition-colors";
+    "w-full min-h-[44px] rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 px-3.5 text-xs focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10 outline-none transition-colors";
 
   if (!canManageExpenses) {
     return <Navigate to="/trips" replace />;
@@ -374,110 +386,269 @@ export default function ExpensesPage() {
   return (
     <div>
       <div className="mb-4">
-        <div className="flex flex-col md:flex-row justify-between md:items-end gap-3">
+        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
             <h1 className="text-[20px] font-semibold tracking-[-0.03em]">
               {pageTitle}
             </h1>
           </div>
+
+          <button
+            type="button"
+            onClick={openAdd}
+            className="h-10 px-4 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition flex items-center gap-2"
+          >
+            <Plus size={18} />
+            Add Expense
+          </button>
         </div>
       </div>
 
-      <FilterBar
-        showRange={false}
-        showTruck={false}
-        showMonth
-        monthValue={expensesMonth}
-        onMonthChange={setExpensesMonth}
-        actions={
-          <div className="flex items-center gap-2">
-            {/* ✅ ADD BUTTON */}
-            <button
-              onClick={openAdd}
-              className="h-10 px-4 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition flex items-center gap-2"
-            >
-              <Plus size={18} /> Add Expense
-            </button>
-          </div>
-        }
-      />
-
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-3 mt-4">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-3">
         {/* Table */}
         <div className="border rounded-lg bg-background overflow-hidden">
-          <div className="p-3.5 pb-2 flex items-start justify-between gap-3">
-            {/* LEFT SIDE */}
-            <div>
-              <h2 className="text-sm font-semibold">Expense Records</h2>
-              <p className="text-xs text-muted-foreground">
-                Operational costs and maintenance logs
-              </p>
+          <div className="p-3.5 border-b border-border">
+            <h2 className="text-sm font-semibold">Expense Records</h2>
+
+            <p className="text-xs text-muted-foreground">
+              Operational costs and maintenance logs
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-end gap-2 border-b border-border bg-background px-3.5 py-3">
+            {/* TRUCK */}
+            <div className="min-w-[180px] flex-1 max-w-[240px]">
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                Truck
+              </label>
+
+              <Popover open={openTruck} onOpenChange={setOpenTruck}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    role="combobox"
+                    className="h-9 w-full rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    <span className="truncate">
+                      {truckOptions.find((t) => t._id === selectedTruck)
+                        ?.truckName || "All Trucks"}
+                    </span>
+
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </button>
+                </PopoverTrigger>
+
+                <PopoverContent className="w-[220px] p-0" align="start">
+                  <Command>
+                    <CommandInput
+                      placeholder="Search truck..."
+                      className="text-xs"
+                    />
+
+                    <CommandEmpty className="text-xs">
+                      No truck found.
+                    </CommandEmpty>
+
+                    <CommandGroup>
+                      <CommandItem
+                        value="All Trucks"
+                        className="text-xs"
+                        onSelect={() => {
+                          setSelectedTruck("");
+                          setOpenTruck(false);
+                        }}
+                      >
+                        <Check
+                          className={`mr-2 h-4 w-4 ${
+                            !selectedTruck ? "opacity-100" : "opacity-0"
+                          }`}
+                        />
+                        All Trucks
+                      </CommandItem>
+
+                      {truckOptions.map((truck) => (
+                        <CommandItem
+                          key={truck._id}
+                          value={truck.truckName}
+                          className="text-xs"
+                          onSelect={() => {
+                            setSelectedTruck(truck._id);
+                            setOpenTruck(false);
+                          }}
+                        >
+                          <Check
+                            className={`mr-2 h-4 w-4 ${
+                              selectedTruck === truck._id
+                                ? "opacity-100"
+                                : "opacity-0"
+                            }`}
+                          />
+
+                          {truck.truckName}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
 
-            {/* RIGHT SIDE — DITO MO ILALAGAY */}
-            <Popover open={openCategory} onOpenChange={setOpenCategory}>
-              <PopoverTrigger asChild>
-                <button
-                  role="combobox"
-                  className="h-10 w-[200px] justify-between rounded-md border border-border bg-background px-3 text-xs flex items-center"
-                >
-                  {categoryFilter === "ALL" ? "All Categories" : categoryFilter}
-                  <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
-                </button>
-              </PopoverTrigger>
+            {/* RANGE */}
+            <div className="min-w-[180px] flex-1 max-w-[220px]">
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                Range
+              </label>
 
-              <PopoverContent className="w-[200px] p-0">
-                <Command>
-                  <CommandInput
-                    className="text-xs"
-                    placeholder="Search category..."
-                  />
-                  <CommandEmpty>No category found.</CommandEmpty>
+              <Popover open={openMonth} onOpenChange={setOpenMonth}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    role="combobox"
+                    className="h-9 w-full rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    <span className="truncate">
+                      {MONTH_OPTIONS.find((m) => m.value === expensesMonth)
+                        ?.label || "Select month"}
+                    </span>
 
-                  <CommandGroup>
-                    <CommandItem
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </button>
+                </PopoverTrigger>
+
+                <PopoverContent className="w-[200px] p-0" align="start">
+                  <Command>
+                    <CommandInput
+                      placeholder="Search month..."
                       className="text-xs"
-                      onSelect={() => {
-                        setCategoryFilter("ALL");
-                        setOpenCategory(false);
-                      }}
-                    >
-                      <Check
-                        className={`mr-2 h-4 w-4 ${
-                          categoryFilter === "ALL" ? "opacity-100" : "opacity-0"
-                        }`}
-                      />
-                      ALL
-                    </CommandItem>
+                    />
 
-                    {categoryOptions.map((c) => (
+                    <CommandEmpty className="text-xs">
+                      No month found.
+                    </CommandEmpty>
+
+                    <CommandGroup>
+                      {MONTH_OPTIONS.map((month) => (
+                        <CommandItem
+                          key={month.value}
+                          value={month.label}
+                          className="text-xs"
+                          onSelect={() => {
+                            setExpensesMonth(month.value);
+                            setOpenMonth(false);
+                          }}
+                        >
+                          <Check
+                            className={`mr-2 h-4 w-4 ${
+                              expensesMonth === month.value
+                                ? "opacity-100"
+                                : "opacity-0"
+                            }`}
+                          />
+
+                          {month.label}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {/* CATEGORY */}
+            <div className="min-w-[180px] flex-1 max-w-[220px]">
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                Category
+              </label>
+
+              <Popover open={openCategory} onOpenChange={setOpenCategory}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    role="combobox"
+                    className="h-9 w-full rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    <span className="truncate">
+                      {categoryFilter === "ALL"
+                        ? "All Categories"
+                        : categoryFilter}
+                    </span>
+
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </button>
+                </PopoverTrigger>
+
+                <PopoverContent className="w-[220px] p-0" align="start">
+                  <Command>
+                    <CommandInput
+                      className="text-xs"
+                      placeholder="Search category..."
+                    />
+
+                    <CommandEmpty className="text-xs">
+                      No category found.
+                    </CommandEmpty>
+
+                    <CommandGroup>
                       <CommandItem
+                        value="All Categories"
                         className="text-xs"
-                        key={c.value}
-                        value={c.label}
                         onSelect={() => {
-                          setCategoryFilter(c.value);
+                          setCategoryFilter("ALL");
                           setOpenCategory(false);
                         }}
                       >
                         <Check
                           className={`mr-2 h-4 w-4 ${
-                            categoryFilter === c.value
+                            categoryFilter === "ALL"
                               ? "opacity-100"
                               : "opacity-0"
                           }`}
                         />
-                        {c.label}
+                        All Categories
                       </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </Command>
-              </PopoverContent>
-            </Popover>
+
+                      {categoryOptions.map((category) => (
+                        <CommandItem
+                          key={category.value}
+                          value={category.label}
+                          className="text-xs"
+                          onSelect={() => {
+                            setCategoryFilter(category.value);
+                            setOpenCategory(false);
+                          }}
+                        >
+                          <Check
+                            className={`mr-2 h-4 w-4 ${
+                              categoryFilter === category.value
+                                ? "opacity-100"
+                                : "opacity-0"
+                            }`}
+                          />
+
+                          {category.label}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {/* CLEAR */}
+            <button
+              type="button"
+              onClick={() => {
+                setExpensesMonth("ALL");
+                setCategoryFilter("ALL");
+              }}
+              disabled={expensesMonth === "ALL" && categoryFilter === "ALL"}
+              className="h-9 px-3 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:pointer-events-none"
+            >
+              Clear Filters
+            </button>
           </div>
 
           {/* Desktop Table */}
-
           <table
             className={cn("w-full text-sm border-separate border-spacing-0")}
           >
@@ -489,9 +660,12 @@ export default function ExpensesPage() {
                       key={header.id}
                       className={cn(
                         "sticky top-0 z-20 bg-muted/60 backdrop-blur border-b border-border text-xs font-semibold text-muted-foreground px-3 py-3 whitespace-nowrap",
-                        header.column.id === "reimbursed"
-                          ? "text-center"
-                          : "text-left",
+                        header.column.id === "amount"
+                          ? "text-right pr-8"
+                          : header.column.id === "reimbursed" ||
+                              header.column.id === "actions"
+                            ? "text-center"
+                            : "text-left",
                       )}
                     >
                       {header.isPlaceholder ? null : (
@@ -502,10 +676,12 @@ export default function ExpensesPage() {
                           }}
                           className={cn(
                             "flex items-center gap-1 cursor-pointer select-none",
-                            header.column.id === "reimbursed" ||
-                              header.column.id === "actions"
-                              ? "justify-center"
-                              : "justify-start",
+                            header.column.id === "amount"
+                              ? "justify-end"
+                              : header.column.id === "reimbursed" ||
+                                  header.column.id === "actions"
+                                ? "justify-center"
+                                : "justify-start",
                           )}
                         >
                           {typeof header.column.columnDef.header === "function"
@@ -540,20 +716,47 @@ export default function ExpensesPage() {
             </thead>
 
             <tbody className="bg-background">
-              {table.getPaginationRowModel().rows.map((row) => (
-                <tr
-                  key={row.id}
-                  className="hover:bg-muted/50 transition-colors"
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <td className="text-left text-xs px-3 py-2.5 border-b border-border">
-                      {typeof cell.column.columnDef.cell === "function"
-                        ? cell.column.columnDef.cell(cell.getContext())
-                        : cell.getValue()}
-                    </td>
-                  ))}
+              {table.getPaginationRowModel().rows.length === 0 ? (
+                <tr>
+                  <td colSpan={columns.length}>
+                    <EmptyState
+                      icon={ReceiptText}
+                      title="No expenses found"
+                      description={
+                        selectedTruck
+                          ? `No expenses recorded for ${selectedTruckName || "this truck"} with the current filters.`
+                          : "No expense records match your current filters."
+                      }
+                    />
+                  </td>
                 </tr>
-              ))}
+              ) : (
+                table.getPaginationRowModel().rows.map((row) => (
+                  <tr
+                    key={row.id}
+                    className="hover:bg-muted/50 transition-colors"
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <td
+                        key={cell.id}
+                        className={cn(
+                          "text-xs px-3 py-2.5 border-b border-border",
+                          cell.column.id === "amount"
+                            ? "text-right tabular-nums pr-8"
+                            : cell.column.id === "reimbursed" ||
+                                cell.column.id === "actions"
+                              ? "text-center"
+                              : "text-left",
+                        )}
+                      >
+                        {typeof cell.column.columnDef.cell === "function"
+                          ? cell.column.columnDef.cell(cell.getContext())
+                          : cell.getValue()}
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
 
@@ -572,9 +775,13 @@ export default function ExpensesPage() {
           <div className="flex flex-col gap-3 md:hidden p-3 border-t border-slate-200/60 dark:border-slate-700/60">
             {table.getPaginationRowModel().rows.length === 0 ? (
               <EmptyState
-                icon={Coins}
+                icon={ReceiptText}
                 title="No expenses found"
-                description="No expenses available."
+                description={
+                  selectedTruck
+                    ? `No expenses recorded for ${selectedTruckName || "this truck"} with the current filters.`
+                    : "No expense records match your current filters."
+                }
               />
             ) : (
               table.getPaginationRowModel().rows.map((row) => {
@@ -726,7 +933,7 @@ export default function ExpensesPage() {
             <DialogTitle>
               {editRow
                 ? `Edit Expense - ${selectedTruckName || "Truck"} - ${editRow.dateText}`
-                : "Add Expense"}
+                : `Add Expense - ${selectedTruckName}`}
             </DialogTitle>
           </DialogHeader>
 
@@ -739,7 +946,7 @@ export default function ExpensesPage() {
                 <PopoverTrigger asChild>
                   <button
                     className={cn(
-                      "w-full h-[44px] justify-between rounded-md border border-border bg-background px-3 text-sm flex items-center",
+                      "w-full h-[44px] justify-between rounded-md border border-border bg-background px-3 text-xs flex items-center",
                       !form.date && "text-muted-foreground",
                     )}
                   >
@@ -774,19 +981,118 @@ export default function ExpensesPage() {
               <label className="text-xs font-semibold mb-1 block">
                 Category
               </label>
-              <CreatableSelect
-                options={categoryOptions}
-                value={
-                  form.category
-                    ? { value: form.category, label: form.category }
-                    : null
-                }
-                onChange={(opt) =>
-                  setForm({ ...form, category: opt?.value || "" })
-                }
-                onCreateOption={(val) => setForm({ ...form, category: val })}
-                styles={selectStyles}
-              />
+
+              <Popover
+                open={openFormCategory}
+                onOpenChange={(open) => {
+                  setOpenFormCategory(open);
+
+                  if (!open) {
+                    setFormCategorySearch("");
+                  }
+                }}
+              >
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    role="combobox"
+                    className={cn(
+                      "w-full h-[44px] justify-between rounded-md border border-border bg-background px-3 text-xs flex items-center outline-none focus:ring-2 focus:ring-ring",
+                      !form.category && "text-muted-foreground",
+                    )}
+                  >
+                    <span className="truncate">
+                      {form.category || "Select/Create category..."}
+                    </span>
+
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </button>
+                </PopoverTrigger>
+
+                <PopoverContent
+                  className="w-[var(--radix-popover-trigger-width)] p-0"
+                  align="start"
+                >
+                  <Command shouldFilter={false}>
+                    <CommandInput
+                      placeholder="Search or create category..."
+                      value={formCategorySearch}
+                      onValueChange={setFormCategorySearch}
+                      className="text-xs"
+                    />
+
+                    <CommandGroup>
+                      {categoryOptions
+                        .filter((category) =>
+                          category.label
+                            .toLowerCase()
+                            .includes(formCategorySearch.trim().toLowerCase()),
+                        )
+                        .map((category) => (
+                          <CommandItem
+                            key={category.value}
+                            value={category.label}
+                            className="text-xs"
+                            onSelect={() => {
+                              setForm({
+                                ...form,
+                                category: category.value,
+                              });
+
+                              setFormCategorySearch("");
+                              setOpenFormCategory(false);
+                            }}
+                          >
+                            <Check
+                              className={`mr-2 h-4 w-4 ${
+                                form.category === category.value
+                                  ? "opacity-100"
+                                  : "opacity-0"
+                              }`}
+                            />
+
+                            {category.label}
+                          </CommandItem>
+                        ))}
+
+                      {formCategorySearch.trim() &&
+                        !categoryOptions.some(
+                          (category) =>
+                            category.label.toLowerCase() ===
+                            formCategorySearch.trim().toLowerCase(),
+                        ) && (
+                          <CommandItem
+                            value={`create-${formCategorySearch}`}
+                            className="text-xs"
+                            onSelect={() => {
+                              const newCategory = formCategorySearch
+                                .trim()
+                                .toUpperCase();
+
+                              setForm({
+                                ...form,
+                                category: newCategory,
+                              });
+
+                              setFormCategorySearch("");
+                              setOpenFormCategory(false);
+                            }}
+                          >
+                            <Plus className="mr-2 h-4 w-4" />
+                            Create "{formCategorySearch.trim()}"
+                          </CommandItem>
+                        )}
+
+                      {!formCategorySearch.trim() &&
+                        categoryOptions.length === 0 && (
+                          <CommandEmpty className="text-xs">
+                            No categories found.
+                          </CommandEmpty>
+                        )}
+                    </CommandGroup>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div>
@@ -880,7 +1186,7 @@ export default function ExpensesPage() {
             </div>
 
             <p className="text-sm text-muted-foreground">
-              Choose a truck from the Dashboard filter bar.
+              Choose a truck from the Truck filter before adding an expense.
             </p>
           </div>
 

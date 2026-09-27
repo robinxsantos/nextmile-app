@@ -13,6 +13,7 @@ import {
   CalendarDays,
   ChevronsUpDown,
   CheckCheck,
+  Check,
 } from "lucide-react";
 import type { DateRange } from "react-day-picker";
 import { Calendar } from "@/components/ui/calendar";
@@ -23,6 +24,13 @@ import {
 } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { AnimatePresence, motion } from "framer-motion";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from "@/components/ui/command";
 
 type CollectionTrip = {
   _id: string;
@@ -57,7 +65,8 @@ type CollectionRow = {
 };
 
 export default function CollectionsPage() {
-  const { selectedTruck, truckOptions, initApp } = useAppStore();
+  const { selectedTruck, setSelectedTruck, truckOptions, initApp } =
+    useAppStore();
 
   const [trips, setTrips] = useState<TripRow[]>([]);
   const [collections, setCollections] = useState<CollectionRow[]>([]);
@@ -67,11 +76,14 @@ export default function CollectionsPage() {
   const [collectionFilter, setCollectionFilter] = useState<
     "ALL" | "Collected" | "Pending"
   >("ALL");
+  const [openCollectionFilter, setOpenCollectionFilter] = useState(false);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [openDateRange, setOpenDateRange] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyPageSize, setHistoryPageSize] = useState(10);
   const [showCollectModal, setShowCollectModal] = useState(false);
   const [viewCollection, setViewCollection] = useState<CollectionRow | null>(
     null,
@@ -80,6 +92,7 @@ export default function CollectionsPage() {
     null,
   );
   const [savingEditCollection, setSavingEditCollection] = useState(false);
+  const [openTruck, setOpenTruck] = useState(false);
 
   const [editCollectionDate, setEditCollectionDate] = useState("");
   const [editCoverageStartDate, setEditCoverageStartDate] = useState("");
@@ -249,6 +262,28 @@ export default function CollectionsPage() {
 
     return filteredTrips.slice(start, end);
   }, [filteredTrips, currentPage, pageSize]);
+
+  const totalHistoryPages = Math.max(
+    1,
+    Math.ceil(collections.length / historyPageSize),
+  );
+
+  const paginatedCollections = useMemo(() => {
+    const start = (historyPage - 1) * historyPageSize;
+    const end = start + historyPageSize;
+
+    return collections.slice(start, end);
+  }, [collections, historyPage, historyPageSize]);
+
+  useEffect(() => {
+    setHistoryPage(1);
+  }, [selectedTruck]);
+
+  useEffect(() => {
+    if (historyPage > totalHistoryPages) {
+      setHistoryPage(totalHistoryPages);
+    }
+  }, [historyPage, totalHistoryPages]);
 
   const selectableTrips = useMemo(() => {
     return paginatedTrips.filter((trip) => !collectedTripIds.has(trip._id));
@@ -683,24 +718,140 @@ export default function CollectionsPage() {
             </div>
           </div>
 
-          <div>
+          {/* TRUCK */}
+          <div className="min-w-[160px]">
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">
+              Truck
+            </label>
+
+            <Popover open={openTruck} onOpenChange={setOpenTruck}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  role="combobox"
+                  className="h-9 w-full rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between outline-none focus:ring-2 focus:ring-ring"
+                >
+                  <span className="truncate">
+                    {truckOptions.find((truck) => truck._id === selectedTruck)
+                      ?.truckName || "All Trucks"}
+                  </span>
+
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </button>
+              </PopoverTrigger>
+
+              <PopoverContent className="w-[220px] p-0" align="start">
+                <Command>
+                  <CommandInput
+                    placeholder="Search truck..."
+                    className="text-xs"
+                  />
+
+                  <CommandEmpty className="text-xs">
+                    No truck found.
+                  </CommandEmpty>
+
+                  <CommandGroup>
+                    <CommandItem
+                      value="All Trucks"
+                      className="text-xs"
+                      onSelect={() => {
+                        setSelectedTruck("");
+                        setOpenTruck(false);
+                      }}
+                    >
+                      <Check
+                        className={`mr-2 h-4 w-4 ${
+                          !selectedTruck ? "opacity-100" : "opacity-0"
+                        }`}
+                      />
+                      All Trucks
+                    </CommandItem>
+
+                    {truckOptions.map((truck) => (
+                      <CommandItem
+                        key={truck._id}
+                        value={truck.truckName}
+                        className="text-xs"
+                        onSelect={() => {
+                          setSelectedTruck(truck._id);
+                          setOpenTruck(false);
+                        }}
+                      >
+                        <Check
+                          className={`mr-2 h-4 w-4 ${
+                            selectedTruck === truck._id
+                              ? "opacity-100"
+                              : "opacity-0"
+                          }`}
+                        />
+
+                        {truck.truckName}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          <div className="min-w-[120px]">
             <label className="text-xs font-medium text-muted-foreground mb-1 block">
               Collection
             </label>
 
-            <select
-              value={collectionFilter}
-              onChange={(e) =>
-                setCollectionFilter(
-                  e.target.value as "ALL" | "Collected" | "Pending",
-                )
-              }
-              className="h-9 rounded-md border border-border bg-background px-3 text-xs outline-none focus:ring-2 focus:ring-ring"
+            <Popover
+              open={openCollectionFilter}
+              onOpenChange={setOpenCollectionFilter}
             >
-              <option value="ALL">All</option>
-              <option value="Pending">Pending</option>
-              <option value="Collected">Collected</option>
-            </select>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  role="combobox"
+                  className="h-9 w-full rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between outline-none focus:ring-2 focus:ring-ring"
+                >
+                  <span>
+                    {collectionFilter === "ALL" ? "All" : collectionFilter}
+                  </span>
+
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </button>
+              </PopoverTrigger>
+
+              <PopoverContent className="w-[150px] p-0" align="start">
+                <Command>
+                  <CommandGroup>
+                    {[
+                      ["ALL", "All"],
+                      ["Pending", "Pending"],
+                      ["Collected", "Collected"],
+                    ].map(([value, label]) => (
+                      <CommandItem
+                        key={value}
+                        value={label}
+                        className="text-xs"
+                        onSelect={() => {
+                          setCollectionFilter(
+                            value as "ALL" | "Collected" | "Pending",
+                          );
+                          setOpenCollectionFilter(false);
+                        }}
+                      >
+                        <Check
+                          className={`mr-2 h-4 w-4 ${
+                            collectionFilter === value
+                              ? "opacity-100"
+                              : "opacity-0"
+                          }`}
+                        />
+
+                        {label}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
 
           <div className="min-w-[260px] flex-1 max-w-[320px]">
@@ -1143,13 +1294,13 @@ export default function CollectionsPage() {
                 <tr>
                   <td
                     colSpan={9}
-                    className="px-4 py-8 text-center text-sm text-muted-foreground"
+                    className="px-4 py-8 text-center text-xs text-muted-foreground"
                   >
                     No collection history yet.
                   </td>
                 </tr>
               ) : (
-                collections.map((collection) => (
+                paginatedCollections.map((collection) => (
                   <tr
                     key={collection._id}
                     className="hover:bg-muted/50 transition-colors"
@@ -1224,6 +1375,22 @@ export default function CollectionsPage() {
             </tbody>
           </table>
         </div>
+
+        {collections.length > 0 && (
+          <div className="border-t border-border flex items-center justify-center">
+            <Pagination
+              currentPage={historyPage}
+              totalPages={totalHistoryPages}
+              totalItems={collections.length}
+              pageSize={historyPageSize}
+              onPageChange={setHistoryPage}
+              onPageSizeChange={(size) => {
+                setHistoryPageSize(size);
+                setHistoryPage(1);
+              }}
+            />
+          </div>
+        )}
       </div>
 
       <Modal

@@ -2,22 +2,22 @@ import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { useAppStore, type TripRow } from "../../store/useAppStore";
 import { useAuthStore } from "../../store/useAuthStore";
-import { ClipboardCopy } from "lucide-react";
+import {
+  ClipboardCopy,
+  CalendarDays,
+  ChevronsUpDown,
+  Check,
+  TruckElectric,
+  BedDouble,
+  TentTree,
+} from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
   PopoverTrigger,
   PopoverContent,
 } from "@/components/ui/popover";
-import { CalendarDays } from "lucide-react";
 import { format } from "date-fns";
-import {
-  Select as UiSelect,
-  SelectTrigger,
-  SelectContent,
-  SelectItem,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -25,6 +25,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Command, CommandGroup, CommandItem } from "@/components/ui/command";
 
 interface TripModalProps {
   open: boolean;
@@ -34,9 +35,21 @@ interface TripModalProps {
 }
 
 const STATUS_OPTIONS = [
-  { value: "Working Day", label: "🟢 Working Day" },
-  { value: "Day Off", label: "⚪ Day Off" },
-  { value: "Holiday", label: "🟡 Holiday" },
+  {
+    value: "Working Day",
+    label: "Working Day",
+    icon: TruckElectric,
+  },
+  {
+    value: "Day Off",
+    label: "Day Off",
+    icon: BedDouble,
+  },
+  {
+    value: "Holiday",
+    label: "Holiday",
+    icon: TentTree,
+  },
 ];
 
 function toLocalDateString(d: Date): string {
@@ -99,6 +112,7 @@ export default function TripModal({
   });
 
   const [openDate, setOpenDate] = useState(false);
+  const [openStatus, setOpenStatus] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(form.date);
 
   const prefillFromTrip = (src: TripRow, useToday = true) => {
@@ -253,7 +267,7 @@ export default function TripModal({
     truckOptions.find((t) => t._id === selectedTruck)?.truckName ||
     "Selected Truck";
   const inputClass =
-    "w-full h-11 rounded-md border border-border bg-background px-3 text-sm focus:ring-2 focus:ring-ring focus:border-ring outline-none transition-colors";
+    "w-full h-11 rounded-md border border-border bg-background px-3 text-xs focus:ring-2 focus:ring-ring focus:border-ring outline-none transition-colors";
 
   const modalTitle = editRow
     ? `Edit Trip - ${selectedTruckName} - ${editRow.dateText}`
@@ -331,21 +345,85 @@ export default function TripModal({
             <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
               Status
             </label>
-            <UiSelect
-              value={form.status}
-              onValueChange={(val) => setForm({ ...form, status: val })}
-            >
-              <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {STATUS_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </UiSelect>
+
+            <Popover open={openStatus} onOpenChange={setOpenStatus}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  role="combobox"
+                  className="w-full h-11 rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between outline-none focus:ring-2 focus:ring-ring"
+                >
+                  <div className="flex min-w-0 items-center gap-2">
+                    {(() => {
+                      const selectedStatus = STATUS_OPTIONS.find(
+                        (opt) => opt.value === form.status,
+                      );
+
+                      if (!selectedStatus) {
+                        return (
+                          <span className="truncate text-muted-foreground">
+                            Select status
+                          </span>
+                        );
+                      }
+
+                      const Icon = selectedStatus.icon;
+
+                      return (
+                        <>
+                          <Icon className="h-4 w-4 shrink-0" />
+                          <span className="truncate">
+                            {selectedStatus.label}
+                          </span>
+                        </>
+                      );
+                    })()}
+                  </div>
+
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </button>
+              </PopoverTrigger>
+
+              <PopoverContent
+                className="w-[var(--radix-popover-trigger-width)] p-0"
+                align="start"
+              >
+                <Command>
+                  <CommandGroup>
+                    {STATUS_OPTIONS.map((opt) => {
+                      const Icon = opt.icon;
+
+                      return (
+                        <CommandItem
+                          key={opt.value}
+                          value={opt.label}
+                          className="text-xs"
+                          onSelect={() => {
+                            setForm({
+                              ...form,
+                              status: opt.value,
+                            });
+
+                            setOpenStatus(false);
+                          }}
+                        >
+                          <Check
+                            className={`mr-2 h-4 w-4 ${
+                              form.status === opt.value
+                                ? "opacity-100"
+                                : "opacity-0"
+                            }`}
+                          />
+
+                          <Icon className="mr-2 h-4 w-4" />
+                          {opt.label}
+                        </CommandItem>
+                      );
+                    })}
+                  </CommandGroup>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
 
           {/* SHIPMENT */}

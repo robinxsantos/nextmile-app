@@ -5,9 +5,13 @@ import {
   ChevronsRight,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
-import Select from "react-select";
-import { useAppStore } from "../../store/useAppStore";
-import { getMiniSelectStyles } from "../../lib/selectStyles";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface PaginationProps {
   currentPage: number;
@@ -33,10 +37,6 @@ export default function Pagination({
   onPageChange,
   onPageSizeChange,
 }: PaginationProps) {
-  const { theme } = useAppStore();
-  const isDark = theme === "dark";
-  const miniStyles = getMiniSelectStyles(isDark);
-
   if (totalItems === 0) return null;
 
   const startItem = (currentPage - 1) * pageSize + 1;
@@ -83,23 +83,25 @@ export default function Pagination({
         {onPageSizeChange && (
           <div className="min-w-[120px]">
             <Select
-              options={PAGE_SIZE_OPTIONS}
-              value={PAGE_SIZE_OPTIONS.find((o) => o.value === pageSize)}
-              onChange={(opt) => {
-                if (opt) onPageSizeChange(opt.value);
-              }}
-              styles={{
-                ...miniStyles,
-                menuPortal: (base: Record<string, unknown>) => ({
-                  ...base,
-                  zIndex: 9999,
-                }),
-              }}
-              isSearchable={false}
-              menuPortalTarget={document.body}
-              classNamePrefix="nm-select"
-              menuPlacement="top"
-            />
+              value={String(pageSize)}
+              onValueChange={(value) => onPageSizeChange(Number(value))}
+            >
+              <SelectTrigger className="h-9 w-[120px] rounded-md px-3 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+
+              <SelectContent position="popper" side="top" align="start">
+                {PAGE_SIZE_OPTIONS.map((option) => (
+                  <SelectItem
+                    key={option.value}
+                    value={String(option.value)}
+                    className="text-xs"
+                  >
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         )}
       </div>

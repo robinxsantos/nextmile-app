@@ -25,7 +25,7 @@ export const getSelectStyles = (isDark: boolean) => ({
   }),
   menu: (base: Record<string, unknown>) => ({
     ...base,
-    borderRadius: "14px",
+    borderRadius: "6px",
     overflow: "hidden",
     boxShadow: isDark
       ? "0 12px 40px rgba(0,0,0,0.3)"
@@ -43,7 +43,7 @@ export const getSelectStyles = (isDark: boolean) => ({
     state: { isSelected: boolean; isFocused: boolean },
   ) => ({
     ...base,
-    borderRadius: "10px",
+    borderRadius: "4px",
     padding: "10px 12px",
     fontSize: "0.875rem",
     fontWeight: state.isSelected ? 600 : 400,
@@ -112,7 +112,7 @@ export const getMiniSelectStyles = (isDark: boolean) => ({
   }),
   menu: (base: Record<string, unknown>) => ({
     ...base,
-    borderRadius: "12px",
+    borderRadius: "6px",
     overflow: "hidden",
     boxShadow: isDark
       ? "0 8px 24px rgba(0,0,0,0.25)"

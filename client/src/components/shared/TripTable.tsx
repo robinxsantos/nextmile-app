@@ -1306,7 +1306,7 @@ export default function TripTable({
                 {effectivePaid ? (
                   <>
                     <X size={12} />
-                    Set as Unsettled
+                    Unsettled
                   </>
                 ) : (
                   <>

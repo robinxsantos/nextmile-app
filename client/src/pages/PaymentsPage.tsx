@@ -11,6 +11,9 @@ import {
   Eye,
   AlertTriangle,
   Pencil,
+  Check,
+  ChevronsUpDown,
+  Search,
 } from "lucide-react";
 import Modal from "../components/shared/Modal";
 import { Calendar } from "@/components/ui/calendar";
@@ -22,12 +25,15 @@ import {
 import { format } from "date-fns";
 import { CalendarDays } from "lucide-react";
 import {
-  Select as UiSelect,
-  SelectTrigger,
-  SelectContent,
-  SelectItem,
-  SelectValue,
-} from "@/components/ui/select";
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from "@/components/ui/command";
+import type { DateRange } from "react-day-picker";
+import Pagination from "../components/shared/Pagination";
+import EmptyState from "../components/shared/EmptyState";
 
 type Option = {
   value: string;
@@ -66,7 +72,8 @@ const METHOD_OPTIONS: Option[] = [
 ];
 
 export default function PaymentsPage() {
-  const { truckOptions, selectedTruck, initApp } = useAppStore();
+  const { truckOptions, selectedTruck, setSelectedTruck, initApp } =
+    useAppStore();
 
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -85,6 +92,10 @@ export default function PaymentsPage() {
   const [deleteModal, setDeleteModal] = useState<PaymentRow | null>(null);
   const [showTruckWarning, setShowTruckWarning] = useState(false);
   const [openDate, setOpenDate] = useState(false);
+  const [openCategory, setOpenCategory] = useState(false);
+  const [openMethod, setOpenMethod] = useState(false);
+  const [createTruck, setCreateTruck] = useState(selectedTruck || "");
+  const [openCreateTruck, setOpenCreateTruck] = useState(false);
 
   const [editPayment, setEditPayment] = useState<PaymentRow | null>(null);
   const [editFile, setEditFile] = useState<File | null>(null);
@@ -97,6 +108,23 @@ export default function PaymentsPage() {
   const [editDate, setEditDate] = useState(toInputDate(new Date()));
   const [editNote, setEditNote] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
+  const [openEditCategory, setOpenEditCategory] = useState(false);
+  const [openEditMethod, setOpenEditMethod] = useState(false);
+  const [openEditDate, setOpenEditDate] = useState(false);
+  const [editTruck, setEditTruck] = useState("");
+  const [openEditTruck, setOpenEditTruck] = useState(false);
+  const [paymentSearch, setPaymentSearch] = useState("");
+  const [paymentCategoryFilter, setPaymentCategoryFilter] = useState("ALL");
+
+  const [openPaymentTruck, setOpenPaymentTruck] = useState(false);
+  const [openPaymentCategory, setOpenPaymentCategory] = useState(false);
+  const [openPaymentPeriod, setOpenPaymentPeriod] = useState(false);
+
+  const [paymentDateRange, setPaymentDateRange] = useState<
+    DateRange | undefined
+  >(undefined);
+  const [paymentPage, setPaymentPage] = useState(1);
+  const [paymentPageSize, setPaymentPageSize] = useState(10);
 
   useEffect(() => {
     initApp();
@@ -126,6 +154,10 @@ export default function PaymentsPage() {
     fetchPayments();
   }, [fetchPayments]);
 
+  useEffect(() => {
+    setCreateTruck(selectedTruck || "");
+  }, [selectedTruck]);
+
   const selectedTruckName = truckOptions.find(
     (t) => t._id === selectedTruck,
   )?.truckName;
@@ -146,11 +178,57 @@ export default function PaymentsPage() {
     return `${editCategory} - ${editDate}.${ext}`;
   }, [editFile, editCategory, editDate]);
 
+  const filteredPayments = useMemo(() => {
+    const query = paymentSearch.trim().toLowerCase();
+
+    return payments.filter((payment) => {
+      const matchesSearch =
+        !query ||
+        payment.recipient?.toLowerCase().includes(query) ||
+        payment.category.toLowerCase().includes(query) ||
+        payment.method?.toLowerCase().includes(query) ||
+        payment.note?.toLowerCase().includes(query);
+
+      const matchesCategory =
+        paymentCategoryFilter === "ALL" ||
+        payment.category === paymentCategoryFilter;
+
+      const paymentDate = new Date(`${payment.date.slice(0, 10)}T00:00:00`);
+
+      const matchesPeriod =
+        !paymentDateRange?.from ||
+        (paymentDate >= paymentDateRange.from &&
+          (!paymentDateRange.to || paymentDate <= paymentDateRange.to));
+
+      return matchesSearch && matchesCategory && matchesPeriod;
+    });
+  }, [payments, paymentSearch, paymentCategoryFilter, paymentDateRange]);
+
+  const totalPaymentPages = Math.max(
+    1,
+    Math.ceil(filteredPayments.length / paymentPageSize),
+  );
+
+  const paginatedPayments = useMemo(() => {
+    const start = (paymentPage - 1) * paymentPageSize;
+    const end = start + paymentPageSize;
+
+    return filteredPayments.slice(start, end);
+  }, [filteredPayments, paymentPage, paymentPageSize]);
+
+  useEffect(() => {
+    setPaymentPage(1);
+  }, [paymentSearch, paymentCategoryFilter, paymentDateRange, selectedTruck]);
+
+  useEffect(() => {
+    if (paymentPage > totalPaymentPages) {
+      setPaymentPage(totalPaymentPages);
+    }
+  }, [paymentPage, totalPaymentPages]);
+
   const paymentStats = useMemo(() => {
-    const total = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
     return {
       count: payments.length,
-      total,
     };
   }, [payments]);
 
@@ -165,7 +243,10 @@ export default function PaymentsPage() {
   };
 
   const openEdit = (p: PaymentRow) => {
+    const paymentTruckId = typeof p.truck === "string" ? p.truck : p.truck._id;
+
     setEditPayment(p);
+    setEditTruck(paymentTruckId);
     setEditCategory(p.category || CATEGORY_OPTIONS[0].value);
     setEditRecipient(p.recipient || "");
     setEditAmount(String(p.amount ?? ""));
@@ -321,12 +402,12 @@ export default function PaymentsPage() {
   };
 
   const handleUpload = async () => {
-    if (!file) {
-      toast.error("Please select a file");
+    if (!createTruck) {
+      toast.error("Please select a truck");
       return;
     }
-    if (!selectedTruck) {
-      setShowTruckWarning(true);
+    if (!file) {
+      toast.error("Please select a file");
       return;
     }
     if (!recipient.trim()) {
@@ -342,7 +423,7 @@ export default function PaymentsPage() {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("truckId", selectedTruck);
+      formData.append("truckId", createTruck);
       formData.append("category", category);
       formData.append("recipient", recipient.trim());
       formData.append("amount", amount);
@@ -369,30 +450,38 @@ export default function PaymentsPage() {
 
   const handleUpdate = async () => {
     if (!editPayment) return;
-    if (!selectedTruck) {
-      setShowTruckWarning(true);
-      return;
-    }
+
     if (!editRecipient.trim()) {
       toast.error("Recipient is required");
       return;
     }
+
     if (!editAmount || Number(editAmount) <= 0) {
       toast.error("Amount is required");
       return;
     }
 
+    if (!editTruck) {
+      toast.error("Truck is required.");
+      return;
+    }
+
     setSavingEdit(true);
+
     try {
       const formData = new FormData();
-      formData.append("truckId", selectedTruck);
+
+      formData.append("truckId", editTruck);
       formData.append("category", editCategory);
       formData.append("recipient", editRecipient.trim());
       formData.append("amount", editAmount);
       formData.append("method", editMethod);
       formData.append("date", editDate);
       formData.append("note", editNote.trim());
-      if (editFile) formData.append("file", editFile);
+
+      if (editFile) {
+        formData.append("file", editFile);
+      }
 
       await api.put(`/payments/${editPayment._id}`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
@@ -406,6 +495,7 @@ export default function PaymentsPage() {
       const msg =
         (err as { response?: { data?: { error?: string } } })?.response?.data
           ?.error || "Update failed";
+
       toast.error(msg);
     } finally {
       setSavingEdit(false);
@@ -445,7 +535,7 @@ export default function PaymentsPage() {
   };
 
   const inputClass =
-    "w-full h-11 rounded-md border border-border bg-background px-3 text-sm focus:ring-2 focus:ring-ring focus:border-ring outline-none transition-colors";
+    "w-full h-11 rounded-md border border-border bg-background px-3 text-xs focus:ring-2 focus:ring-ring focus:border-ring outline-none transition-colors";
 
   return (
     <div className="space-y-3.5">
@@ -474,16 +564,86 @@ export default function PaymentsPage() {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
+            {/* TRUCK */}
+            <div>
+              <label className="text-xs font-medium text-foreground mb-1.5 block">
+                Truck
+              </label>
+
+              <Popover open={openCreateTruck} onOpenChange={setOpenCreateTruck}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    role="combobox"
+                    className="w-full h-11 rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    <span className="truncate">
+                      {truckOptions.find((truck) => truck._id === createTruck)
+                        ?.truckName || "Select truck"}
+                    </span>
+
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </button>
+                </PopoverTrigger>
+
+                <PopoverContent
+                  className="w-[var(--radix-popover-trigger-width)] p-0"
+                  align="start"
+                >
+                  <Command>
+                    <CommandInput
+                      placeholder="Search truck..."
+                      className="text-xs"
+                    />
+
+                    <CommandEmpty className="text-xs">
+                      No truck found.
+                    </CommandEmpty>
+
+                    <CommandGroup>
+                      {truckOptions.map((truck) => (
+                        <CommandItem
+                          key={truck._id}
+                          value={truck.truckName}
+                          className="text-xs"
+                          onSelect={() => {
+                            setCreateTruck(truck._id);
+                            setOpenCreateTruck(false);
+                          }}
+                        >
+                          <Check
+                            className={`mr-2 h-4 w-4 ${
+                              createTruck === truck._id
+                                ? "opacity-100"
+                                : "opacity-0"
+                            }`}
+                          />
+
+                          {truck.truckName}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {/* DATE */}
+            <div>
               <label className="text-xs font-medium text-foreground mb-1.5 block">
                 Date
               </label>
+
               <Popover open={openDate} onOpenChange={setOpenDate}>
                 <PopoverTrigger asChild>
-                  <button className="w-full h-11 px-3 flex items-center justify-between rounded-md border border-border bg-background text-xs">
+                  <button
+                    type="button"
+                    className="w-full h-11 px-3 flex items-center justify-between rounded-md border border-border bg-background text-xs"
+                  >
                     {date
                       ? format(new Date(`${date}T00:00:00`), "MMM d, yyyy")
                       : "Select date"}
+
                     <CalendarDays className="h-4 w-4 opacity-50" />
                   </button>
                 </PopoverTrigger>
@@ -508,41 +668,106 @@ export default function PaymentsPage() {
               <label className="text-xs font-medium text-foreground mb-1.5 block">
                 Category
               </label>
-              <UiSelect
-                value={category}
-                onValueChange={(val) => setCategory(val)}
-              >
-                <SelectTrigger className="w-full min-h-[44px] px-3.5 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
 
-                <SelectContent>
-                  {CATEGORY_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </UiSelect>
+              <Popover open={openCategory} onOpenChange={setOpenCategory}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    role="combobox"
+                    className="w-full h-11 rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    <span className="truncate">
+                      {CATEGORY_OPTIONS.find((opt) => opt.value === category)
+                        ?.label || "Select category"}
+                    </span>
+
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </button>
+                </PopoverTrigger>
+
+                <PopoverContent
+                  className="w-[var(--radix-popover-trigger-width)] p-0"
+                  align="start"
+                >
+                  <Command>
+                    <CommandGroup>
+                      {CATEGORY_OPTIONS.map((opt) => (
+                        <CommandItem
+                          key={opt.value}
+                          value={opt.label}
+                          className="text-xs"
+                          onSelect={() => {
+                            setCategory(opt.value);
+                            setOpenCategory(false);
+                          }}
+                        >
+                          <Check
+                            className={`mr-2 h-4 w-4 ${
+                              category === opt.value
+                                ? "opacity-100"
+                                : "opacity-0"
+                            }`}
+                          />
+
+                          {opt.label}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div>
               <label className="text-xs font-medium text-foreground mb-1.5 block">
                 Payment Method
               </label>
-              <UiSelect value={method} onValueChange={(val) => setMethod(val)}>
-                <SelectTrigger className="w-full min-h-[44px] px-3.5 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
 
-                <SelectContent>
-                  {METHOD_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </UiSelect>
+              <Popover open={openMethod} onOpenChange={setOpenMethod}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    role="combobox"
+                    className="w-full h-11 rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    <span className="truncate">
+                      {METHOD_OPTIONS.find((opt) => opt.value === method)
+                        ?.label || "Select method"}
+                    </span>
+
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </button>
+                </PopoverTrigger>
+
+                <PopoverContent
+                  className="w-[var(--radix-popover-trigger-width)] p-0"
+                  align="start"
+                >
+                  <Command>
+                    <CommandGroup>
+                      {METHOD_OPTIONS.map((opt) => (
+                        <CommandItem
+                          key={opt.value}
+                          value={opt.label}
+                          className="text-xs"
+                          onSelect={() => {
+                            setMethod(opt.value);
+                            setOpenMethod(false);
+                          }}
+                        >
+                          <Check
+                            className={`mr-2 h-4 w-4 ${
+                              method === opt.value ? "opacity-100" : "opacity-0"
+                            }`}
+                          />
+
+                          {opt.label}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div>
@@ -688,7 +913,7 @@ export default function PaymentsPage() {
         </div>
 
         <div className="border rounded-lg bg-background overflow-hidden min-w-0">
-          <div className="p-3.5 pb-2 flex items-end justify-between gap-4">
+          <div className="p-3.5 border-b border-border flex items-center justify-between gap-4">
             <div>
               <h2 className="text-sm font-semibold">Uploaded Payments</h2>
               <p className="text-xs text-muted-foreground">
@@ -697,73 +922,343 @@ export default function PaymentsPage() {
             </div>
           </div>
 
-          <div className="overflow-auto border-t border-border bg-background hidden md:block">
+          {/* FILTERS */}
+          <div className="flex flex-wrap items-end gap-2 border-b border-border bg-background px-3.5 py-3">
+            {/* SEARCH */}
+            <div className="min-w-[180px] flex-1">
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                Search
+              </label>
+
+              <div className="relative">
+                <Search
+                  size={14}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+                />
+
+                <input
+                  type="text"
+                  value={paymentSearch}
+                  onChange={(e) => setPaymentSearch(e.target.value)}
+                  placeholder="Search payments..."
+                  className="w-full h-9 rounded-md border border-border bg-background pl-9 pr-3 text-xs outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+            </div>
+
+            {/* TRUCK */}
+            <div className="min-w-[150px]">
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                Truck
+              </label>
+
+              <Popover
+                open={openPaymentTruck}
+                onOpenChange={setOpenPaymentTruck}
+              >
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    role="combobox"
+                    className="h-9 w-full rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    <span className="truncate">
+                      {truckOptions.find((truck) => truck._id === selectedTruck)
+                        ?.truckName || "All Trucks"}
+                    </span>
+
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </button>
+                </PopoverTrigger>
+
+                <PopoverContent className="w-[220px] p-0" align="start">
+                  <Command>
+                    <CommandInput
+                      placeholder="Search truck..."
+                      className="text-xs"
+                    />
+
+                    <CommandEmpty className="text-xs">
+                      No truck found.
+                    </CommandEmpty>
+
+                    <CommandGroup>
+                      <CommandItem
+                        value="All Trucks"
+                        className="text-xs"
+                        onSelect={() => {
+                          setSelectedTruck("");
+                          setOpenPaymentTruck(false);
+                        }}
+                      >
+                        <Check
+                          className={`mr-2 h-4 w-4 ${
+                            !selectedTruck ? "opacity-100" : "opacity-0"
+                          }`}
+                        />
+                        All Trucks
+                      </CommandItem>
+
+                      {truckOptions.map((truck) => (
+                        <CommandItem
+                          key={truck._id}
+                          value={truck.truckName}
+                          className="text-xs"
+                          onSelect={() => {
+                            setSelectedTruck(truck._id);
+                            setOpenPaymentTruck(false);
+                          }}
+                        >
+                          <Check
+                            className={`mr-2 h-4 w-4 ${
+                              selectedTruck === truck._id
+                                ? "opacity-100"
+                                : "opacity-0"
+                            }`}
+                          />
+
+                          {truck.truckName}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {/* CATEGORY */}
+            <div className="min-w-[150px]">
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                Category
+              </label>
+
+              <Popover
+                open={openPaymentCategory}
+                onOpenChange={setOpenPaymentCategory}
+              >
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    role="combobox"
+                    className="h-9 w-full rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    <span className="truncate">
+                      {paymentCategoryFilter === "ALL"
+                        ? "All Categories"
+                        : paymentCategoryFilter}
+                    </span>
+
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </button>
+                </PopoverTrigger>
+
+                <PopoverContent className="w-[180px] p-0" align="start">
+                  <Command>
+                    <CommandGroup>
+                      <CommandItem
+                        value="All Categories"
+                        className="text-xs"
+                        onSelect={() => {
+                          setPaymentCategoryFilter("ALL");
+                          setOpenPaymentCategory(false);
+                        }}
+                      >
+                        <Check
+                          className={`mr-2 h-4 w-4 ${
+                            paymentCategoryFilter === "ALL"
+                              ? "opacity-100"
+                              : "opacity-0"
+                          }`}
+                        />
+                        All Categories
+                      </CommandItem>
+
+                      {CATEGORY_OPTIONS.map((option) => (
+                        <CommandItem
+                          key={option.value}
+                          value={option.label}
+                          className="text-xs"
+                          onSelect={() => {
+                            setPaymentCategoryFilter(option.value);
+                            setOpenPaymentCategory(false);
+                          }}
+                        >
+                          <Check
+                            className={`mr-2 h-4 w-4 ${
+                              paymentCategoryFilter === option.value
+                                ? "opacity-100"
+                                : "opacity-0"
+                            }`}
+                          />
+
+                          {option.label}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {/* PERIOD */}
+            <div className="min-w-[220px]">
+              <label className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1">
+                <CalendarDays size={12} />
+                Period
+              </label>
+
+              <Popover
+                open={openPaymentPeriod}
+                onOpenChange={setOpenPaymentPeriod}
+              >
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="h-9 w-full rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between"
+                  >
+                    <span
+                      className={
+                        !paymentDateRange?.from ? "text-muted-foreground" : ""
+                      }
+                    >
+                      {paymentDateRange?.from && paymentDateRange?.to
+                        ? `${format(paymentDateRange.from, "MMM d, yyyy")} - ${format(
+                            paymentDateRange.to,
+                            "MMM d, yyyy",
+                          )}`
+                        : "Select date range"}
+                    </span>
+
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </button>
+                </PopoverTrigger>
+
+                <PopoverContent className="w-auto p-0" align="end">
+                  <Calendar
+                    mode="range"
+                    selected={paymentDateRange}
+                    onSelect={(range) => {
+                      setPaymentDateRange(range);
+
+                      if (
+                        range?.from &&
+                        range?.to &&
+                        range.from.getTime() !== range.to.getTime()
+                      ) {
+                        setOpenPaymentPeriod(false);
+                      }
+                    }}
+                    numberOfMonths={2}
+                    defaultMonth={paymentDateRange?.from}
+                    showOutsideDays
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {/* CLEAR */}
+            <button
+              type="button"
+              onClick={() => {
+                setPaymentSearch("");
+                setPaymentCategoryFilter("ALL");
+                setPaymentDateRange(undefined);
+              }}
+              disabled={
+                !paymentSearch &&
+                paymentCategoryFilter === "ALL" &&
+                !paymentDateRange?.from
+              }
+              className="h-9 px-3 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:pointer-events-none"
+            >
+              Clear Filters
+            </button>
+          </div>
+
+          <div className="overflow-auto bg-background hidden md:block">
             <table className="w-full text-sm">
               <thead>
                 <tr>
-                  <th className="sticky top-0 z-10 bg-muted/60 backdrop-blur border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-muted-foreground px-2.5 py-3">
+                  <th className="sticky top-0 z-10 bg-muted/60 backdrop-blur border-b border-border text-left text-xs font-semibold text-muted-foreground px-3 py-3 whitespace-nowrap">
                     Date
                   </th>
-                  <th className="sticky top-0 z-10 bg-muted/60 backdrop-blur border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-muted-foreground px-2.5 py-3">
+
+                  {!selectedTruck && (
+                    <th className="sticky top-0 z-10 bg-muted/60 backdrop-blur border-b border-border text-left text-xs font-semibold text-muted-foreground px-3 py-3 whitespace-nowrap">
+                      Truck
+                    </th>
+                  )}
+
+                  <th className="sticky top-0 z-10 bg-muted/60 backdrop-blur border-b border-border text-left text-xs font-semibold text-muted-foreground px-3 py-3 whitespace-nowrap">
                     Category
                   </th>
-                  <th className="sticky top-0 z-10 bg-muted/60 backdrop-blur border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-muted-foreground px-2.5 py-3">
-                    Recipient
-                  </th>
-                  <th className="sticky top-0 z-10 bg-muted/60 backdrop-blur border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-muted-foreground px-2.5 py-3">
+
+                  <th className="sticky top-0 z-10 bg-muted/60 backdrop-blur border-b border-border text-right text-xs font-semibold text-muted-foreground px-3 py-3 whitespace-nowrap pr-8">
                     Amount
                   </th>
-                  <th className="sticky top-0 z-10 bg-muted/60 backdrop-blur border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-muted-foreground px-2.5 py-3">
+
+                  <th className="sticky top-0 z-10 bg-muted/60 backdrop-blur border-b border-border text-left text-xs font-semibold text-muted-foreground px-3 py-3 whitespace-nowrap">
+                    Recipient
+                  </th>
+
+                  <th className="sticky top-0 z-10 bg-muted/60 backdrop-blur border-b border-border text-left text-xs font-semibold text-muted-foreground px-3 py-3 whitespace-nowrap">
                     Payment Method
                   </th>
-                  <th className="sticky top-0 z-10 bg-muted/60 backdrop-blur border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-muted-foreground px-2.5 py-3">
+
+                  <th className="sticky top-0 z-10 bg-muted/60 backdrop-blur border-b border-border text-center text-xs font-semibold text-muted-foreground px-3 py-3 whitespace-nowrap">
                     Proof
                   </th>
-                  <th className="sticky top-0 z-10 bg-muted/60 backdrop-blur border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-muted-foreground px-2.5 py-3">
+
+                  <th className="sticky top-0 z-10 bg-muted/60 backdrop-blur border-b border-border text-center text-xs font-semibold text-muted-foreground px-3 py-3 whitespace-nowrap">
                     Actions
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {payments.length === 0 ? (
+                {filteredPayments.length === 0 ? (
                   <tr>
-                    <td colSpan={7}>
-                      <div className="py-14 text-center">
-                        <div className="mx-auto mb-3 w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 grid place-items-center text-slate-400">
-                          <ImageIcon size={24} />
-                        </div>
-                        <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                          No payment proofs yet
-                        </p>
-                        <p className="text-sm text-slate-500 mt-1">
-                          Upload your first screenshot to start tracking
-                          payments.
-                        </p>
-                      </div>
+                    <td colSpan={selectedTruck ? 7 : 8}>
+                      <EmptyState
+                        icon={ImageIcon}
+                        title="No payment proofs yet"
+                        description="Upload your first screenshot to start tracking payments."
+                      />
                     </td>
                   </tr>
                 ) : (
-                  payments.map((p) => (
-                    <tr key={p._id} className="hover:bg-muted/20">
-                      <td className="text-center text-xs px-2.5 py-2.5 border-b border-border">
+                  paginatedPayments.map((p) => (
+                    <tr
+                      key={p._id}
+                      className="hover:bg-muted/50 transition-colors"
+                    >
+                      <td className="text-left text-xs px-3 py-2.5 border-b border-border whitespace-nowrap">
                         {p.dateText}
                       </td>
 
-                      <td className="text-center text-xs px-2.5 py-2.5 border-b border-border">
-                        <span className="inline-block px-2.5 py-1 rounded-md text-[0.72rem] font-bold bg-muted text-foreground">
+                      {!selectedTruck && (
+                        <td className="text-left text-xs px-3 py-2.5 border-b border-border whitespace-nowrap">
+                          {p.truckName ||
+                            (typeof p.truck === "object"
+                              ? p.truck.truckName
+                              : "—")}
+                        </td>
+                      )}
+
+                      <td className="text-left text-xs px-3 py-2.5 border-b border-border">
+                        <span className="inline-flex rounded-md px-2.5 py-1 text-[0.7rem] font-bold bg-muted text-foreground">
                           {p.category}
                         </span>
                       </td>
 
-                      <td className="text-center text-xs px-2.5 py-2.5 border-b border-border">
-                        {p.recipient || "—"}
-                      </td>
-
-                      <td className="text-center text-xs px-2.5 py-2.5 border-b border-border tabular-nums">
+                      <td className="text-right text-xs px-3 py-2.5 border-b border-border tabular-nums font-medium pr-8">
                         {peso(Number(p.amount || 0))}
                       </td>
 
-                      <td className="text-center text-xs px-2.5 py-2.5 border-b border-border">
+                      <td className="text-left text-xs px-3 py-2.5 border-b border-border">
+                        {p.recipient || "—"}
+                      </td>
+
+                      <td className="text-left text-xs px-3 py-2.5 border-b border-border">
                         {p.method || "—"}
                       </td>
 
@@ -803,21 +1298,31 @@ export default function PaymentsPage() {
             </table>
           </div>
 
+          {filteredPayments.length > 0 && (
+            <div className="border-t border-border flex items-center justify-center">
+              <Pagination
+                currentPage={paymentPage}
+                totalPages={totalPaymentPages}
+                totalItems={filteredPayments.length}
+                pageSize={paymentPageSize}
+                onPageChange={setPaymentPage}
+                onPageSizeChange={(size) => {
+                  setPaymentPageSize(size);
+                  setPaymentPage(1);
+                }}
+              />
+            </div>
+          )}
+
           <div className="flex flex-col gap-3 md:hidden p-3 border-t border-slate-200/60 dark:border-slate-700/60">
-            {payments.length === 0 ? (
-              <div className="py-10 text-center">
-                <div className="mx-auto mb-3 w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 grid place-items-center text-slate-400">
-                  <ImageIcon size={24} />
-                </div>
-                <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                  No payment proofs yet
-                </p>
-                <p className="text-sm text-slate-500 mt-1">
-                  Upload your first screenshot to start tracking payments.
-                </p>
-              </div>
+            {filteredPayments.length === 0 ? (
+              <EmptyState
+                icon={ImageIcon}
+                title="No payment proofs yet"
+                description="Upload your first screenshot to start tracking payments."
+              />
             ) : (
-              payments.map((p) => (
+              paginatedPayments.map((p) => (
                 <div
                   key={p._id}
                   className="border rounded-md bg-background p-4"
@@ -929,11 +1434,74 @@ export default function PaymentsPage() {
       >
         {editPayment && (
           <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
+            {/* TRUCK */}
+            <div>
+              <label className="text-xs font-medium text-foreground mb-1.5 block">
+                Truck
+              </label>
+
+              <Popover open={openEditTruck} onOpenChange={setOpenEditTruck}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    role="combobox"
+                    className="w-full h-11 rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    <span className="truncate">
+                      {truckOptions.find((truck) => truck._id === editTruck)
+                        ?.truckName || "Select truck"}
+                    </span>
+
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </button>
+                </PopoverTrigger>
+
+                <PopoverContent
+                  className="w-[var(--radix-popover-trigger-width)] p-0 z-[9999]"
+                  align="start"
+                >
+                  <Command>
+                    <CommandInput
+                      placeholder="Search truck..."
+                      className="text-xs"
+                    />
+
+                    <CommandEmpty className="text-xs">
+                      No truck found.
+                    </CommandEmpty>
+
+                    <CommandGroup>
+                      {truckOptions.map((truck) => (
+                        <CommandItem
+                          key={truck._id}
+                          value={truck.truckName}
+                          className="text-xs"
+                          onSelect={() => {
+                            setEditTruck(truck._id);
+                            setOpenEditTruck(false);
+                          }}
+                        >
+                          <Check
+                            className={`mr-2 h-4 w-4 ${
+                              editTruck === truck._id
+                                ? "opacity-100"
+                                : "opacity-0"
+                            }`}
+                          />
+
+                          {truck.truckName}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div>
               <label className="text-xs font-medium text-foreground mb-1.5 block">
                 Date
               </label>
-              <Popover>
+              <Popover open={openEditDate} onOpenChange={setOpenEditDate}>
                 <PopoverTrigger asChild>
                   <button
                     className={
@@ -955,7 +1523,9 @@ export default function PaymentsPage() {
                     }
                     onSelect={(d) => {
                       if (!d) return;
+
                       setEditDate(toInputDate(d));
+                      setOpenEditDate(false);
                     }}
                     initialFocus
                   />
@@ -967,44 +1537,112 @@ export default function PaymentsPage() {
               <label className="text-xs font-medium text-foreground mb-1.5 block">
                 Category
               </label>
-              <UiSelect
-                value={editCategory}
-                onValueChange={(val) => setEditCategory(val)}
-              >
-                <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
-                  <SelectValue />
-                </SelectTrigger>
 
-                <SelectContent>
-                  {CATEGORY_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </UiSelect>
+              <Popover
+                open={openEditCategory}
+                onOpenChange={setOpenEditCategory}
+              >
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    role="combobox"
+                    className="w-full h-11 rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    <span className="truncate">
+                      {CATEGORY_OPTIONS.find(
+                        (opt) => opt.value === editCategory,
+                      )?.label || "Select category"}
+                    </span>
+
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </button>
+                </PopoverTrigger>
+
+                <PopoverContent
+                  className="w-[var(--radix-popover-trigger-width)] p-0 z-[9999]"
+                  align="start"
+                >
+                  <Command>
+                    <CommandGroup>
+                      {CATEGORY_OPTIONS.map((opt) => (
+                        <CommandItem
+                          key={opt.value}
+                          value={opt.label}
+                          className="text-xs"
+                          onSelect={() => {
+                            setEditCategory(opt.value);
+                            setOpenEditCategory(false);
+                          }}
+                        >
+                          <Check
+                            className={`mr-2 h-4 w-4 ${
+                              editCategory === opt.value
+                                ? "opacity-100"
+                                : "opacity-0"
+                            }`}
+                          />
+
+                          {opt.label}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div>
               <label className="text-xs font-medium text-foreground mb-1.5 block">
                 Method
               </label>
-              <UiSelect
-                value={editMethod}
-                onValueChange={(val) => setEditMethod(val)}
-              >
-                <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
-                  <SelectValue />
-                </SelectTrigger>
 
-                <SelectContent>
-                  {METHOD_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </UiSelect>
+              <Popover open={openEditMethod} onOpenChange={setOpenEditMethod}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    role="combobox"
+                    className="w-full h-11 rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    <span className="truncate">
+                      {METHOD_OPTIONS.find((opt) => opt.value === editMethod)
+                        ?.label || "Select method"}
+                    </span>
+
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </button>
+                </PopoverTrigger>
+
+                <PopoverContent
+                  className="w-[var(--radix-popover-trigger-width)] p-0 z-[9999]"
+                  align="start"
+                >
+                  <Command>
+                    <CommandGroup>
+                      {METHOD_OPTIONS.map((opt) => (
+                        <CommandItem
+                          key={opt.value}
+                          value={opt.label}
+                          className="text-xs"
+                          onSelect={() => {
+                            setEditMethod(opt.value);
+                            setOpenEditMethod(false);
+                          }}
+                        >
+                          <Check
+                            className={`mr-2 h-4 w-4 ${
+                              editMethod === opt.value
+                                ? "opacity-100"
+                                : "opacity-0"
+                            }`}
+                          />
+
+                          {opt.label}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div>
@@ -1171,52 +1809,57 @@ export default function PaymentsPage() {
       >
         {previewPayment && (
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-x-8 gap-y-3">
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
                   Date
-                </div>
-                <div className="text-sm font-medium text-foreground">
+                </label>
+                <div className="text-xs text-foreground">
                   {previewPayment.dateText}
                 </div>
               </div>
+
               <div>
-                <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
                   Category
-                </div>
-                <div className="text-sm font-medium text-foreground">
+                </label>
+                <div className="text-xs text-foreground">
                   {previewPayment.category}
                 </div>
               </div>
+
               <div>
-                <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
                   Recipient
-                </div>
-                <div className="text-sm font-medium text-foreground">
+                </label>
+                <div className="text-xs text-foreground">
                   {previewPayment.recipient || "—"}
                 </div>
               </div>
+
               <div>
-                <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
                   Amount
-                </div>
-                <div className="text-sm font-medium text-foreground">
+                </label>
+                <div className="text-xs text-foreground tabular-nums">
                   {peso(Number(previewPayment.amount || 0))}
                 </div>
               </div>
+
               <div>
-                <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
                   Method
-                </div>
-                <div className="text-sm font-medium text-foreground">
+                </label>
+                <div className="text-xs text-foreground">
                   {previewPayment.method || "—"}
                 </div>
               </div>
+
               <div>
-                <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
                   Filename
-                </div>
-                <div className="text-sm font-medium text-foreground">
+                </label>
+                <div className="text-xs text-foreground break-all">
                   {previewPayment.filename}
                 </div>
               </div>

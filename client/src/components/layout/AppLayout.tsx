@@ -6,7 +6,6 @@ import { useAppStore } from "../../store/useAppStore";
 import { cn } from "../../lib/utils";
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import KeyboardShortcutsHelp from "../shared/KeyboardShortcutsHelp";
 
 const pageNames: Record<string, string> = {
   "/": "Dashboard",
@@ -17,7 +16,7 @@ const pageNames: Record<string, string> = {
 };
 
 export default function AppLayout() {
-  const { sidebarCollapsed, theme, toggleSidebar } = useAppStore();
+  const { sidebarCollapsed, theme } = useAppStore();
   const location = useLocation();
   const currentPageName = pageNames[location.pathname] || "Dashboard";
   const [openMobile, setOpenMobile] = useState(false);
@@ -85,7 +84,6 @@ export default function AppLayout() {
           </AnimatePresence>
         </div>
       </main>
-      <KeyboardShortcutsHelp />
     </div>
   );
 }

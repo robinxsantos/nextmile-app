@@ -38,7 +38,6 @@ import {
 } from "recharts";
 import ExpenseBreakdownModal from "../components/shared/ExpenseBreakdownModal";
 import { AnimatePresence, motion } from "framer-motion";
-import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import {
@@ -247,11 +246,6 @@ export default function DashboardPage() {
   });
 
   const searchInputRef = useRef<HTMLInputElement>(null);
-
-  useKeyboardShortcuts({
-    onNewTrip: () => handleAddTrip(),
-    onSearch: () => searchInputRef.current?.focus(),
-  });
 
   useEffect(() => {
     initApp();

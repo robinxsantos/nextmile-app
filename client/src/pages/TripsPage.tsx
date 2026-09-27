@@ -35,7 +35,6 @@ import {
 } from "lucide-react";
 import ExpenseBreakdownModal from "../components/shared/ExpenseBreakdownModal";
 import { AnimatePresence, motion } from "framer-motion";
-import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 import EmptyState from "../components/shared/EmptyState";
 import { cn } from "@/lib/utils";
 import {
@@ -53,6 +52,17 @@ import {
   CommandInput,
   CommandItem,
 } from "@/components/ui/command";
+
+const RANGE_OPTIONS = [
+  { value: "ALL", label: "All Time" },
+  { value: "CC", label: "This Cutoff" },
+  { value: "LC", label: "Previous Cutoff" },
+  { value: "TM", label: "This Month" },
+  { value: "LM", label: "Last Month" },
+  { value: "MTD", label: "Month to Date" },
+  { value: "YTD", label: "Year to Date" },
+  { value: "CUSTOM", label: "Custom Range" },
+] as const;
 
 const COLUMN_OPTIONS = [
   ["truck", "Truck"],
@@ -139,6 +149,7 @@ export default function TripsPage() {
   const [openDateRange, setOpenDateRange] = useState(false);
   const [openTruck, setOpenTruck] = useState(false);
   const [openVerification, setOpenVerification] = useState(false);
+  const [openRangePreset, setOpenRangePreset] = useState(false);
 
   const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
     if (!startDate) return undefined;
@@ -179,11 +190,6 @@ export default function TripsPage() {
   });
   const searchInputRef = useRef<HTMLInputElement>(null);
   const csvInputRef = useRef<HTMLInputElement>(null);
-
-  useKeyboardShortcuts({
-    onNewTrip: () => handleAddTrip(),
-    onSearch: () => searchInputRef.current?.focus(),
-  });
 
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -297,17 +303,9 @@ export default function TripsPage() {
   };
 
   const getRangeLabel = useCallback((): string => {
-    const RANGE_LABELS: Record<string, string> = {
-      ALL: "All Time",
-      CC: "Current Cutoff",
-      LC: "Last Cutoff",
-      TM: "This Month",
-      LM: "Last Month",
-      MTD: "Month to Date",
-      YTD: "Year to Date",
-      CUSTOM: "Custom Range",
-    };
-    const label = RANGE_LABELS[rangePreset] || "All Time";
+    const label =
+      RANGE_OPTIONS.find((option) => option.value === rangePreset)?.label ||
+      "All Time";
     if (startDate && endDate) {
       const fmtStart = new Date(startDate + "T00:00:00").toLocaleDateString(
         "en-US",
@@ -566,7 +564,7 @@ export default function TripsPage() {
         {/* FILTERS */}
         <div className="flex flex-wrap items-end gap-2 border-b border-border bg-background px-3.5 py-3">
           {/* SEARCH */}
-          <div className="min-w-[200px] flex-1">
+          <div className="min-w-[180px] flex-[1.5]">
             <label className="text-xs font-medium text-muted-foreground mb-1 block">
               Search
             </label>
@@ -629,6 +627,10 @@ export default function TripsPage() {
                         onSelect={() => {
                           setSelectedTruck("");
                           setOpenTruck(false);
+
+                          setTimeout(() => {
+                            fetchDashboard();
+                          }, 0);
                         }}
                       >
                         <Check
@@ -647,6 +649,10 @@ export default function TripsPage() {
                           onSelect={() => {
                             setSelectedTruck(truck._id);
                             setOpenTruck(false);
+
+                            setTimeout(() => {
+                              fetchDashboard();
+                            }, 0);
                           }}
                         >
                           <Check
@@ -758,8 +764,75 @@ export default function TripsPage() {
             </div>
           )}
 
+          {/* DATE RANGE */}
+          <div className="min-w-[150px]">
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">
+              Date Range
+            </label>
+
+            <Popover open={openRangePreset} onOpenChange={setOpenRangePreset}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  role="combobox"
+                  className="h-9 w-full min-w-[150px] rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between outline-none focus:ring-2 focus:ring-ring"
+                >
+                  <span className="truncate">
+                    {RANGE_OPTIONS.find(
+                      (option) => option.value === rangePreset,
+                    )?.label || "All Time"}
+                  </span>
+
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </button>
+              </PopoverTrigger>
+
+              <PopoverContent className="w-[200px] p-0" align="start">
+                <Command>
+                  <CommandInput
+                    placeholder="Search range..."
+                    className="text-xs"
+                  />
+
+                  <CommandEmpty className="text-xs">
+                    No range found.
+                  </CommandEmpty>
+
+                  <CommandGroup>
+                    {RANGE_OPTIONS.map((option) => (
+                      <CommandItem
+                        key={option.value}
+                        value={option.label}
+                        className="text-xs"
+                        onSelect={() => {
+                          setRangePreset(option.value);
+
+                          setTimeout(() => {
+                            fetchDashboard();
+                          }, 0);
+
+                          setOpenRangePreset(false);
+                        }}
+                      >
+                        <Check
+                          className={`mr-2 h-4 w-4 ${
+                            rangePreset === option.value
+                              ? "opacity-100"
+                              : "opacity-0"
+                          }`}
+                        />
+
+                        {option.label}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
+
           {/* PERIOD */}
-          <div className="min-w-[260px] flex-1 max-w-[320px]">
+          <div className="min-w-[220px] flex-1 max-w-[280px]">
             <label className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1">
               <CalendarDays size={12} />
               Period
@@ -902,9 +975,10 @@ export default function TripsPage() {
                 selectedTruck ? (
                   <button
                     onClick={handleAddTrip}
-                    className="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition"
+                    className="inline-flex items-center justify-center gap-2 h-9 px-3 rounded-md bg-foreground text-background text-xs font-medium hover:opacity-90 transition"
                   >
-                    <Plus size={16} /> Add Trip
+                    <Plus size={14} />
+                    Add Trip
                   </button>
                 ) : undefined
               }
