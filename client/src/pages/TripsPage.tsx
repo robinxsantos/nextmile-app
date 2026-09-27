@@ -124,6 +124,7 @@ export default function TripsPage() {
   const [importMode, setImportMode] = useState<"add" | "update" | "upsert">(
     "add",
   );
+  const [openImportMode, setOpenImportMode] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
   const [csvRows, setCsvRows] = useState<any[]>([]);
   const [selectedCsvFile, setSelectedCsvFile] = useState<File | null>(null);
@@ -131,6 +132,7 @@ export default function TripsPage() {
     total: number;
     newTrips: number;
     duplicates: number;
+    invalid: number;
   } | null>(null);
   const [editRow, setEditRow] = useState<TripRow | null>(null);
   const [duplicateFrom, setDuplicateFrom] = useState<TripRow | null>(null);
@@ -1077,8 +1079,8 @@ export default function TripsPage() {
               <DialogTitle>Import Trips from CSV</DialogTitle>
             </DialogHeader>
 
-            <div className="py-10 text-center">
-              <div className="rounded-lg border border-dashed border-border p-6 text-center">
+            <div className="py-4 text-center">
+              <div className="rounded-lg border border-dashed border-border p-4 text-center">
                 <input
                   ref={csvInputRef}
                   type="file"
@@ -1088,69 +1090,125 @@ export default function TripsPage() {
                   id="trip-csv-upload"
                 />
 
-                <label
-                  htmlFor="trip-csv-upload"
-                  className="inline-flex cursor-pointer items-center rounded-md border border-border px-4 py-2 text-sm font-medium hover:bg-muted"
-                >
-                  Choose CSV File
-                </label>
-                <button
-                  type="button"
-                  onClick={downloadCsvTemplate}
-                  className="mt-3 inline-flex w-full items-center justify-center gap-2 text-sm font-medium text-primary hover:underline"
-                >
-                  <FileDown size={16} />
-                  Download CSV Template
-                </button>
-                <div className="mt-4 flex flex-col items-center">
-                  <label className="mb-2 block text-sm font-medium">
-                    Import Mode
-                  </label>
-
-                  <div className="relative w-64">
-                    <select
-                      value={importMode}
-                      onChange={(e) =>
-                        setImportMode(
-                          e.target.value as "add" | "update" | "upsert",
-                        )
-                      }
-                      className="h-10 w-full appearance-none rounded-md border border-border bg-background px-3 pr-10 text-sm"
+                <div className="mx-auto max-w-md text-left">
+                  {/* FILE ACTIONS */}
+                  <div className="flex items-center gap-2">
+                    <label
+                      htmlFor="trip-csv-upload"
+                      className="inline-flex h-9 cursor-pointer items-center rounded-md border border-border px-3 text-xs font-medium hover:bg-muted"
                     >
-                      <option value="add">Add New Only</option>
-                      <option value="update">Update Existing Only</option>
-                      <option value="upsert">Add New + Update Existing</option>
-                    </select>
+                      Choose CSV File
+                    </label>
 
-                    <ChevronDown
-                      size={16}
-                      className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                    />
+                    <button
+                      type="button"
+                      onClick={downloadCsvTemplate}
+                      className="inline-flex h-9 items-center gap-2 px-2 text-xs font-medium text-primary hover:underline"
+                    >
+                      <FileDown size={14} />
+                      Download CSV Template
+                    </button>
                   </div>
+
+                  {/* SELECTED FILE */}
+                  {selectedCsvFile && (
+                    <div className="mt-3 flex items-center gap-2 rounded-md bg-muted/40 px-3 py-2 text-xs">
+                      <FileText
+                        size={14}
+                        className="shrink-0 text-muted-foreground"
+                      />
+
+                      <span className="min-w-0 flex-1 truncate font-medium">
+                        {selectedCsvFile.name}
+                      </span>
+
+                      <span className="shrink-0 text-muted-foreground">
+                        {(selectedCsvFile.size / 1024).toFixed(1)} KB
+                      </span>
+                    </div>
+                  )}
+
+                  {/* IMPORT MODE */}
+                  <div className="mt-4">
+                    <label className="mb-1.5 block text-xs font-medium">
+                      Import Mode
+                    </label>
+
+                    <Popover
+                      open={openImportMode}
+                      onOpenChange={setOpenImportMode}
+                    >
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          role="combobox"
+                          className="h-9 w-full rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between outline-none focus:ring-2 focus:ring-ring"
+                        >
+                          <span>
+                            {importMode === "add"
+                              ? "Add New Only"
+                              : importMode === "update"
+                                ? "Update Existing Only"
+                                : "Add New + Update Existing"}
+                          </span>
+
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </button>
+                      </PopoverTrigger>
+
+                      <PopoverContent
+                        className="w-[--radix-popover-trigger-width] p-0"
+                        align="start"
+                      >
+                        <Command>
+                          <CommandGroup>
+                            {[
+                              ["add", "Add New Only"],
+                              ["update", "Update Existing Only"],
+                              ["upsert", "Add New + Update Existing"],
+                            ].map(([value, label]) => (
+                              <CommandItem
+                                key={value}
+                                value={label}
+                                className="text-xs"
+                                onSelect={() => {
+                                  setImportMode(
+                                    value as "add" | "update" | "upsert",
+                                  );
+                                  setOpenImportMode(false);
+                                }}
+                              >
+                                <Check
+                                  className={`mr-2 h-4 w-4 ${
+                                    importMode === value
+                                      ? "opacity-100"
+                                      : "opacity-0"
+                                  }`}
+                                />
+
+                                {label}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+
+                  <p className="mt-2 text-[11px] text-muted-foreground">
+                    Supported file type: .csv
+                  </p>
                 </div>
-                {selectedCsvFile && (
-                  <div className="mt-3 text-sm text-muted-foreground flex items-center justify-center gap-2">
-                    <FileText size={16} />
-                    <span className="font-medium text-foreground">
-                      {selectedCsvFile.name}
-                    </span>
-                    <span>({(selectedCsvFile.size / 1024).toFixed(1)} KB)</span>
-                  </div>
-                )}
-
-                <p className="mt-3 text-xs text-muted-foreground">
-                  Supported file types: .csv
-                </p>
                 {csvRows.length > 0 && (
                   <div className="mt-6">
                     {previewResult && (
                       <div className="mb-4 rounded-lg border border-border bg-muted/30 p-3">
-                        <div className="text-center text-base font-semibold">
+                        <div className="text-center text-sm font-semibold">
                           {previewResult.total}{" "}
                           {previewResult.total === 1 ? "Trip" : "Trips"} Found
                         </div>
 
-                        <div className="mt-3 flex items-center justify-center gap-10 text-sm">
+                        <div className="mt-3 flex items-center justify-center gap-6 text-xs">
                           <div className="flex items-center gap-2 text-green-600">
                             <CircleCheckBig size={18} />
                             <span>
@@ -1169,16 +1227,28 @@ export default function TripsPage() {
                               : <strong>{previewResult.duplicates}</strong>
                             </span>
                           </div>
+                          <div className="flex items-center gap-2 text-red-600">
+                            <AlertTriangle size={18} />
+                            <span>
+                              Invalid: <strong>{previewResult.invalid}</strong>
+                            </span>
+                          </div>
                         </div>
+                        {previewResult.invalid > 0 && (
+                          <div className="mt-2 text-center text-[11px] text-red-500">
+                            Required fields are missing or contain invalid
+                            values.
+                          </div>
+                        )}
                       </div>
                     )}
 
                     <div className="max-h-[260px] overflow-auto rounded-md border">
-                      <table className="w-full text-sm">
+                      <table className="w-full text-xs">
                         <thead className="bg-muted sticky top-0">
                           <tr>
-                            <th className="p-2 text-left">Date</th>
-                            <th className="p-2 text-left">Shipment</th>
+                            <th className="px-3 py-2 text-left">Date</th>
+                            <th className="px-3 py-2 text-left">Shipment</th>
                             <th className="p-2 text-right">Rate</th>
                             <th className="p-2 text-right">Crew Salary</th>
                             <th className="p-2 text-right">Cash Advance</th>
@@ -1187,38 +1257,104 @@ export default function TripsPage() {
                         </thead>
 
                         <tbody>
-                          {csvRows.map((row, index) => (
-                            <tr key={index} className="border-t">
-                              <td className="p-2">
-                                {row["Date"] || row["DATE"]}
-                              </td>
+                          {csvRows.map((row, index) => {
+                            const dateValue = row["Date"] || row["DATE"] || "";
+                            const shipmentValue =
+                              row["Shipment Number"] ||
+                              row["Shipment"] ||
+                              row["SHIPMENT NUMBER"] ||
+                              "";
 
-                              <td className="p-2">
-                                {row["Shipment Number"] ||
-                                  row["Shipment"] ||
-                                  row["SHIPMENT NUMBER"]}
-                              </td>
+                            const rateValue = row["Rate"] ?? row["RATE"] ?? "";
+                            const crewSalaryValue =
+                              row["Crew Salary"] ?? row["CREW SALARY"] ?? "";
 
-                              <td className="p-2 text-right">
-                                {row["Rate"] || row["RATE"]}
-                              </td>
+                            const parsedDate = new Date(dateValue);
 
-                              <td className="p-2 text-right">
-                                {row["Crew Salary"] || row["CREW SALARY"]}
-                              </td>
-                              <td className="p-2 text-right">
-                                {row["Cash Advance"] ||
-                                  row["CASH ADVANCE"] ||
-                                  "—"}
-                              </td>
+                            const validDate =
+                              Boolean(dateValue) &&
+                              !Number.isNaN(parsedDate.getTime());
 
-                              <td className="p-2 text-right">
-                                {row["Reimbursements"] ||
-                                  row["REIMBURSEMENTS"] ||
-                                  "—"}
-                              </td>
-                            </tr>
-                          ))}
+                            const validShipment =
+                              String(shipmentValue).trim().length > 0;
+
+                            const validRate =
+                              String(rateValue).trim() !== "" &&
+                              Number.isFinite(Number(rateValue)) &&
+                              Number(rateValue) > 0;
+
+                            const validCrewSalary =
+                              String(crewSalaryValue).trim() !== "" &&
+                              Number.isFinite(Number(crewSalaryValue)) &&
+                              Number(crewSalaryValue) > 0;
+
+                            return (
+                              <tr key={index} className="border-t">
+                                {/* DATE */}
+                                <td className="px-3 py-2 text-left whitespace-nowrap">
+                                  {validDate ? (
+                                    parsedDate.toLocaleDateString("en-US", {
+                                      weekday: "short",
+                                      month: "short",
+                                      day: "numeric",
+                                      year: "numeric",
+                                    })
+                                  ) : (
+                                    <span className="font-medium text-red-500">
+                                      *Required
+                                    </span>
+                                  )}
+                                </td>
+
+                                {/* SHIPMENT */}
+                                <td className="px-3 py-2 text-left whitespace-nowrap">
+                                  {validShipment ? (
+                                    shipmentValue
+                                  ) : (
+                                    <span className="font-medium text-red-500">
+                                      *Required
+                                    </span>
+                                  )}
+                                </td>
+
+                                {/* RATE */}
+                                <td className="p-2 text-right">
+                                  {validRate ? (
+                                    rateValue
+                                  ) : (
+                                    <span className="font-medium text-red-500">
+                                      *Required
+                                    </span>
+                                  )}
+                                </td>
+
+                                {/* CREW SALARY */}
+                                <td className="p-2 text-right">
+                                  {validCrewSalary ? (
+                                    crewSalaryValue
+                                  ) : (
+                                    <span className="font-medium text-red-500">
+                                      *Required
+                                    </span>
+                                  )}
+                                </td>
+
+                                {/* CASH ADVANCE — OPTIONAL */}
+                                <td className="p-2 text-right">
+                                  {row["Cash Advance"] ||
+                                    row["CASH ADVANCE"] ||
+                                    "—"}
+                                </td>
+
+                                {/* REIMBURSEMENTS — OPTIONAL */}
+                                <td className="p-2 text-right">
+                                  {row["Reimbursements"] ||
+                                    row["REIMBURSEMENTS"] ||
+                                    "—"}
+                                </td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
@@ -1244,10 +1380,20 @@ export default function TripsPage() {
 
               <button
                 onClick={handleImportCsv}
-                disabled={csvRows.length === 0}
-                className="px-6 py-2 rounded-md bg-foreground text-background disabled:opacity-50"
+                disabled={
+                  csvRows.length === 0 || (previewResult?.newTrips ?? 0) === 0
+                }
+                className="px-6 py-2 rounded-md bg-foreground text-background disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Import {csvRows.length} Trip{csvRows.length === 1 ? "" : "s"}
+                {(previewResult?.invalid ?? 0) > 0 &&
+                (previewResult?.newTrips ?? 0) === 0
+                  ? "Import"
+                  : (previewResult?.newTrips ?? 0) === 0 &&
+                      (previewResult?.duplicates ?? 0) > 0
+                    ? "Already Imported"
+                    : `Import ${previewResult?.newTrips ?? 0} Trip${
+                        previewResult?.newTrips === 1 ? "" : "s"
+                      }`}
               </button>
             </DialogFooter>
           </DialogContent>
@@ -1268,9 +1414,20 @@ export default function TripsPage() {
               </p>
 
               <div className="rounded-md border border-border bg-muted/30 p-4 text-sm">
-                <div>✅ CSV parsed successfully</div>
-                <div>✅ Required columns validated</div>
-                <div>✅ Ready for import</div>
+                <div className="flex items-center gap-2">
+                  <Check size={14} className="text-green-600" />
+                  <span>CSV parsed successfully</span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Check size={14} className="text-green-600" />
+                  <span>Required columns validated</span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Check size={14} className="text-green-600" />
+                  <span>Ready for import</span>
+                </div>
               </div>
             </div>
 
@@ -1341,9 +1498,15 @@ export default function TripsPage() {
               >
                 {importing
                   ? "Importing..."
-                  : previewResult?.newTrips === 0
-                    ? "Already Imported"
-                    : `Import ${previewResult?.newTrips ?? 0} Trip${previewResult?.newTrips === 1 ? "" : "s"}`}
+                  : (previewResult?.invalid ?? 0) > 0 &&
+                      (previewResult?.newTrips ?? 0) === 0
+                    ? "Invalid CSV Data"
+                    : (previewResult?.newTrips ?? 0) === 0 &&
+                        (previewResult?.duplicates ?? 0) > 0
+                      ? "Already Imported"
+                      : `Import ${previewResult?.newTrips ?? 0} Trip${
+                          previewResult?.newTrips === 1 ? "" : "s"
+                        }`}
               </button>
             </DialogFooter>
           </DialogContent>

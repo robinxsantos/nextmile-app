@@ -350,6 +350,7 @@ router.post(
 
       let imported = 0;
       let duplicates = 0;
+      let invalid = 0;
 
       for (const row of rows) {
         const tripDate = row["Date"] || row["DATE"];
@@ -362,6 +363,7 @@ router.post(
         );
 
         if (!tripDate || !shipmentNumber || rate <= 0 || crewSalary <= 0) {
+          invalid++;
           continue;
         }
 
@@ -395,6 +397,7 @@ router.post(
         total: rows.length,
         newTrips: imported,
         duplicates,
+        invalid,
       });
     } catch (err: any) {
       res.status(500).json({

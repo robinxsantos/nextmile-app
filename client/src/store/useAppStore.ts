@@ -285,6 +285,7 @@ interface AppState {
     total: number;
     newTrips: number;
     duplicates: number;
+    invalid: number;
   }>;
   updateTrip: (id: string, data: Record<string, unknown>) => Promise<void>;
   deleteTrip: (id: string) => Promise<void>;
