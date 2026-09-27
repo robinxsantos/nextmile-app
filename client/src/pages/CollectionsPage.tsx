@@ -14,6 +14,7 @@ import {
   ChevronsUpDown,
   CheckCheck,
   Check,
+  RotateCcw,
 } from "lucide-react";
 import type { DateRange } from "react-day-picker";
 import { Calendar } from "@/components/ui/calendar";
@@ -946,9 +947,10 @@ export default function CollectionsPage() {
               !startDate &&
               !endDate
             }
-            className="h-9 px-3 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:pointer-events-none"
+            className="h-9 px-3 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:pointer-events-none flex items-center gap-1.5"
           >
-            Clear Filters
+            <RotateCcw className="h-3.5 w-3.5" />
+            Reset
           </button>
         </div>
 

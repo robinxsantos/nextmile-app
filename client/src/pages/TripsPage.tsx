@@ -32,6 +32,7 @@ import {
   CircleCheckBig,
   CopyCheck,
   ChevronDown,
+  RotateCcw,
 } from "lucide-react";
 import ExpenseBreakdownModal from "../components/shared/ExpenseBreakdownModal";
 import { AnimatePresence, motion } from "framer-motion";
@@ -921,9 +922,10 @@ export default function TripsPage() {
               !startDate &&
               !endDate
             }
-            className="h-9 px-3 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:pointer-events-none"
+            className="h-9 px-3 inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:pointer-events-none whitespace-nowrap"
           >
-            Clear Filters
+            <RotateCcw size={14} />
+            Reset
           </button>
         </div>
 

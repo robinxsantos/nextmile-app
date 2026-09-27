@@ -90,10 +90,18 @@ export default function TripModal({
   editRow,
   duplicateFrom,
 }: TripModalProps) {
-  const { selectedTruck, truckOptions, addTrip, updateTrip, getLastTrip } =
-    useAppStore();
-  const { isAdmin } = useAuthStore();
-  const admin = isAdmin();
+  const {
+    selectedTruck,
+    truckOptions,
+    addTrip,
+    updateTrip,
+    getLastTrip,
+    fetchDashboard,
+  } = useAppStore();
+  const { user } = useAuthStore();
+
+  const canManageTripFinancials =
+    user?.role === "admin" || user?.role === "manager";
 
   const [loading, setLoading] = useState(false);
   const [copyingLast, setCopyingLast] = useState(false);
@@ -218,7 +226,7 @@ export default function TripModal({
       return;
     }
 
-    if (!admin) {
+    if (!canManageTripFinancials) {
       if (!form.shipmentNumber.trim()) {
         toast.error("Shipment Number is required.");
         return;
@@ -228,6 +236,7 @@ export default function TripModal({
         toast.error("Rate is required for Working Day.");
         return;
       }
+
       if (form.status === "Working Day" && !form.crewSalary) {
         toast.error("Crew Salary is required for Working Day.");
         return;
@@ -241,12 +250,16 @@ export default function TripModal({
         date: toLocalDateString(form.date),
         status: form.status,
         shipmentNumber: form.shipmentNumber,
-        rate: admin ? Number(form.rate) || 0 : 0,
-        vat: admin ? Number(form.vat) || 0 : 0,
-        trips: admin ? Number(form.trips) || 0 : 0,
-        crewSalary: admin ? Number(form.crewSalary) || 0 : 0,
-        cashAdvance: admin ? Number(form.cashAdvance) || 0 : 0,
-        reimbursements: admin ? Number(form.reimbursements) || 0 : 0,
+        rate: canManageTripFinancials ? Number(form.rate) || 0 : 0,
+        vat: canManageTripFinancials ? Number(form.vat) || 0 : 0,
+        trips: canManageTripFinancials ? Number(form.trips) || 0 : 0,
+        crewSalary: canManageTripFinancials ? Number(form.crewSalary) || 0 : 0,
+        cashAdvance: canManageTripFinancials
+          ? Number(form.cashAdvance) || 0
+          : 0,
+        reimbursements: canManageTripFinancials
+          ? Number(form.reimbursements) || 0
+          : 0,
         note: form.note,
       };
 
@@ -255,6 +268,7 @@ export default function TripModal({
       } else {
         await addTrip(payload);
       }
+      await fetchDashboard();
       onClose();
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Failed to save trip");
@@ -275,7 +289,7 @@ export default function TripModal({
       ? `Duplicate Trip for ${selectedTruckName}`
       : `Add Trip for ${selectedTruckName}`;
 
-  const readOnlyForDriver = !admin;
+  const readOnlyForDriver = !canManageTripFinancials;
 
   return (
     <Dialog

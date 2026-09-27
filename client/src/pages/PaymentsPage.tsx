@@ -13,6 +13,7 @@ import {
   Pencil,
   Check,
   ChevronsUpDown,
+  RotateCcw,
   Search,
 } from "lucide-react";
 import Modal from "../components/shared/Modal";
@@ -1169,9 +1170,10 @@ export default function PaymentsPage() {
                 paymentCategoryFilter === "ALL" &&
                 !paymentDateRange?.from
               }
-              className="h-9 px-3 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:pointer-events-none"
+              className="h-9 px-3 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:pointer-events-none flex items-center gap-1.5"
             >
-              Clear Filters
+              <RotateCcw className="h-3.5 w-3.5" />
+              Reset
             </button>
           </div>
 

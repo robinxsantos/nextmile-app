@@ -12,14 +12,9 @@ import {
   LifeBuoy,
   UserShield,
   Truck as TruckIcon,
+  Check,
+  ChevronsUpDown,
 } from "lucide-react";
-import {
-  Select as UiSelect,
-  SelectTrigger,
-  SelectContent,
-  SelectItem,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -28,6 +23,23 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from "@/components/ui/command";
+import { Calendar } from "@/components/ui/calendar";
+import { CalendarDays } from "lucide-react";
+import { format } from "date-fns";
+import EmptyState from "../components/shared/EmptyState";
 
 interface UserRow {
   _id: string;
@@ -65,6 +77,11 @@ export default function UsersPage() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [companies, setCompanies] = useState<CompanyOption[]>([]);
   const [companyFilter, setCompanyFilter] = useState("ALL");
+  const [openCompanyFilter, setOpenCompanyFilter] = useState(false);
+  const [openRole, setOpenRole] = useState(false);
+  const [openFormCompany, setOpenFormCompany] = useState(false);
+  const [openFormTruck, setOpenFormTruck] = useState(false);
+  const [openStartDate, setOpenStartDate] = useState(false);
   const [loading, setLoading] = useState(false);
   const [modal, setModal] = useState(false);
   const [editUser, setEditUser] = useState<UserRow | null>(null);
@@ -271,7 +288,7 @@ export default function UsersPage() {
   };
 
   const inputClass =
-    "w-full min-h-[44px] rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 px-3.5 text-sm focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10 outline-none transition-colors";
+    "w-full min-h-[44px] rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 px-3.5 text-xs focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10 outline-none transition-colors";
 
   const roleOptions = isAdmin
     ? [
@@ -305,15 +322,15 @@ export default function UsersPage() {
       );
     }
 
-    if (form.companyName) {
-      return (
-        String(t.companyName || "")
-          .trim()
-          .toLowerCase() === form.companyName.trim().toLowerCase()
-      );
+    if (!form.companyName) {
+      return false;
     }
 
-    return true;
+    return (
+      String(t.companyName || "")
+        .trim()
+        .toLowerCase() === form.companyName.trim().toLowerCase()
+    );
   });
 
   const truckSelectOptions = filteredTruckOptions.map((t) => ({
@@ -358,27 +375,80 @@ export default function UsersPage() {
               Company
             </label>
 
-            <UiSelect value={companyFilter} onValueChange={setCompanyFilter}>
-              <SelectTrigger className="w-full min-h-[40px] text-xs">
-                <SelectValue />
-              </SelectTrigger>
+            <Popover
+              open={openCompanyFilter}
+              onOpenChange={setOpenCompanyFilter}
+            >
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  role="combobox"
+                  className="h-10 w-full rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between outline-none focus:ring-2 focus:ring-ring"
+                >
+                  <span className="truncate">
+                    {companyFilter === "ALL" ? "All Companies" : companyFilter}
+                  </span>
 
-              <SelectContent>
-                <SelectItem value="ALL" className="text-xs">
-                  All Companies
-                </SelectItem>
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </button>
+              </PopoverTrigger>
 
-                {companies.map((company) => (
-                  <SelectItem
-                    key={company._id}
-                    value={company.companyName}
+              <PopoverContent
+                className="w-[var(--radix-popover-trigger-width)] p-0"
+                align="start"
+              >
+                <Command>
+                  <CommandInput
+                    placeholder="Search company..."
                     className="text-xs"
-                  >
-                    {company.companyName}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </UiSelect>
+                  />
+
+                  <CommandEmpty className="text-xs">
+                    No company found.
+                  </CommandEmpty>
+
+                  <CommandGroup>
+                    <CommandItem
+                      value="All Companies"
+                      className="text-xs"
+                      onSelect={() => {
+                        setCompanyFilter("ALL");
+                        setOpenCompanyFilter(false);
+                      }}
+                    >
+                      <Check
+                        className={`mr-2 h-4 w-4 ${
+                          companyFilter === "ALL" ? "opacity-100" : "opacity-0"
+                        }`}
+                      />
+                      All Companies
+                    </CommandItem>
+
+                    {companies.map((company) => (
+                      <CommandItem
+                        key={company._id}
+                        value={company.companyName}
+                        className="text-xs"
+                        onSelect={() => {
+                          setCompanyFilter(company.companyName);
+                          setOpenCompanyFilter(false);
+                        }}
+                      >
+                        <Check
+                          className={`mr-2 h-4 w-4 ${
+                            companyFilter === company.companyName
+                              ? "opacity-100"
+                              : "opacity-0"
+                          }`}
+                        />
+
+                        {company.companyName}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
       )}
@@ -412,12 +482,16 @@ export default function UsersPage() {
             <tbody>
               {filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="text-left py-12 text-slate-400">
-                    <Users size={40} className="mx-auto mb-3 opacity-30" />
-                    <div className="font-semibold">No users found</div>
-                    <div className="text-sm">
-                      Create your first user account
-                    </div>
+                  <td colSpan={9}>
+                    <EmptyState
+                      icon={Users}
+                      title="No users found"
+                      description={
+                        isAdmin && companyFilter !== "ALL"
+                          ? "No users are available for the selected company."
+                          : "Create your first user account."
+                      }
+                    />
                   </td>
                 </tr>
               ) : (
@@ -545,10 +619,15 @@ export default function UsersPage() {
         {/* Mobile Cards */}
         <div className="flex flex-col gap-3 md:hidden p-3">
           {filteredUsers.length === 0 ? (
-            <div className="text-left py-8 text-slate-400">
-              <Users size={40} className="mx-auto mb-3 opacity-30" />
-              <div className="font-semibold">No users found</div>
-            </div>
+            <EmptyState
+              icon={Users}
+              title="No users found"
+              description={
+                isAdmin && companyFilter !== "ALL"
+                  ? "No users are available for the selected company."
+                  : "Create your first user account."
+              }
+            />
           ) : (
             filteredUsers.map((u) => (
               <div
@@ -689,7 +768,7 @@ export default function UsersPage() {
                 />
               </div>
 
-              <div className="col-span-2">
+              <div>
                 <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
                   Display Name <span className="text-red-500">*</span>
                 </label>
@@ -708,64 +787,73 @@ export default function UsersPage() {
                 <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
                   Role
                 </label>
-                <UiSelect
-                  value={form.role}
-                  onValueChange={(val) =>
-                    setForm({
-                      ...form,
-                      role: val,
+                <Popover open={openRole} onOpenChange={setOpenRole}>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      role="combobox"
+                      className="w-full h-11 rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between outline-none focus:ring-2 focus:ring-ring"
+                    >
+                      <span className="truncate">
+                        {roleOptions.find((opt) => opt.value === form.role)
+                          ?.label || "Select role"}
+                      </span>
 
-                      companyName:
-                        val === "admin"
-                          ? ""
-                          : isManager
-                            ? currentUser?.companyName || ""
-                            : val === "employee"
-                              ? ""
-                              : form.companyName,
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </button>
+                  </PopoverTrigger>
 
-                      truck: "none",
+                  <PopoverContent
+                    className="w-[var(--radix-popover-trigger-width)] p-0 z-[9999]"
+                    align="start"
+                  >
+                    <Command>
+                      <CommandGroup>
+                        {roleOptions.map((opt) => (
+                          <CommandItem
+                            key={opt.value}
+                            value={opt.label}
+                            className="text-xs"
+                            onSelect={() => {
+                              const val = opt.value;
 
-                      licenseNumber:
-                        val === "employee" ? form.licenseNumber : "",
+                              setForm({
+                                ...form,
+                                role: val,
+                                companyName:
+                                  val === "admin"
+                                    ? ""
+                                    : isManager
+                                      ? currentUser?.companyName || ""
+                                      : val === "employee"
+                                        ? ""
+                                        : form.companyName,
+                                truck: "none",
+                                licenseNumber:
+                                  val === "employee" ? form.licenseNumber : "",
+                                startDate:
+                                  val === "admin" ? "" : form.startDate,
+                              });
 
-                      startDate: val === "admin" ? "" : form.startDate,
-                    })
-                  }
-                >
-                  <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
-                    <SelectValue />
-                  </SelectTrigger>
+                              setOpenRole(false);
+                            }}
+                          >
+                            <Check
+                              className={`mr-2 h-4 w-4 ${
+                                form.role === opt.value
+                                  ? "opacity-100"
+                                  : "opacity-0"
+                              }`}
+                            />
 
-                  <SelectContent className="z-[9999]">
-                    {roleOptions.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </UiSelect>
+                            {opt.label}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
-
-              {form.role !== "admin" && (
-                <div>
-                  <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
-                    Start Date <span className="text-red-500">*</span>
-                  </label>
-
-                  <input
-                    type="date"
-                    value={form.startDate}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        startDate: e.target.value,
-                      })
-                    }
-                    className={inputClass}
-                  />
-                </div>
-              )}
 
               {/* COMPANY */}
               {form.role === "manager" && (
@@ -781,28 +869,73 @@ export default function UsersPage() {
                       className={`${inputClass} opacity-60 cursor-not-allowed bg-muted`}
                     />
                   ) : (
-                    <UiSelect
-                      value={form.companyName}
-                      onValueChange={(val) =>
-                        setForm({
-                          ...form,
-                          companyName: val,
-                          truck: "none",
-                        })
-                      }
+                    <Popover
+                      open={openFormCompany}
+                      onOpenChange={setOpenFormCompany}
                     >
-                      <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
-                        <SelectValue placeholder="Select company..." />
-                      </SelectTrigger>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          role="combobox"
+                          className="w-full h-11 rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between outline-none focus:ring-2 focus:ring-ring"
+                        >
+                          <span
+                            className={`truncate ${
+                              !form.companyName ? "text-muted-foreground" : ""
+                            }`}
+                          >
+                            {form.companyName || "Select company..."}
+                          </span>
 
-                      <SelectContent className="z-[9999]">
-                        {companyOptions.map((company) => (
-                          <SelectItem key={company} value={company}>
-                            {company}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </UiSelect>
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </button>
+                      </PopoverTrigger>
+
+                      <PopoverContent
+                        className="w-[var(--radix-popover-trigger-width)] p-0 z-[9999]"
+                        align="start"
+                      >
+                        <Command>
+                          <CommandInput
+                            placeholder="Search company..."
+                            className="text-xs"
+                          />
+
+                          <CommandEmpty className="text-xs">
+                            No company found.
+                          </CommandEmpty>
+
+                          <CommandGroup>
+                            {companyOptions.map((company) => (
+                              <CommandItem
+                                key={company}
+                                value={company}
+                                className="text-xs"
+                                onSelect={() => {
+                                  setForm({
+                                    ...form,
+                                    companyName: company,
+                                    truck: "none",
+                                  });
+
+                                  setOpenFormCompany(false);
+                                }}
+                              >
+                                <Check
+                                  className={`mr-2 h-4 w-4 ${
+                                    form.companyName === company
+                                      ? "opacity-100"
+                                      : "opacity-0"
+                                  }`}
+                                />
+
+                                {company}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                   )}
                 </div>
               )}
@@ -821,35 +954,135 @@ export default function UsersPage() {
                       className={`${inputClass} opacity-60`}
                     />
                   ) : (
-                    <UiSelect
-                      value={form.companyName}
-                      onValueChange={(val) =>
-                        setForm({
-                          ...form,
-                          companyName: val,
-                          truck: "none",
-                        })
-                      }
+                    <Popover
+                      open={openFormCompany}
+                      onOpenChange={setOpenFormCompany}
                     >
-                      <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
-                        <SelectValue placeholder="Select company..." />
-                      </SelectTrigger>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          role="combobox"
+                          className="w-full h-11 rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between outline-none focus:ring-2 focus:ring-ring"
+                        >
+                          <span
+                            className={`truncate ${
+                              !form.companyName ? "text-muted-foreground" : ""
+                            }`}
+                          >
+                            {form.companyName || "Select company..."}
+                          </span>
 
-                      <SelectContent className="z-[9999]">
-                        {companyOptions.map((company) => (
-                          <SelectItem key={company} value={company}>
-                            {company}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </UiSelect>
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </button>
+                      </PopoverTrigger>
+
+                      <PopoverContent
+                        className="w-[var(--radix-popover-trigger-width)] p-0 z-[9999]"
+                        align="start"
+                      >
+                        <Command>
+                          <CommandInput
+                            placeholder="Search company..."
+                            className="text-xs"
+                          />
+
+                          <CommandEmpty className="text-xs">
+                            No company found.
+                          </CommandEmpty>
+
+                          <CommandGroup>
+                            {companyOptions.map((company) => (
+                              <CommandItem
+                                key={company}
+                                value={company}
+                                className="text-xs"
+                                onSelect={() => {
+                                  setForm({
+                                    ...form,
+                                    companyName: company,
+                                    truck: "none",
+                                  });
+
+                                  setOpenFormCompany(false);
+                                }}
+                              >
+                                <Check
+                                  className={`mr-2 h-4 w-4 ${
+                                    form.companyName === company
+                                      ? "opacity-100"
+                                      : "opacity-0"
+                                  }`}
+                                />
+
+                                {company}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                   )}
+                </div>
+              )}
+
+              {form.role !== "admin" && (
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
+                    Start Date <span className="text-red-500">*</span>
+                  </label>
+
+                  <Popover open={openStartDate} onOpenChange={setOpenStartDate}>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        className={`w-full h-11 rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between outline-none focus:ring-2 focus:ring-ring ${
+                          !form.startDate ? "text-muted-foreground" : ""
+                        }`}
+                      >
+                        <span>
+                          {form.startDate
+                            ? format(
+                                new Date(`${form.startDate}T00:00:00`),
+                                "MMM d, yyyy",
+                              )
+                            : "Select date"}
+                        </span>
+
+                        <CalendarDays className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </button>
+                    </PopoverTrigger>
+
+                    <PopoverContent
+                      className="w-auto p-0 z-[9999]"
+                      align="start"
+                    >
+                      <Calendar
+                        mode="single"
+                        selected={
+                          form.startDate
+                            ? new Date(`${form.startDate}T00:00:00`)
+                            : undefined
+                        }
+                        onSelect={(date) => {
+                          if (!date) return;
+
+                          setForm({
+                            ...form,
+                            startDate: format(date, "yyyy-MM-dd"),
+                          });
+
+                          setOpenStartDate(false);
+                        }}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
               )}
 
               {/* DRIVER LICENSE */}
               {form.role === "employee" && (
-                <div className="col-span-2">
+                <div>
                   <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
                     License Number <span className="text-red-500">*</span>
                   </label>
@@ -871,32 +1104,79 @@ export default function UsersPage() {
 
               {/* EMPLOYEE TRUCK */}
               {form.role === "employee" && (
-                <div className="col-span-2">
+                <div>
                   <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
                     Assigned Truck <span className="text-red-500">*</span>
                   </label>
 
-                  <UiSelect
-                    value={form.truck}
-                    onValueChange={(val) =>
-                      setForm({
-                        ...form,
-                        truck: val,
-                      })
-                    }
-                  >
-                    <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
-                      <SelectValue placeholder="Select truck..." />
-                    </SelectTrigger>
+                  <Popover open={openFormTruck} onOpenChange={setOpenFormTruck}>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        role="combobox"
+                        disabled={isAdmin && !form.companyName}
+                        className="w-full h-11 rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <span
+                          className={`truncate ${
+                            form.truck === "none" ? "text-muted-foreground" : ""
+                          }`}
+                        >
+                          {isAdmin && !form.companyName
+                            ? "Select company first"
+                            : truckSelectOptions.find(
+                                (opt) => opt.value === form.truck,
+                              )?.label || "Select truck..."}
+                        </span>
 
-                    <SelectContent className="z-[9999]">
-                      {truckSelectOptions.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </UiSelect>
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </button>
+                    </PopoverTrigger>
+
+                    <PopoverContent
+                      className="w-[var(--radix-popover-trigger-width)] p-0 z-[9999]"
+                      align="start"
+                    >
+                      <Command>
+                        <CommandInput
+                          placeholder="Search truck..."
+                          className="text-xs"
+                        />
+
+                        <CommandEmpty className="text-xs">
+                          No truck found.
+                        </CommandEmpty>
+
+                        <CommandGroup>
+                          {truckSelectOptions.map((opt) => (
+                            <CommandItem
+                              key={opt.value}
+                              value={opt.label}
+                              className="text-xs"
+                              onSelect={() => {
+                                setForm({
+                                  ...form,
+                                  truck: opt.value,
+                                });
+
+                                setOpenFormTruck(false);
+                              }}
+                            >
+                              <Check
+                                className={`mr-2 h-4 w-4 ${
+                                  form.truck === opt.value
+                                    ? "opacity-100"
+                                    : "opacity-0"
+                                }`}
+                              />
+
+                              {opt.label}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
               )}
             </div>

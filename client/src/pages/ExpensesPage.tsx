@@ -22,6 +22,7 @@ import {
   ArrowDown,
   ArrowUpDown,
   ReceiptText,
+  RotateCcw,
   Calendar as CalendarIcon,
 } from "lucide-react";
 import DatePicker from "react-datepicker";
@@ -638,13 +639,17 @@ export default function ExpensesPage() {
             <button
               type="button"
               onClick={() => {
-                setExpensesMonth("ALL");
+                setExpensesMonth(String(new Date().getMonth() + 1));
                 setCategoryFilter("ALL");
               }}
-              disabled={expensesMonth === "ALL" && categoryFilter === "ALL"}
-              className="h-9 px-3 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:pointer-events-none"
+              disabled={
+                expensesMonth === String(new Date().getMonth() + 1) &&
+                categoryFilter === "ALL"
+              }
+              className="h-9 px-3 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:pointer-events-none flex items-center gap-1.5"
             >
-              Clear Filters
+              <RotateCcw className="h-3.5 w-3.5" />
+              Reset
             </button>
           </div>
 

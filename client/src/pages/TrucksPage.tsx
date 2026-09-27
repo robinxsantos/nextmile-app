@@ -18,6 +18,7 @@ import {
   Plus,
   Pencil,
   Trash2,
+  CalendarDays,
   Wrench,
 } from "lucide-react";
 import { cn } from "../lib/utils";
@@ -28,6 +29,13 @@ import {
   SelectItem,
   SelectValue,
 } from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 interface CompanyOption {
   _id: string;
@@ -42,8 +50,8 @@ const formatNumberWithComma = (value: string) => {
 };
 
 const STATUS_OPTIONS = [
-  { value: "Active", label: "🟢 Active" },
-  { value: "Inactive", label: "⚪ Inactive" },
+  { value: "Active", label: "Active" },
+  { value: "Inactive", label: "Inactive" },
 ];
 
 const DAY_OPTIONS = [
@@ -102,6 +110,7 @@ export default function TrucksPage() {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [changeOilModal, setChangeOilModal] = useState<TruckRow | null>(null);
+  const [openChangeOilDate, setOpenChangeOilDate] = useState(false);
 
   const [changeOilForm, setChangeOilForm] = useState({
     date: new Date().toISOString().slice(0, 10),
@@ -424,7 +433,7 @@ export default function TrucksPage() {
   };
 
   const inputClass =
-    "w-full h-11 rounded-md border border-border bg-background px-3 text-sm focus:ring-2 focus:ring-ring focus:border-ring outline-none transition-colors";
+    "w-full h-11 rounded-md border border-border bg-background px-3 text-xs focus:ring-2 focus:ring-ring focus:border-ring outline-none transition-colors";
 
   return (
     <div>
@@ -645,7 +654,13 @@ export default function TrucksPage() {
             onOpenAutoFocus={(e) => e.preventDefault()}
           >
             <DialogHeader>
-              <DialogTitle>{editRow ? "Edit Truck" : "Add Truck"}</DialogTitle>
+              <DialogTitle>
+                {editRow
+                  ? `Edit Truck – ${editRow.truckName}`
+                  : form.companyName
+                    ? `Add Truck – ${form.companyName}`
+                    : "Add Truck"}
+              </DialogTitle>
             </DialogHeader>
 
             {/* ✅ ORIGINAL FORM (UNCHANGED) */}
@@ -688,13 +703,17 @@ export default function TrucksPage() {
                       })
                     }
                   >
-                    <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
+                    <SelectTrigger className="w-full min-h-[44px] px-3.5 text-xs">
                       <SelectValue placeholder="Select company..." />
                     </SelectTrigger>
 
                     <SelectContent className="z-[9999]">
                       {companyOptions.map((company) => (
-                        <SelectItem key={company} value={company}>
+                        <SelectItem
+                          key={company}
+                          value={company}
+                          className="text-xs"
+                        >
                           {company}
                         </SelectItem>
                       ))}
@@ -712,13 +731,17 @@ export default function TrucksPage() {
                   value={form.status}
                   onValueChange={(val) => setForm({ ...form, status: val })}
                 >
-                  <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
+                  <SelectTrigger className="w-full min-h-[44px] px-3.5 text-xs">
                     <SelectValue />
                   </SelectTrigger>
 
                   <SelectContent>
                     {STATUS_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
+                      <SelectItem
+                        key={opt.value}
+                        value={opt.value}
+                        className="text-xs"
+                      >
                         {opt.label}
                       </SelectItem>
                     ))}
@@ -755,13 +778,17 @@ export default function TrucksPage() {
                     );
                   }}
                 >
-                  <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
+                  <SelectTrigger className="w-full min-h-[44px] px-3.5 text-xs">
                     <SelectValue />
                   </SelectTrigger>
 
                   <SelectContent>
                     {CUTOFF_TYPE_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
+                      <SelectItem
+                        key={opt.value}
+                        value={opt.value}
+                        className="text-xs"
+                      >
                         {opt.label}
                       </SelectItem>
                     ))}
@@ -784,13 +811,17 @@ export default function TrucksPage() {
                     }))
                   }
                 >
-                  <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
+                  <SelectTrigger className="w-full min-h-[44px] px-3.5 text-xs">
                     <SelectValue />
                   </SelectTrigger>
 
                   <SelectContent>
                     {BILLING_TYPE_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
+                      <SelectItem
+                        key={opt.value}
+                        value={opt.value}
+                        className="text-xs"
+                      >
                         {opt.label}
                       </SelectItem>
                     ))}
@@ -855,13 +886,17 @@ export default function TrucksPage() {
                             setForm({ ...form, [key]: val })
                           }
                         >
-                          <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
+                          <SelectTrigger className="w-full min-h-[44px] px-3.5 text-xs">
                             <SelectValue />
                           </SelectTrigger>
 
                           <SelectContent>
                             {DAY_OPTIONS.map((opt) => (
-                              <SelectItem key={opt.value} value={opt.value}>
+                              <SelectItem
+                                key={opt.value}
+                                value={opt.value}
+                                className="text-xs"
+                              >
                                 {opt.label}
                               </SelectItem>
                             ))}
@@ -985,17 +1020,52 @@ export default function TrucksPage() {
                       Date
                     </label>
 
-                    <input
-                      type="date"
-                      value={changeOilForm.date}
-                      onChange={(e) =>
-                        setChangeOilForm((prev) => ({
-                          ...prev,
-                          date: e.target.value,
-                        }))
-                      }
-                      className={inputClass}
-                    />
+                    <Popover
+                      open={openChangeOilDate}
+                      onOpenChange={setOpenChangeOilDate}
+                    >
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          className={`w-full h-11 rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between outline-none focus:ring-2 focus:ring-ring ${
+                            !changeOilForm.date ? "text-muted-foreground" : ""
+                          }`}
+                        >
+                          <span>
+                            {changeOilForm.date
+                              ? format(
+                                  new Date(`${changeOilForm.date}T00:00:00`),
+                                  "MMM d, yyyy",
+                                )
+                              : "Select date"}
+                          </span>
+
+                          <CalendarDays className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </button>
+                      </PopoverTrigger>
+
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={
+                            changeOilForm.date
+                              ? new Date(`${changeOilForm.date}T00:00:00`)
+                              : undefined
+                          }
+                          onSelect={(date) => {
+                            if (!date) return;
+
+                            setChangeOilForm((prev) => ({
+                              ...prev,
+                              date: format(date, "yyyy-MM-dd"),
+                            }));
+
+                            setOpenChangeOilDate(false);
+                          }}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
                   </div>
 
                   <div>

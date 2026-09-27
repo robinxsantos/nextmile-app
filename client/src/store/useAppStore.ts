@@ -550,22 +550,21 @@ export const useAppStore = create<AppState>((set, get) => ({
       }));
       set({ truckOptions });
 
-      // Check if user is admin (from auth store in localStorage)
+      // Set the default truck based on the logged-in user's role
       const storedUser = localStorage.getItem("nm_user");
-      const isAdmin = storedUser
-        ? JSON.parse(storedUser).role === "admin"
-        : true;
+      const userObj = storedUser ? JSON.parse(storedUser) : null;
+      const userRole = userObj?.role;
 
-      // For employees with assigned truck, force-select it and show all trips
-      if (!isAdmin && storedUser) {
-        const userObj = JSON.parse(storedUser);
+      // Driver/employee: always use the assigned truck
+      if (userRole === "employee") {
         const assignedTruck =
-          typeof userObj.truck === "object" && userObj.truck
+          typeof userObj?.truck === "object" && userObj?.truck
             ? userObj.truck._id
-            : userObj.truck;
+            : userObj?.truck;
+
         if (
           assignedTruck &&
-          truckOptions.find((t) => t._id === assignedTruck)
+          truckOptions.some((t) => t._id === assignedTruck)
         ) {
           set({
             selectedTruck: assignedTruck,
@@ -574,9 +573,17 @@ export const useAppStore = create<AppState>((set, get) => ({
             endDate: "",
           });
         }
-      } else if (!get().selectedTruck && truckOptions.length > 0) {
-        // Admin: auto-select first truck if none selected
-        set({ selectedTruck: truckOptions[0]._id });
+      }
+
+      // Admin/Manager: if nothing is selected, use the first active truck
+      if (
+        (userRole === "admin" || userRole === "manager") &&
+        !get().selectedTruck &&
+        truckOptions.length > 0
+      ) {
+        set({
+          selectedTruck: truckOptions[0]._id,
+        });
       }
 
       set({ initialized: true, error: null });
