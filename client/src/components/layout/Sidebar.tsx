@@ -261,10 +261,10 @@ export default function Sidebar({
         </nav>
 
         {/* FOOTER */}
-        <div className="border-t border-zinc-200 dark:border-zinc-800 p-2 space-y-2">
+        <div className="p-2 space-y-2">
           <Button
             variant="outline"
-            size="sm"
+            size="lg"
             onClick={toggleTheme}
             className={cn(
               "w-full justify-start text-xs",
@@ -284,6 +284,8 @@ export default function Sidebar({
             )}
           </Button>
 
+          <div className="border-t border-zinc-200 dark:border-zinc-800" />
+
           {!sidebarCollapsed && (
             <div className="px-3 py-2 border-b border-zinc-200 dark:border-zinc-800 mb-2">
               <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100 truncate">
@@ -294,7 +296,7 @@ export default function Sidebar({
               </div>
 
               {user?.companyName && (
-                <div className="text-xs text-zinc-400 truncate mt-0.5">
+                <div className="text-xs text-zinc-500 truncate mt-0.5">
                   {user.companyName}
                 </div>
               )}
