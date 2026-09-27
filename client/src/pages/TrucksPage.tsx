@@ -437,26 +437,19 @@ export default function TrucksPage() {
 
   return (
     <div>
-      <div className="mb-4">
-        <div className="flex flex-col md:flex-row justify-between md:items-end gap-3">
-          <div>
-            <h1 className="text-[20px] font-bold tracking-[-0.03em]">
-              Fleet Management
-              {currentUser?.companyName ? ` – ${currentUser.companyName}` : ""}
-            </h1>
-          </div>
-        </div>
-      </div>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h1 className="text-[20px] font-bold tracking-[-0.03em]">
+          Fleet Management
+          {currentUser?.companyName ? ` – ${currentUser.companyName}` : ""}
+        </h1>
 
-      <div className="border rounded-lg bg-background p-3.5 mb-3.5">
-        <div className="flex justify-end">
-          <button
-            onClick={openAdd}
-            className="h-10 px-4 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition flex items-center gap-2"
-          >
-            <Plus size={18} /> Add Truck
-          </button>
-        </div>
+        <button
+          onClick={openAdd}
+          className="h-10 px-4 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition flex items-center gap-2"
+        >
+          <Plus size={18} />
+          Add Truck
+        </button>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">

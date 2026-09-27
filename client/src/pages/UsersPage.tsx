@@ -349,27 +349,8 @@ export default function UsersPage() {
 
   return (
     <div>
-      <div className="mb-4">
-        <div className="flex flex-col md:flex-row justify-between md:items-end gap-3">
-          <div>
-            <h1 className="text-[20px] font-bold tracking-[-0.03em]">
-              User List
-              {isManager && currentUser?.companyName
-                ? ` – ${currentUser.companyName}`
-                : ""}
-            </h1>
-          </div>
-          <button
-            onClick={openAdd}
-            className="h-10 px-4 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition flex items-center gap-2"
-          >
-            <Plus size={18} /> Add User
-          </button>
-        </div>
-      </div>
-
-      {isAdmin && (
-        <div className="mb-4 flex items-end gap-3">
+      <div className="mb-4 flex items-end justify-between gap-3">
+        {isAdmin ? (
           <div className="w-full sm:w-[280px]">
             <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
               Company
@@ -450,8 +431,18 @@ export default function UsersPage() {
               </PopoverContent>
             </Popover>
           </div>
-        </div>
-      )}
+        ) : (
+          <div />
+        )}
+
+        <button
+          onClick={openAdd}
+          className="h-10 px-4 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition flex items-center gap-2 shrink-0"
+        >
+          <Plus size={18} />
+          Add User
+        </button>
+      </div>
 
       <div className="border rounded-lg bg-background overflow-hidden">
         {/* Desktop Table */}

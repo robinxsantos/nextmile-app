@@ -229,38 +229,31 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      {/* PAGE HEADER */}
-      <div>
-        <h1 className="text-[20px] font-semibold tracking-[-0.03em]">
-          Settings
-        </h1>
-      </div>
-
-      <Separator />
-
       <Tabs defaultValue="profile" className="space-y-5">
-        <TabsList>
-          <TabsTrigger value="profile" className="gap-2">
-            <User className="h-4 w-4" />
-            Profile
-          </TabsTrigger>
-
-          <TabsTrigger value="security" className="gap-2">
-            <Lock className="h-4 w-4" />
-            Security
-          </TabsTrigger>
-
-          {isAdmin && (
-            <TabsTrigger value="companies" className="gap-2">
-              <Building2 className="h-4 w-4" />
-              Companies
+        <div className="flex justify-center">
+          <TabsList>
+            <TabsTrigger value="profile" className="gap-2">
+              <User className="h-4 w-4" />
+              Profile
             </TabsTrigger>
-          )}
-        </TabsList>
+
+            <TabsTrigger value="security" className="gap-2">
+              <Lock className="h-4 w-4" />
+              Security
+            </TabsTrigger>
+
+            {isAdmin && (
+              <TabsTrigger value="companies" className="gap-2">
+                <Building2 className="h-4 w-4" />
+                Companies
+              </TabsTrigger>
+            )}
+          </TabsList>
+        </div>
 
         {/* PROFILE */}
         <TabsContent value="profile">
-          <Card className="max-w-3xl">
+          <Card className="max-w-3xl mx-auto">
             <CardHeader>
               <CardTitle>Profile</CardTitle>
 
@@ -322,7 +315,7 @@ export default function SettingsPage() {
 
         {/* SECURITY */}
         <TabsContent value="security">
-          <Card className="max-w-3xl">
+          <Card className="max-w-3xl mx-auto">
             <CardHeader>
               <CardTitle>Security</CardTitle>
 
@@ -393,7 +386,7 @@ export default function SettingsPage() {
         {/* COMPANIES — ADMIN ONLY */}
         {isAdmin && (
           <TabsContent value="companies">
-            <Card className="max-w-3xl">
+            <Card className="max-w-3xl mx-auto">
               <CardHeader className="flex flex-row items-start justify-between gap-4">
                 <div>
                   <CardTitle>Companies</CardTitle>

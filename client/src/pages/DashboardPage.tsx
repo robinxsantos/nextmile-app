@@ -4,6 +4,7 @@ import { useAuthStore } from "../store/useAuthStore";
 import FilterBar from "../components/shared/FilterBar";
 import TripModal from "../components/shared/TripModal";
 import TripTable from "../components/shared/TripTable";
+import EmptyState from "../components/shared/EmptyState";
 import ErrorState from "../components/shared/ErrorState";
 import { exportTripsCsv, exportPayslip } from "../lib/exportHelpers";
 import {
@@ -11,6 +12,7 @@ import {
   CheckCircle2,
   BarChart3,
   ArrowUpDown,
+  Route,
   Plus,
   Search,
   Download,
@@ -23,6 +25,8 @@ import {
   TrendingUp,
   TrendingDown,
   Receipt,
+  Check,
+  ChevronsUpDown,
 } from "lucide-react";
 import {
   XAxis,
@@ -47,6 +51,13 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+
+import { Command, CommandGroup, CommandItem } from "@/components/ui/command";
 
 function Sparkline({
   data,
@@ -214,6 +225,7 @@ export default function DashboardPage() {
   const [verificationFilter, setVerificationFilter] = useState<
     "ALL" | "Verified" | "Pending" | "For Confirmation"
   >("ALL");
+  const [openVerification, setOpenVerification] = useState(false);
 
   const defaultVisibleColumns: Record<ColumnKey, boolean> = {
     truck: true,
@@ -281,9 +293,6 @@ export default function DashboardPage() {
     if (rangePreset === "ALL") return "MONTHLY"; // 🔥 FIX
     return "WEEKLY";
   };
-  const pageTitle = selectedTruckName
-    ? `${selectedTruckName} Overview`
-    : "Overview";
 
   const showTruckColumn = !selectedTruck || selectedTruck === "ALL";
 
@@ -497,19 +506,9 @@ export default function DashboardPage() {
         <ErrorState message={error} onRetry={() => fetchDashboard()} />
       )}
 
-      <div className="mb-4">
-        <div className="flex flex-col md:flex-row justify-between md:items-end gap-3">
-          <div>
-            <h1 className="text-[20px] font-semibold tracking-[-0.03em]">
-              {pageTitle}
-            </h1>
-          </div>
-        </div>
-      </div>
-
-      <div className="sticky top-0 z-20 bg-background">
+      <div className="sticky top-14 z-30 bg-[#fcfcfc] dark:bg-zinc-900">
         <FilterBar
-          showTruck={canManageDashboard}
+          showTruck={false}
           allowedRangePresets={
             canManageDashboard ? undefined : (["CC", "LC"] as const)
           }
@@ -936,129 +935,159 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="border rounded-lg bg-background p-3.5 overflow-visible mt-4">
-        <div className="flex flex-col gap-3 mb-3">
+      <div className="border border-border rounded-lg bg-background overflow-visible mt-4">
+        {/* HEADER */}
+        <div className="p-3.5 border-b border-border flex items-center justify-between gap-4">
           <div>
-            <h2 className="text-sm font-semibold">Trip Records</h2>
+            <h2 className="text-sm font-medium">Trip Records</h2>
+
             <p className="text-xs text-muted-foreground">
-              Filter, edit, export, and generate payslips from the selected set.
+              View trip records from selected date range.
             </p>
           </div>
-          <div className="flex gap-2 flex-wrap items-center">
-            <div className="flex items-center gap-1 border border-border rounded-md p-1 h-[44px]">
-              {["ALL", "Verified", "Pending", "For Confirmation"].map(
-                (status) => (
-                  <button
-                    key={status}
-                    onClick={() => setVerificationFilter(status as any)}
-                    className={cn(
-                      "px-3 py-1.5 text-xs rounded-md transition-colors",
 
-                      verificationFilter === status &&
-                        status === "Verified" &&
-                        "bg-green-500/80 text-white",
-
-                      verificationFilter === status &&
-                        status === "Pending" &&
-                        "bg-orange-500 text-white",
-
-                      verificationFilter === status &&
-                        status === "For Confirmation" &&
-                        "bg-gray-500 text-white",
-
-                      verificationFilter === status &&
-                        status === "ALL" &&
-                        "bg-foreground text-background",
-
-                      verificationFilter !== status &&
-                        "text-muted-foreground hover:bg-muted",
-                    )}
-                  >
-                    {status === "ALL" ? "All" : status}
-                  </button>
-                ),
+          <div ref={dropdownRef} className="relative">
+            <button
+              type="button"
+              onClick={() => setShowColumnsMenu((v) => !v)}
+              className={cn(
+                "h-9 w-9 rounded-md border border-border flex items-center justify-center text-foreground transition-colors",
+                showColumnsMenu ? "bg-muted" : "bg-background hover:bg-muted",
               )}
-            </div>
-            <div className="flex-grow min-w-[240px] relative">
+              title="Show / Hide Columns"
+            >
+              <Columns3 size={16} />
+            </button>
+
+            {showColumnsMenu && (
+              <div className="absolute right-0 mt-2 z-[70] w-64 max-h-[320px] overflow-y-auto rounded-md border border-border bg-background p-2 shadow-lg">
+                <div className="px-2 pb-2 text-[11px] font-semibold uppercase text-slate-500">
+                  Show Columns
+                </div>
+
+                <div className="flex flex-col">
+                  {COLUMN_OPTIONS.map(([key, label]) => {
+                    const checked = visibleColumns[key as ColumnKey];
+
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() =>
+                          setVisibleColumns((prev) => ({
+                            ...prev,
+                            [key]: !prev[key as ColumnKey],
+                          }))
+                        }
+                        className="flex items-center px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-xs"
+                      >
+                        <span className="flex-1 pr-4 text-left">{label}</span>
+
+                        <span
+                          className={`relative inline-flex h-4 w-7 items-center rounded-full ${
+                            checked ? "bg-foreground" : "bg-muted"
+                          }`}
+                        >
+                          <span
+                            className={`h-3 w-3 rounded-full bg-white transition-transform ${
+                              checked ? "translate-x-3.5" : "translate-x-0.5"
+                            }`}
+                          />
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* FILTERS */}
+        <div className="flex flex-wrap items-end gap-2 border-b border-border bg-background px-3.5 py-3">
+          {/* SEARCH */}
+          <div className="min-w-[180px] flex-1">
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">
+              Search
+            </label>
+
+            <div className="relative">
               <Search
                 size={14}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
               />
+
               <input
                 ref={searchInputRef}
                 type="text"
-                placeholder="Search Shipment Number..."
+                placeholder="Search shipment number..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full min-h-[44px] rounded-md border border-border bg-background text-xs pl-9 pr-3.5 focus:outline-none focus:border-ring transition-colors"
+                className="w-full h-9 rounded-md border border-border bg-background pl-9 pr-3 text-xs outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
-            <button
-              onClick={handleExportCsv}
-              className="h-10 px-3 rounded-md border border-border bg-background text-xs font-medium hover:bg-muted transition-colors flex items-center gap-2"
-            >
-              <Download size={16} /> CSV
-            </button>
-            <button
-              onClick={handleExportPayslip}
-              className="h-10 px-3 rounded-md border border-border bg-background text-xs font-medium hover:bg-muted transition-colors flex items-center gap-2"
-            >
-              <FileText size={16} /> Payslip
-            </button>
-            <div ref={dropdownRef} className="relative">
-              <button
-                onClick={() => setShowColumnsMenu((v) => !v)}
-                className={`min-h-[44px] w-[44px] rounded-[14px] border flex items-center justify-center transition-colors
-                  ${
-                    showColumnsMenu
-                      ? "bg-muted"
-                      : "bg-background hover:bg-muted text-muted-foreground"
-                  }`}
-                title="Show / Hide Columns"
+          </div>
+
+          {/* VERIFICATION */}
+          <div className="w-[160px] shrink-0">
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">
+              Verification
+            </label>
+
+            <Popover open={openVerification} onOpenChange={setOpenVerification}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  role="combobox"
+                  className="h-9 w-full rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between outline-none focus:ring-2 focus:ring-ring"
+                >
+                  <span>
+                    {verificationFilter === "ALL" ? "All" : verificationFilter}
+                  </span>
+
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </button>
+              </PopoverTrigger>
+
+              <PopoverContent
+                className="w-[var(--radix-popover-trigger-width)] p-0"
+                align="start"
               >
-                <Columns3 size={18} />
-              </button>
-              {showColumnsMenu && (
-                <div className="absolute right-0 mt-2 z-100 w-64 max-h-[320px] overflow-y-auto rounded-md border border-border bg-background p-2">
-                  <div className="px-2 pb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                    Show Columns
-                  </div>
-
-                  <div className="flex flex-col">
-                    {COLUMN_OPTIONS.map(([key, label]) => {
-                      const checked = visibleColumns[key as ColumnKey];
-
-                      return (
-                        <button
-                          key={key}
-                          onClick={() =>
-                            setVisibleColumns((prev) => ({
-                              ...prev,
-                              [key]: !prev[key as ColumnKey],
-                            }))
-                          }
-                          className="flex items-center px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-xs"
+                <Command>
+                  <CommandGroup>
+                    {["ALL", "Verified", "Pending", "For Confirmation"].map(
+                      (status) => (
+                        <CommandItem
+                          key={status}
+                          value={status}
+                          className="text-xs"
+                          onSelect={() => {
+                            setVerificationFilter(
+                              status as
+                                | "ALL"
+                                | "Verified"
+                                | "Pending"
+                                | "For Confirmation",
+                            );
+                            setOpenVerification(false);
+                          }}
                         >
-                          <span className="flex-1 pr-4 text-left">{label}</span>
-
-                          <span
-                            className={`relative inline-flex h-4 w-7 items-center rounded-full ${
-                              checked ? "bg-foreground" : "bg-muted"
+                          <Check
+                            className={`mr-2 h-4 w-4 ${
+                              verificationFilter === status
+                                ? "opacity-100"
+                                : "opacity-0"
                             }`}
-                          >
-                            <span
-                              className={`h-3 w-3 rounded-full bg-white transition-transform ${
-                                checked ? "translate-x-3.5" : "translate-x-0.5"
-                              }`}
-                            />
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
+                          />
+
+                          {status === "ALL" ? "All" : status}
+                        </CommandItem>
+                      ),
+                    )}
+                  </CommandGroup>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
 
@@ -1067,29 +1096,48 @@ export default function DashboardPage() {
           expenseRows={expenseRows}
           expandableDetails
           totalsRows={tripRows}
+          searchQuery={searchQuery}
           loading={loading}
           verificationFilter={verificationFilter}
-          searchQuery={searchQuery}
           showActions
-          selectable
-          selectedIds={selectedTripIds}
-          onSelectionChange={setSelectedTripIds}
-          onTogglePaid={(id) => handleTogglePaid(id)}
+          selectable={canManageDashboard}
+          selectedIds={canManageDashboard ? selectedTripIds : []}
+          onSelectionChange={
+            canManageDashboard ? setSelectedTripIds : undefined
+          }
+          onTogglePaid={canManageDashboard ? handleTogglePaid : undefined}
           onEdit={(r) => {
             setEditRow(r);
             setDuplicateFrom(null);
             setTripModal(true);
           }}
           onDelete={(r) => setDeleteModal(r)}
-          onDuplicate={handleDuplicate}
+          onDuplicate={canManageDashboard ? handleDuplicate : undefined}
           onExpenseClick={(data) => setExpenseBreakdown(data)}
+          canEditRow={canManageDashboard ? undefined : (r) => !r.paid}
+          canDeleteRow={canManageDashboard ? undefined : (r) => !r.paid}
           selectedTruck={selectedTruck}
           showTruckColumn={showTruckColumn}
           visibleColumns={visibleColumns}
-          onQuickEdit={quickEditTrip}
-          onVerificationChange={async (id, status) => {
-            await quickEditTrip(id, "verificationStatus", status);
-          }}
+          onQuickEdit={canManageDashboard ? quickEditTrip : undefined}
+          onVerificationChange={
+            canManageDashboard
+              ? async (id, status) => {
+                  await quickEditTrip(id, "verificationStatus", status);
+                }
+              : undefined
+          }
+          emptyState={
+            <EmptyState
+              icon={Route}
+              title="No Trips Found!"
+              description={
+                selectedTruck
+                  ? `No trips recorded for ${selectedTruckName} on the selected date range.`
+                  : "Select a truck to view trip records."
+              }
+            />
+          }
         />
       </div>
 

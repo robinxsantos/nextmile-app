@@ -1,4 +1,4 @@
-import { RotateCcw, CalendarDays } from "lucide-react";
+import { RotateCcw, CalendarDays, Clock3 } from "lucide-react";
 import { useAppStore } from "../../store/useAppStore";
 import type { RangePreset } from "../../lib/dateHelpers";
 import type { DateRange } from "react-day-picker";
@@ -144,8 +144,8 @@ export default function FilterBar({
   };
 
   return (
-    <div className="border rounded-lg p-4 bg-background">
-      <div className="flex flex-wrap gap-3 items-end">
+    <div className="bg-transparent py-2">
+      <div className="flex flex-wrap items-center justify-center gap-0">
         {reportPeriodType && onReportPeriodTypeChange && (
           <div className="min-w-[180px] flex-1 max-w-[220px]">
             <label className="text-[10px] font-bold tracking-wider uppercase text-muted-foreground mb-1.5 block">
@@ -156,7 +156,7 @@ export default function FilterBar({
               <PopoverTrigger asChild>
                 <button
                   role="combobox"
-                  className="w-full h-[44px] justify-between rounded-md border border-border bg-background px-3 text-xs flex items-center"
+                  className="w-full h-[34px] justify-between rounded-md border border-border bg-background px-3 text-xs flex items-center"
                 >
                   {reportPeriodType === "monthly" ? "Monthly" : "Custom Range"}
 
@@ -209,30 +209,33 @@ export default function FilterBar({
           </div>
         )}
         {showRange && (
-          <div className="min-w-[180px] flex-1 max-w-[220px]">
-            <label className="text-[10px] font-bold tracking-wider uppercase text-muted-foreground mb-1.5 block">
-              Date Range
-            </label>
-
+          <div className="w-[220px] shrink-0">
             <Popover open={openRangePreset} onOpenChange={setOpenRangePreset}>
               <PopoverTrigger asChild>
                 <button
                   role="combobox"
-                  className="w-full h-[44px] justify-between rounded-md border border-border bg-background px-3 text-xs flex items-center"
+                  className="w-full h-9 justify-between rounded-l-md rounded-r-none border border-border bg-background px-3 text-sm flex items-center"
                 >
-                  {rangeOptions.find((o) => o.value === rangePreset)?.label ||
-                    "Select range"}
-                  <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
+                  <div className="flex min-w-0 items-center gap-2">
+                    <Clock3 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+
+                    <span className="truncate">
+                      {rangeOptions.find((o) => o.value === rangePreset)
+                        ?.label || "Select range"}
+                    </span>
+                  </div>
+
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </button>
               </PopoverTrigger>
 
               <PopoverContent className="w-full p-0">
                 <Command>
                   <CommandInput
-                    className="text-xs"
+                    className="text-sm"
                     placeholder="Search range..."
                   />
-                  <CommandEmpty className="text-xs">
+                  <CommandEmpty className="text-sm">
                     No results found.
                   </CommandEmpty>
 
@@ -241,9 +244,16 @@ export default function FilterBar({
                       <CommandItem
                         key={opt.value}
                         value={opt.label}
-                        className="text-xs"
+                        className="text-sm"
                         onSelect={() => {
                           setRangePreset(opt.value as RangePreset);
+
+                          // All Time = walang specific date range
+                          if (opt.value === "ALL") {
+                            setStartDate("");
+                            setEndDate("");
+                            setDateRange(undefined);
+                          }
 
                           setTimeout(() => {
                             fetchDashboard();
@@ -279,7 +289,7 @@ export default function FilterBar({
               <PopoverTrigger asChild>
                 <button
                   role="combobox"
-                  className="w-full h-[44px] justify-between rounded-md border border-border bg-background px-3 text-xs flex items-center"
+                  className="w-full h-[34px] font-medium justify-between rounded-md border border-border bg-background px-3 text-xs flex items-center"
                 >
                   {truckSelectOptions.find((o) => o.value === selectedTruck)
                     ?.label || "Select truck"}
@@ -290,10 +300,10 @@ export default function FilterBar({
               <PopoverContent className="w-full p-0">
                 <Command>
                   <CommandInput
-                    className="text-xs"
+                    className="text-xs font-medium"
                     placeholder="Search truck..."
                   />
-                  <CommandEmpty className="text-xs">
+                  <CommandEmpty className="text-xs font-medium">
                     No truck found.
                   </CommandEmpty>
 
@@ -302,7 +312,7 @@ export default function FilterBar({
                       <CommandItem
                         key={t.value}
                         value={t.label}
-                        className="text-xs"
+                        className="text-xs font-medium"
                         onSelect={() => {
                           setSelectedTruck(t.value);
                           setTimeout(() => {
@@ -330,19 +340,22 @@ export default function FilterBar({
         )}
 
         {showRange && (
-          <div className="min-w-[260px] flex-1 max-w-[320px]">
-            <label className="text-[10px] font-bold tracking-wider uppercase text-muted-foreground mb-1.5 flex items-center gap-1">
-              <CalendarDays size={12} />
-              Period
-            </label>
-
+          <div className="w-[290px] shrink-0">
             <Popover open={openRange} onOpenChange={setOpenRange}>
               <PopoverTrigger asChild>
-                <button className="w-full h-[44px] justify-between rounded-md border border-border bg-background px-3 text-xs flex items-center">
-                  {dateRange?.from && dateRange?.to
-                    ? `${format(dateRange!.from, "MMM d, yyyy")} - ${format(dateRange!.to, "MMM d, yyyy")}`
-                    : "Select date range"}
-                  <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
+                <button className="w-full h-9 justify-between rounded-r-md rounded-l-none border border-l-0 border-border bg-background px-3 text-sm flex items-center">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <CalendarDays className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+
+                    <span className="truncate">
+                      {dateRange?.from && dateRange?.to
+                        ? `${format(dateRange.from, "MMM d, yyyy")} - ${format(
+                            dateRange.to,
+                            "MMM d, yyyy",
+                          )}`
+                        : "Select date range"}
+                    </span>
+                  </div>
                 </button>
               </PopoverTrigger>
 
@@ -383,7 +396,7 @@ export default function FilterBar({
               <PopoverTrigger asChild>
                 <button
                   role="combobox"
-                  className="w-full h-[44px] justify-between rounded-md border border-border bg-background px-3 text-xs flex items-center"
+                  className="w-full h-[34px] justify-between rounded-md border border-border bg-background px-3 text-xs flex items-center"
                 >
                   {MONTHS.find((m) => m.value === (monthValue || "ALL"))
                     ?.label || "Select month"}
@@ -436,7 +449,7 @@ export default function FilterBar({
 
             <Popover open={openRange} onOpenChange={setOpenRange}>
               <PopoverTrigger asChild>
-                <button className="w-full h-[44px] justify-between rounded-md border border-border bg-background px-3 text-xs flex items-center">
+                <button className="w-full h-[34px] justify-between rounded-md border border-border bg-background px-3 text-xs flex items-center">
                   {customStartDate && customEndDate
                     ? `${format(new Date(`${customStartDate}T00:00:00`), "MMM d, yyyy")} - ${format(
                         new Date(`${customEndDate}T00:00:00`),
@@ -499,7 +512,7 @@ export default function FilterBar({
         {showRange && (
           <button
             onClick={handleReset}
-            className="h-[44px] px-4 rounded-md border border-border bg-background text-xs font-medium hover:bg-muted transition-colors flex items-center gap-2"
+            className="ml-3 h-9 px-3 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1.5"
           >
             <RotateCcw size={14} />
             Reset

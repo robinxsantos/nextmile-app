@@ -116,8 +116,6 @@ export default function PaymentsPage() {
   const [openEditTruck, setOpenEditTruck] = useState(false);
   const [paymentSearch, setPaymentSearch] = useState("");
   const [paymentCategoryFilter, setPaymentCategoryFilter] = useState("ALL");
-
-  const [openPaymentTruck, setOpenPaymentTruck] = useState(false);
   const [openPaymentCategory, setOpenPaymentCategory] = useState(false);
   const [openPaymentPeriod, setOpenPaymentPeriod] = useState(false);
 
@@ -162,10 +160,6 @@ export default function PaymentsPage() {
   const selectedTruckName = truckOptions.find(
     (t) => t._id === selectedTruck,
   )?.truckName;
-
-  const pageTitle = selectedTruckName
-    ? `${selectedTruckName} Payments`
-    : "Payments";
 
   const filePreviewLabel = useMemo(() => {
     if (!file) return "";
@@ -540,24 +534,6 @@ export default function PaymentsPage() {
 
   return (
     <div className="space-y-3.5">
-      <div className="mb-4">
-        <div className="flex flex-col md:flex-row justify-between md:items-end gap-3">
-          <div>
-            <h1 className="text-[20px] font-bold tracking-[-0.03em]">
-              {pageTitle}
-            </h1>
-          </div>
-          <div className="text-right">
-            <div className="text-[0.72rem] font-bold tracking-wider uppercase text-muted-foreground">
-              Records
-            </div>
-            <div className="font-bold text-sm">
-              {paymentStats.count} item{paymentStats.count === 1 ? "" : "s"}
-            </div>
-          </div>
-        </div>
-      </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-[420px_minmax(0,1fr)] gap-3.5 items-start">
         <div className="border rounded-lg bg-background p-4">
           <div className="mb-4">
@@ -921,6 +897,15 @@ export default function PaymentsPage() {
                 Click View to open the image in a preview window.
               </p>
             </div>
+
+            <div className="text-right shrink-0">
+              <div className="text-xs font-bold uppercase text-muted-foreground">
+                Records
+              </div>
+              <div className="font-bold text-xs">
+                {paymentStats.count} item{paymentStats.count === 1 ? "" : "s"}
+              </div>
+            </div>
           </div>
 
           {/* FILTERS */}
@@ -945,86 +930,6 @@ export default function PaymentsPage() {
                   className="w-full h-9 rounded-md border border-border bg-background pl-9 pr-3 text-xs outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
-            </div>
-
-            {/* TRUCK */}
-            <div className="min-w-[150px]">
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                Truck
-              </label>
-
-              <Popover
-                open={openPaymentTruck}
-                onOpenChange={setOpenPaymentTruck}
-              >
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    role="combobox"
-                    className="h-9 w-full rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between outline-none focus:ring-2 focus:ring-ring"
-                  >
-                    <span className="truncate">
-                      {truckOptions.find((truck) => truck._id === selectedTruck)
-                        ?.truckName || "All Trucks"}
-                    </span>
-
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </button>
-                </PopoverTrigger>
-
-                <PopoverContent className="w-[220px] p-0" align="start">
-                  <Command>
-                    <CommandInput
-                      placeholder="Search truck..."
-                      className="text-xs"
-                    />
-
-                    <CommandEmpty className="text-xs">
-                      No truck found.
-                    </CommandEmpty>
-
-                    <CommandGroup>
-                      <CommandItem
-                        value="All Trucks"
-                        className="text-xs"
-                        onSelect={() => {
-                          setSelectedTruck("");
-                          setOpenPaymentTruck(false);
-                        }}
-                      >
-                        <Check
-                          className={`mr-2 h-4 w-4 ${
-                            !selectedTruck ? "opacity-100" : "opacity-0"
-                          }`}
-                        />
-                        All Trucks
-                      </CommandItem>
-
-                      {truckOptions.map((truck) => (
-                        <CommandItem
-                          key={truck._id}
-                          value={truck.truckName}
-                          className="text-xs"
-                          onSelect={() => {
-                            setSelectedTruck(truck._id);
-                            setOpenPaymentTruck(false);
-                          }}
-                        >
-                          <Check
-                            className={`mr-2 h-4 w-4 ${
-                              selectedTruck === truck._id
-                                ? "opacity-100"
-                                : "opacity-0"
-                            }`}
-                          />
-
-                          {truck.truckName}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </Command>
-                </PopoverContent>
-              </Popover>
             </div>
 
             {/* CATEGORY */}
@@ -1442,62 +1347,12 @@ export default function PaymentsPage() {
                 Truck
               </label>
 
-              <Popover open={openEditTruck} onOpenChange={setOpenEditTruck}>
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    role="combobox"
-                    className="w-full h-11 rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between outline-none focus:ring-2 focus:ring-ring"
-                  >
-                    <span className="truncate">
-                      {truckOptions.find((truck) => truck._id === editTruck)
-                        ?.truckName || "Select truck"}
-                    </span>
-
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </button>
-                </PopoverTrigger>
-
-                <PopoverContent
-                  className="w-[var(--radix-popover-trigger-width)] p-0 z-[9999]"
-                  align="start"
-                >
-                  <Command>
-                    <CommandInput
-                      placeholder="Search truck..."
-                      className="text-xs"
-                    />
-
-                    <CommandEmpty className="text-xs">
-                      No truck found.
-                    </CommandEmpty>
-
-                    <CommandGroup>
-                      {truckOptions.map((truck) => (
-                        <CommandItem
-                          key={truck._id}
-                          value={truck.truckName}
-                          className="text-xs"
-                          onSelect={() => {
-                            setEditTruck(truck._id);
-                            setOpenEditTruck(false);
-                          }}
-                        >
-                          <Check
-                            className={`mr-2 h-4 w-4 ${
-                              editTruck === truck._id
-                                ? "opacity-100"
-                                : "opacity-0"
-                            }`}
-                          />
-
-                          {truck.truckName}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </Command>
-                </PopoverContent>
-              </Popover>
+              <div className="w-full h-11 rounded-md border border-border bg-muted/40 px-3 text-xs flex items-center">
+                <span className="truncate">
+                  {truckOptions.find((truck) => truck._id === createTruck)
+                    ?.truckName || "Select truck from topbar"}
+                </span>
+              </div>
             </div>
             <div>
               <label className="text-xs font-medium text-foreground mb-1.5 block">

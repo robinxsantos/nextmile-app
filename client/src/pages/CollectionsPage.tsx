@@ -66,8 +66,7 @@ type CollectionRow = {
 };
 
 export default function CollectionsPage() {
-  const { selectedTruck, setSelectedTruck, truckOptions, initApp } =
-    useAppStore();
+  const { selectedTruck, truckOptions, initApp } = useAppStore();
 
   const [trips, setTrips] = useState<TripRow[]>([]);
   const [collections, setCollections] = useState<CollectionRow[]>([]);
@@ -93,7 +92,6 @@ export default function CollectionsPage() {
     null,
   );
   const [savingEditCollection, setSavingEditCollection] = useState(false);
-  const [openTruck, setOpenTruck] = useState(false);
 
   const [editCollectionDate, setEditCollectionDate] = useState("");
   const [editCoverageStartDate, setEditCoverageStartDate] = useState("");
@@ -346,10 +344,6 @@ export default function CollectionsPage() {
       outstanding,
     };
   }, [trips, collections, collectedTripIds]);
-
-  const pageTitle = selectedTruckName
-    ? `${selectedTruckName} Collections`
-    : "Collections";
 
   const handleCreateCollection = async () => {
     if (!selectedTruck || selectedTripIds.length === 0) {
@@ -605,12 +599,6 @@ export default function CollectionsPage() {
 
   return (
     <div className="space-y-3.5">
-      <div className="mb-4">
-        <h1 className="text-[20px] font-bold tracking-[-0.03em]">
-          {pageTitle}
-        </h1>
-      </div>
-
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
         {/* TOTAL RECEIVABLES */}
         <div className="relative overflow-hidden rounded-xl border border-border bg-background p-4 shadow-sm">
@@ -717,83 +705,6 @@ export default function CollectionsPage() {
                 className="w-full h-9 rounded-md border border-border bg-background pl-9 pr-3 text-xs outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
-          </div>
-
-          {/* TRUCK */}
-          <div className="min-w-[160px]">
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">
-              Truck
-            </label>
-
-            <Popover open={openTruck} onOpenChange={setOpenTruck}>
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  role="combobox"
-                  className="h-9 w-full rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between outline-none focus:ring-2 focus:ring-ring"
-                >
-                  <span className="truncate">
-                    {truckOptions.find((truck) => truck._id === selectedTruck)
-                      ?.truckName || "All Trucks"}
-                  </span>
-
-                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </button>
-              </PopoverTrigger>
-
-              <PopoverContent className="w-[220px] p-0" align="start">
-                <Command>
-                  <CommandInput
-                    placeholder="Search truck..."
-                    className="text-xs"
-                  />
-
-                  <CommandEmpty className="text-xs">
-                    No truck found.
-                  </CommandEmpty>
-
-                  <CommandGroup>
-                    <CommandItem
-                      value="All Trucks"
-                      className="text-xs"
-                      onSelect={() => {
-                        setSelectedTruck("");
-                        setOpenTruck(false);
-                      }}
-                    >
-                      <Check
-                        className={`mr-2 h-4 w-4 ${
-                          !selectedTruck ? "opacity-100" : "opacity-0"
-                        }`}
-                      />
-                      All Trucks
-                    </CommandItem>
-
-                    {truckOptions.map((truck) => (
-                      <CommandItem
-                        key={truck._id}
-                        value={truck.truckName}
-                        className="text-xs"
-                        onSelect={() => {
-                          setSelectedTruck(truck._id);
-                          setOpenTruck(false);
-                        }}
-                      >
-                        <Check
-                          className={`mr-2 h-4 w-4 ${
-                            selectedTruck === truck._id
-                              ? "opacity-100"
-                              : "opacity-0"
-                          }`}
-                        />
-
-                        {truck.truckName}
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </Command>
-              </PopoverContent>
-            </Popover>
           </div>
 
           <div className="min-w-[120px]">

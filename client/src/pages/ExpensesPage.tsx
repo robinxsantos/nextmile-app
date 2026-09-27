@@ -23,9 +23,10 @@ import {
   ArrowUpDown,
   ReceiptText,
   RotateCcw,
+  Clock3,
+  CalendarDays,
   Calendar as CalendarIcon,
 } from "lucide-react";
-import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import Pagination from "../components/shared/Pagination";
 import EmptyState from "../components/shared/EmptyState";
@@ -87,7 +88,6 @@ export default function ExpensesPage() {
   const {
     expenseRows,
     selectedTruck,
-    setSelectedTruck,
     truckOptions,
     expensesMonth,
     setExpensesMonth,
@@ -121,7 +121,6 @@ export default function ExpensesPage() {
   });
   const [categoryFilter, setCategoryFilter] = useState<string>("ALL");
   const [openCategory, setOpenCategory] = useState(false);
-  const [openTruck, setOpenTruck] = useState(false);
   const [openMonth, setOpenMonth] = useState(false);
 
   const [openFormCategory, setOpenFormCategory] = useState(false);
@@ -169,9 +168,6 @@ export default function ExpensesPage() {
   const selectedTruckName = truckOptions.find(
     (t) => t._id === selectedTruck,
   )?.truckName;
-  const pageTitle = selectedTruckName
-    ? `${selectedTruckName} Expenses`
-    : "Expenses";
 
   const filteredRows = useMemo(() => {
     let rows = expenseRows;
@@ -386,23 +382,84 @@ export default function ExpensesPage() {
 
   return (
     <div>
-      <div className="mb-4">
-        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-          <div>
-            <h1 className="text-[20px] font-semibold tracking-[-0.03em]">
-              {pageTitle}
-            </h1>
-          </div>
+      <div className="sticky top-14 z-30 bg-[#fcfcfc] dark:bg-zinc-900 mb-4 py-2 flex flex-wrap items-center justify-between gap-3">
+        {/* LEFT: MONTH */}
+        <div className="flex items-center">
+          <Popover open={openMonth} onOpenChange={setOpenMonth}>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                role="combobox"
+                className="h-9 w-[180px] rounded-md border border-border bg-background px-3 text-sm flex items-center justify-between outline-none focus:ring-2 focus:ring-ring"
+              >
+                <span className="truncate">
+                  {MONTH_OPTIONS.find((month) => month.value === expensesMonth)
+                    ?.label || "All Months"}
+                </span>
 
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </button>
+            </PopoverTrigger>
+
+            <PopoverContent className="w-[200px] p-0" align="start">
+              <Command>
+                <CommandInput
+                  placeholder="Search month..."
+                  className="text-sm"
+                />
+
+                <CommandEmpty className="text-sm">No month found.</CommandEmpty>
+
+                <CommandGroup>
+                  {MONTH_OPTIONS.map((month) => (
+                    <CommandItem
+                      key={month.value}
+                      value={month.label}
+                      className="text-sm"
+                      onSelect={() => {
+                        setExpensesMonth(month.value);
+                        setOpenMonth(false);
+                      }}
+                    >
+                      <Check
+                        className={`mr-2 h-4 w-4 ${
+                          expensesMonth === month.value
+                            ? "opacity-100"
+                            : "opacity-0"
+                        }`}
+                      />
+
+                      {month.label}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </Command>
+            </PopoverContent>
+          </Popover>
+
+          {/* RESET MONTH */}
           <button
             type="button"
-            onClick={openAdd}
-            className="h-10 px-4 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition flex items-center gap-2"
+            onClick={() => {
+              setExpensesMonth(String(new Date().getMonth() + 1));
+            }}
+            disabled={expensesMonth === String(new Date().getMonth() + 1)}
+            className="ml-2 h-9 px-3 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:pointer-events-none flex items-center gap-1.5"
           >
-            <Plus size={18} />
-            Add Expense
+            <RotateCcw className="h-3.5 w-3.5" />
+            Reset
           </button>
         </div>
+
+        {/* RIGHT: ADD EXPENSE */}
+        <button
+          type="button"
+          onClick={openAdd}
+          className="h-10 px-4 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition flex items-center gap-2"
+        >
+          <Plus size={18} />
+          Add Expense
+        </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-3">
@@ -417,144 +474,6 @@ export default function ExpensesPage() {
           </div>
 
           <div className="flex flex-wrap items-end gap-2 border-b border-border bg-background px-3.5 py-3">
-            {/* TRUCK */}
-            <div className="min-w-[180px] flex-1 max-w-[240px]">
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                Truck
-              </label>
-
-              <Popover open={openTruck} onOpenChange={setOpenTruck}>
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    role="combobox"
-                    className="h-9 w-full rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between outline-none focus:ring-2 focus:ring-ring"
-                  >
-                    <span className="truncate">
-                      {truckOptions.find((t) => t._id === selectedTruck)
-                        ?.truckName || "All Trucks"}
-                    </span>
-
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </button>
-                </PopoverTrigger>
-
-                <PopoverContent className="w-[220px] p-0" align="start">
-                  <Command>
-                    <CommandInput
-                      placeholder="Search truck..."
-                      className="text-xs"
-                    />
-
-                    <CommandEmpty className="text-xs">
-                      No truck found.
-                    </CommandEmpty>
-
-                    <CommandGroup>
-                      <CommandItem
-                        value="All Trucks"
-                        className="text-xs"
-                        onSelect={() => {
-                          setSelectedTruck("");
-                          setOpenTruck(false);
-                        }}
-                      >
-                        <Check
-                          className={`mr-2 h-4 w-4 ${
-                            !selectedTruck ? "opacity-100" : "opacity-0"
-                          }`}
-                        />
-                        All Trucks
-                      </CommandItem>
-
-                      {truckOptions.map((truck) => (
-                        <CommandItem
-                          key={truck._id}
-                          value={truck.truckName}
-                          className="text-xs"
-                          onSelect={() => {
-                            setSelectedTruck(truck._id);
-                            setOpenTruck(false);
-                          }}
-                        >
-                          <Check
-                            className={`mr-2 h-4 w-4 ${
-                              selectedTruck === truck._id
-                                ? "opacity-100"
-                                : "opacity-0"
-                            }`}
-                          />
-
-                          {truck.truckName}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            {/* RANGE */}
-            <div className="min-w-[180px] flex-1 max-w-[220px]">
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                Range
-              </label>
-
-              <Popover open={openMonth} onOpenChange={setOpenMonth}>
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    role="combobox"
-                    className="h-9 w-full rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between outline-none focus:ring-2 focus:ring-ring"
-                  >
-                    <span className="truncate">
-                      {MONTH_OPTIONS.find((m) => m.value === expensesMonth)
-                        ?.label || "Select month"}
-                    </span>
-
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </button>
-                </PopoverTrigger>
-
-                <PopoverContent className="w-[200px] p-0" align="start">
-                  <Command>
-                    <CommandInput
-                      placeholder="Search month..."
-                      className="text-xs"
-                    />
-
-                    <CommandEmpty className="text-xs">
-                      No month found.
-                    </CommandEmpty>
-
-                    <CommandGroup>
-                      {MONTH_OPTIONS.map((month) => (
-                        <CommandItem
-                          key={month.value}
-                          value={month.label}
-                          className="text-xs"
-                          onSelect={() => {
-                            setExpensesMonth(month.value);
-                            setOpenMonth(false);
-                          }}
-                        >
-                          <Check
-                            className={`mr-2 h-4 w-4 ${
-                              expensesMonth === month.value
-                                ? "opacity-100"
-                                : "opacity-0"
-                            }`}
-                          />
-
-                          {month.label}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            </div>
-
             {/* CATEGORY */}
             <div className="min-w-[180px] flex-1 max-w-[220px]">
               <label className="text-xs font-medium text-muted-foreground mb-1 block">
@@ -634,22 +553,16 @@ export default function ExpensesPage() {
                 </PopoverContent>
               </Popover>
             </div>
-
-            {/* CLEAR */}
+            {/* CLEAR CATEGORY */}
             <button
               type="button"
               onClick={() => {
-                setExpensesMonth(String(new Date().getMonth() + 1));
                 setCategoryFilter("ALL");
               }}
-              disabled={
-                expensesMonth === String(new Date().getMonth() + 1) &&
-                categoryFilter === "ALL"
-              }
+              disabled={categoryFilter === "ALL"}
               className="h-9 px-3 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:pointer-events-none flex items-center gap-1.5"
             >
               <RotateCcw className="h-3.5 w-3.5" />
-              Reset
             </button>
           </div>
 
