@@ -61,19 +61,24 @@ export function calculateTripFields(data: {
   reimbursements: number;
   expenses: number;
   paid: boolean;
+  billingType?: "subcontracted" | "direct";
 }): {
   grossIncome: number;
   netIncome: number;
   payable: number;
 } {
-  const grossPerTrip = data.rate + data.vat;
+  const billingType = data.billingType || "subcontracted";
+
+  const grossPerTrip =
+    billingType === "direct" ? data.rate + data.vat : data.rate;
+
   const grossIncome = grossPerTrip * data.trips;
 
   const totalPayable = data.crewSalary - data.cashAdvance + data.reimbursements;
 
   const payable = data.paid ? 0 : totalPayable;
 
-  const netIncome = grossIncome - data.vat - data.crewSalary - data.expenses;
+  const netIncome = grossIncome - data.crewSalary - data.expenses;
 
   return { grossIncome, netIncome, payable };
 }

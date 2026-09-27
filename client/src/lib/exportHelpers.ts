@@ -200,12 +200,23 @@ export function exportMonthlyReport(
 
   const totalTrips = clientRows.reduce((s, r) => s + Number(r.trips || 0), 0);
 
+  // Internal gross = operating revenue, VAT excluded
   const totalGross = clientRows.reduce(
     (s, r) => s + Number(r.grossIncome || 0),
     0,
   );
 
-  const totalVat = clientRows.reduce((s, r) => s + Number(r.vat || 0), 0);
+  // Client gross = billed amount, VAT included
+  const clientGross = clientRows.reduce(
+    (s, r) =>
+      s + (Number(r.rate || 0) + Number(r.vat || 0)) * Number(r.trips || 0),
+    0,
+  );
+
+  const totalVat = clientRows.reduce(
+    (s, r) => s + Number(r.vat || 0) * Number(r.trips || 0),
+    0,
+  );
   const parkingPasswayTotal = expenseRows
     .filter((e) => (e.category || "").toUpperCase() === "PARKING/PASSWAY")
     .reduce((sum, e) => sum + Number(e.amount || 0), 0);
@@ -215,21 +226,24 @@ export function exportMonthlyReport(
     .reduce((sum, e) => sum + Number(e.amount || 0), 0);
 
   const totalReceivable =
-    totalGross + parkingPasswayTotal - totalVat - (deductFuel ? fuelTotal : 0);
+    clientGross +
+    parkingPasswayTotal -
+    (billingType === "subcontracted" ? totalVat : 0) -
+    (deductFuel ? fuelTotal : 0);
+
   const totalPayable = rows.reduce(
     (s, r) => s + Number(r.reportPayable || r.payable || 0),
-    0,
-  );
-  const totalNet = rows.reduce(
-    (s, r) => s + Number(r.reportNetIncome || r.netIncome || 0),
     0,
   );
   const totalCrewSalary = rows.reduce(
     (s, r) => s + Number(r.crewSalary || 0),
     0,
   );
+
   const expenseSummary = getExpenseBreakdown(expenseRows);
   const totalExpenses = expenseSummary.total;
+
+  const totalNet = totalGross - totalCrewSalary - totalExpenses;
 
   const expenseRatio =
     totalGross > 0 ? ((totalExpenses / totalGross) * 100).toFixed(1) : "0.0";
@@ -450,7 +464,9 @@ export function exportMonthlyReport(
         <td class="shipment-col">${escHtml(r.shipmentNumber)}</td>
         <td class="amount-col">${pesoOrBlank(r.rate)}</td>
         <td class="amount-col">${pesoOrBlank(r.vat)}</td>
-        <td class="amount-col">${pesoOrBlank(r.grossIncome)}</td>
+        <td class="amount-col">${pesoOrBlank(
+          (Number(r.rate || 0) + Number(r.vat || 0)) * Number(r.trips || 0),
+        )}</td>
       </tr>`;
       })
       .join("");
@@ -1097,8 +1113,8 @@ export function exportMonthlyReport(
         </div>
 
         <div class="summary-row">
-          <span class="summary-label">Gross Income</span>
-          <span class="summary-value">${peso(totalGross)}</span>
+          <span class="summary-label">Gross Income (VAT Incl.)</span>
+          <span class="summary-value">${peso(clientGross)}</span>
         </div>
 
         <div class="summary-row">
@@ -1106,10 +1122,16 @@ export function exportMonthlyReport(
           <span class="summary-value">${peso(parkingPasswayTotal)}</span>
         </div>
 
+        ${
+          billingType === "subcontracted"
+            ? `
         <div class="summary-row">
           <span class="summary-label">Less: VAT</span>
           <span class="summary-value">${peso(totalVat)}</span>
         </div>
+        `
+            : ""
+        }
 
         ${
           deductFuel
@@ -1181,10 +1203,6 @@ export function exportMonthlyReport(
       `
           : ""
       }
-      <div class="summary-row">
-        <span class="summary-label">Less: Total VAT</span>
-        <span class="summary-value">${peso(totalVat)}</span>
-      </div>
       ${
         clientMode
           ? `

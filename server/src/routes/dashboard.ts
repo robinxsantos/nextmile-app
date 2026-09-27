@@ -86,17 +86,12 @@ function calculateKpis(rows: any[], expenses: any[]) {
     }
   });
 
-  const totalExpenses = expenses.reduce((sum: number, e: any) => {
-    if (e.reimbursed) return sum;
-    return sum + e.amount;
-  }, 0);
-
-  const totalVat = rows.reduce(
-    (sum: number, r: any) => sum + Number(r.vat || 0),
+  const totalExpenses = expenses.reduce(
+    (sum: number, e: any) => sum + Number(e.amount || 0),
     0,
   );
 
-  const totalNet = totalGross - totalVat - totalCrewSalary - totalExpenses;
+  const totalNet = totalGross - totalCrewSalary - totalExpenses;
 
   return {
     gross: totalGross,
@@ -462,7 +457,7 @@ router.get("/", requireAuth, async (req: AuthRequest, res: Response) => {
         dateIso: r.dateIso,
 
         gross: r.grossIncome || 0,
-        net: r.grossIncome - r.vat - r.crewSalary - r.expenses,
+        net: r.grossIncome - r.crewSalary - r.expenses,
         trips: r.trips || 0,
 
         expenses: r.expenses || 0,
@@ -592,10 +587,7 @@ router.get("/reports", requireAuth, async (req: AuthRequest, res: Response) => {
 
       if (seenDates.has(dateKey)) {
         const net =
-          response.grossIncome -
-          response.vat -
-          response.crewSalary -
-          response.expenses;
+          response.grossIncome - response.crewSalary - response.expenses;
 
         return {
           ...response,
@@ -615,10 +607,7 @@ router.get("/reports", requireAuth, async (req: AuthRequest, res: Response) => {
         response.crewSalary - response.cashAdvance + response.reimbursements;
 
       const reportNetIncome =
-        response.grossIncome -
-        response.vat -
-        response.crewSalary -
-        response.expenses;
+        response.grossIncome - response.crewSalary - response.expenses;
 
       return {
         ...response,

@@ -314,7 +314,7 @@ export default function Sidebar({
           >
             <LogOut className="h-4 w-4" />
 
-            {!sidebarCollapsed && <span className="ml-1">Logout</span>}
+            {!sidebarCollapsed && <span className="ml-1">Sign Out</span>}
           </Button>
         </div>
       </aside>
@@ -325,7 +325,7 @@ export default function Sidebar({
           <DialogHeader>
             <DialogTitle>Sign out?</DialogTitle>
             <DialogDescription>
-              Are you sure you want to log out of your account?
+              Are you sure you want to sign out of your account?
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -342,7 +342,7 @@ export default function Sidebar({
                 handleLogout();
               }}
             >
-              Logout
+              Sign Out
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -44,6 +44,7 @@ async function recomputeTrip(tripId: any) {
     date: trip.date,
     status: trip.status,
     dayOff: truck?.dayOff ?? 0,
+    billingType: truck?.billingType === "direct" ? "direct" : "subcontracted",
     shipmentNumber: trip.shipmentNumber,
     rate: trip.rate,
     vat: trip.vat,
@@ -495,6 +496,8 @@ router.post(
             date: parsedDate,
             status: "Working Day",
             dayOff: truck.dayOff,
+            billingType:
+              truck.billingType === "direct" ? "direct" : "subcontracted",
             shipmentNumber,
             rate,
             vat: rate * 0.12,
@@ -522,6 +525,8 @@ router.post(
           date: parsedDate,
           status: "Working Day",
           dayOff: truck.dayOff,
+          billingType:
+            truck.billingType === "direct" ? "direct" : "subcontracted",
           shipmentNumber,
           rate,
           vat: rate * 0.12,
@@ -671,6 +676,8 @@ router.post(
         date: parsedDate,
         status,
         dayOff: truck.dayOff,
+        billingType:
+          truck.billingType === "direct" ? "direct" : "subcontracted",
         shipmentNumber,
         rate: canManageTripFinancials ? Number(rate) || 0 : 0,
         vat: canManageTripFinancials ? Number(vat) || 0 : 0,
@@ -789,6 +796,8 @@ router.put(
         date: parsedDate,
         status,
         dayOff: truck?.dayOff ?? 0,
+        billingType:
+          truck.billingType === "direct" ? "direct" : "subcontracted",
         shipmentNumber,
         rate: Number(rate) || 0,
         vat: Number(vat) || 0,
@@ -885,7 +894,7 @@ router.patch(
 
       const trip = await Trip.findById(req.params.id).populate(
         "truck",
-        "dayOff",
+        "dayOff billingType",
       );
       if (!trip) {
         res.status(404).json({ error: "Trip not found" });
@@ -935,6 +944,10 @@ router.patch(
         date: trip.date,
         status: trip.status,
         dayOff: (trip.truck as any)?.dayOff,
+        billingType:
+          (trip.truck as any)?.billingType === "direct"
+            ? "direct"
+            : "subcontracted",
         shipmentNumber: trip.shipmentNumber,
         rate: trip.rate,
         vat: trip.vat,

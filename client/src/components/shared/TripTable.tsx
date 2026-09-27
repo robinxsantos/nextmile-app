@@ -719,14 +719,8 @@ export default function TripTable({
     ["rate", "vat", "grossIncome", "netIncome", "payable"].includes(key);
   const truckVisible = showTruckColumn && show("truck");
 
-  const netValueFor = (r: TripRow) => {
-    const gross = Number(r.grossIncome || 0);
-    const vat = Number(r.vat || 0);
-    const salary = Number(r.crewSalary || 0);
-    const expenses = Number(r.expenses || 0);
-
-    return gross - vat - salary - expenses;
-  };
+  const netValueFor = (r: TripRow) =>
+    Number(reportMode ? (r.reportNetIncome ?? r.netIncome) : r.netIncome);
   const payableValueFor = (r: TripRow) =>
     reportMode ? (r.reportPayable ?? r.payable) : r.payable;
   const displayPayableFor = (r: TripRow) =>

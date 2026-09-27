@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo, useRef } from "react";
+import api from "../api/client";
 import { useAppStore, type TripRow } from "../store/useAppStore";
 import { useAuthStore } from "../store/useAuthStore";
 import FilterBar from "../components/shared/FilterBar";
@@ -13,10 +14,9 @@ import {
   BarChart3,
   ArrowUpDown,
   Route,
-  Plus,
+  HandCoins,
+  Clock3,
   Search,
-  Download,
-  FileText,
   AlertTriangle,
   CheckCheck,
   XCircle,
@@ -177,6 +177,14 @@ const COLUMN_OPTIONS = [
 
 type ColumnKey = (typeof COLUMN_OPTIONS)[number][0];
 
+type DashboardCollection = {
+  _id: string;
+  totalAmount: number;
+  trips: {
+    _id: string;
+  }[];
+};
+
 export default function DashboardPage() {
   const {
     tripRows,
@@ -226,6 +234,11 @@ export default function DashboardPage() {
     "ALL" | "Verified" | "Pending" | "For Confirmation"
   >("ALL");
   const [openVerification, setOpenVerification] = useState(false);
+  const [dashboardCollections, setDashboardCollections] = useState<
+    DashboardCollection[]
+  >([]);
+  const [collectionTrips, setCollectionTrips] = useState<TripRow[]>([]);
+  const [collectionsLoading, setCollectionsLoading] = useState(false);
 
   const defaultVisibleColumns: Record<ColumnKey, boolean> = {
     truck: true,
@@ -264,6 +277,41 @@ export default function DashboardPage() {
   }, [initApp]);
 
   useEffect(() => {
+    fetchDashboard();
+  }, [selectedTruck, fetchDashboard]);
+
+  useEffect(() => {
+    const fetchCollectionStats = async () => {
+      setCollectionsLoading(true);
+
+      try {
+        const params: { truck?: string } = {};
+
+        if (selectedTruck) {
+          params.truck = selectedTruck;
+        }
+
+        const [tripsResponse, collectionsResponse] = await Promise.all([
+          api.get("/trips", { params }),
+          api.get("/collections", { params }),
+        ]);
+
+        setCollectionTrips(tripsResponse.data.rows || []);
+        setDashboardCollections(collectionsResponse.data.rows || []);
+      } catch (error) {
+        console.error("Failed to load collection stats:", error);
+
+        setCollectionTrips([]);
+        setDashboardCollections([]);
+      } finally {
+        setCollectionsLoading(false);
+      }
+    };
+
+    fetchCollectionStats();
+  }, [selectedTruck]);
+
+  useEffect(() => {
     localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(visibleColumns));
   }, [visibleColumns]);
 
@@ -300,6 +348,41 @@ export default function DashboardPage() {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+
+  const collectionStats = useMemo(() => {
+    const workingTrips = collectionTrips.filter(
+      (trip) => trip.status === "Working Day",
+    );
+
+    const collectedTripIds = new Set(
+      dashboardCollections.flatMap((collection) =>
+        collection.trips.map((trip) => trip._id),
+      ),
+    );
+
+    // Same logic as CollectionsPage: RATE ONLY
+    const totalReceivables = workingTrips.reduce(
+      (sum, trip) => sum + Number(trip.rate || 0),
+      0,
+    );
+
+    // Actual recorded collection amount
+    const collected = dashboardCollections.reduce(
+      (sum, collection) => sum + Number(collection.totalAmount || 0),
+      0,
+    );
+
+    // Same logic as CollectionsPage: uncollected working trips, RATE ONLY
+    const outstanding = workingTrips
+      .filter((trip) => !collectedTripIds.has(trip._id))
+      .reduce((sum, trip) => sum + Number(trip.rate || 0), 0);
+
+    return {
+      totalReceivables,
+      collected,
+      outstanding,
+    };
+  }, [collectionTrips, dashboardCollections]);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -515,9 +598,9 @@ export default function DashboardPage() {
         />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3 mt-4">
+      <div className="grid gap-4 lg:grid-cols-[1.5fr_2.2fr_0.85fr] mt-4">
         {/* 🔴 LEFT: KPI SUMMARY (reuses your original logic) */}
-        <div className="lg:col-span-1">
+        <div>
           <Card className="p-5 min-h-[600px] flex flex-col justify-start">
             <div className="mb-2">
               <h2 className="text-sm font-semibold">Financial Summary</h2>
@@ -662,7 +745,7 @@ export default function DashboardPage() {
                           (item.label === "Payable" ? (
                             <span
                               className={cn(
-                                "inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium mt-1",
+                                "inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium mt-1 whitespace-nowrap",
                                 isGood
                                   ? "bg-green-500/10 text-green-600"
                                   : "bg-red-500/10 text-red-500",
@@ -680,7 +763,7 @@ export default function DashboardPage() {
                           ) : (
                             <span
                               className={cn(
-                                "inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium mt-1",
+                                "inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium mt-1 whitespace-nowrap",
                                 isGood
                                   ? "bg-green-500/10 text-green-600"
                                   : "bg-red-500/10 text-red-500",
@@ -714,8 +797,8 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* 🔵 RIGHT: CHARTS (unchanged) */}
-        <div className="lg:col-span-2 h-[600px]">
+        {/* CENTER: CHARTS */}
+        <div className="h-[600px]">
           <div className="flex flex-col gap-4 h-full">
             {/* AREA CHART */}
             <Card className="flex-1">
@@ -932,6 +1015,95 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
           </div>
+        </div>
+        {/* RIGHT: COLLECTION KPIS */}
+        <div className="h-[600px] flex flex-col gap-4">
+          {/* TOTAL RECEIVABLES */}
+          <Card className="relative flex-1 overflow-hidden">
+            <CardContent className="h-full p-5 flex flex-col justify-between">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="text-[0.68rem] font-semibold tracking-[0.08em] uppercase text-muted-foreground">
+                    Total Receivables
+                  </div>
+
+                  <div className="mt-2 text-2xl font-bold tabular-nums text-blue-600 dark:text-blue-400">
+                    {collectionsLoading
+                      ? "—"
+                      : `₱${moneyFormat.format(collectionStats.totalReceivables)}`}
+                  </div>
+                </div>
+
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                  <HandCoins className="h-5 w-5" strokeWidth={2} />
+                </div>
+              </div>
+
+              <div className="text-xs text-muted-foreground">
+                Total value of working trips
+              </div>
+            </CardContent>
+
+            <div className="absolute inset-x-0 bottom-0 h-1 bg-blue-500/70" />
+          </Card>
+
+          {/* COLLECTED */}
+          <Card className="relative flex-1 overflow-hidden">
+            <CardContent className="h-full p-5 flex flex-col justify-between">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="text-[0.68rem] font-semibold tracking-[0.08em] uppercase text-muted-foreground">
+                    Collected
+                  </div>
+
+                  <div className="mt-2 text-2xl font-bold tabular-nums text-green-600 dark:text-green-400">
+                    {collectionsLoading
+                      ? "—"
+                      : `₱${moneyFormat.format(collectionStats.collected)}`}
+                  </div>
+                </div>
+
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-green-500/10 text-green-600 dark:text-green-400">
+                  <PhilippinePeso className="h-5 w-5" strokeWidth={2} />
+                </div>
+              </div>
+
+              <div className="text-xs text-muted-foreground">
+                Recorded collections received
+              </div>
+            </CardContent>
+
+            <div className="absolute inset-x-0 bottom-0 h-1 bg-green-500/70" />
+          </Card>
+
+          {/* OUTSTANDING */}
+          <Card className="relative flex-1 overflow-hidden">
+            <CardContent className="h-full p-5 flex flex-col justify-between">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="text-[0.68rem] font-semibold tracking-[0.08em] uppercase text-muted-foreground">
+                    Outstanding
+                  </div>
+
+                  <div className="mt-2 text-2xl font-bold tabular-nums text-red-500">
+                    {collectionsLoading
+                      ? "—"
+                      : `₱${moneyFormat.format(collectionStats.outstanding)}`}
+                  </div>
+                </div>
+
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-red-500/10 text-red-500 dark:text-red-400">
+                  <Clock3 className="h-5 w-5" strokeWidth={2} />
+                </div>
+              </div>
+
+              <div className="text-xs text-muted-foreground">
+                To be collected
+              </div>
+            </CardContent>
+
+            <div className="absolute inset-x-0 bottom-0 h-1 bg-red-500/70" />
+          </Card>
         </div>
       </div>
 

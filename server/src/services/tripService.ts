@@ -1,6 +1,7 @@
 import { Types } from "mongoose";
 import { Trip, ITrip } from "../models/Trip.js";
 import { Expense } from "../models/Expense.js";
+import { Truck } from "../models/Truck.js";
 import {
   weekLabelForDate,
   normalizeStatus,
@@ -28,11 +29,8 @@ export async function getExpenseTotalForDate(
     date: { $gte: startOfDay, $lte: endOfDay },
   });
 
-  // Exclude reimbursed expenses from the total (client pays for those)
-  const total = expenses.reduce(
-    (sum, e) => sum + (e.reimbursed ? 0 : e.amount),
-    0,
-  );
+  const total = expenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+
   const notes = expenses
     .map((e) => {
       const parts = [];
@@ -66,6 +64,11 @@ export async function syncTripsForDate(
 
   if (trips.length === 0) return;
 
+  const truck = await Truck.findById(truckId).select("billingType");
+
+  const billingType =
+    truck?.billingType === "direct" ? "direct" : "subcontracted";
+
   const { total: expenseTotal, notes } = await getExpenseTotalForDate(
     truckId,
     date,
@@ -86,6 +89,7 @@ export async function syncTripsForDate(
       reimbursements: trip.reimbursements,
       expenses,
       paid: trip.paid,
+      billingType,
     });
 
     await Trip.findByIdAndUpdate(trip._id, {
@@ -116,6 +120,7 @@ export function prepareTripData(data: {
   note?: string;
   paid?: boolean;
   expenses?: number;
+  billingType?: "subcontracted" | "direct";
 }): Partial<ITrip> {
   const date = new Date(data.date);
   date.setHours(12, 0, 0, 0); // Normalize to noon to avoid timezone issues
@@ -129,6 +134,8 @@ export function prepareTripData(data: {
   const reimbursements = data.reimbursements || 0;
   const expenses = data.expenses || 0;
   const paid = data.paid || false;
+  const billingType =
+    data.billingType === "direct" ? "direct" : "subcontracted";
 
   const computed = calculateTripFields({
     rate,
@@ -139,6 +146,7 @@ export function prepareTripData(data: {
     reimbursements,
     expenses,
     paid,
+    billingType,
   });
 
   return {
