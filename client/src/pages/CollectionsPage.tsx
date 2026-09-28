@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import api from "../api/client";
 import { useAppStore, type TripRow } from "../store/useAppStore";
 import { peso } from "../lib/utils";
@@ -10,6 +10,7 @@ import {
   PhilippinePeso,
   Clock3,
   Search,
+  Info,
   CalendarDays,
   ChevronsUpDown,
   CheckCheck,
@@ -23,6 +24,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { format } from "date-fns";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -66,7 +73,7 @@ type CollectionRow = {
 };
 
 export default function CollectionsPage() {
-  const { selectedTruck, truckOptions, initApp } = useAppStore();
+  const { selectedTruck, truckOptions, truckRows, initApp } = useAppStore();
 
   const [trips, setTrips] = useState<TripRow[]>([]);
   const [collections, setCollections] = useState<CollectionRow[]>([]);
@@ -139,8 +146,17 @@ export default function CollectionsPage() {
   const [savingComment, setSavingComment] = useState(false);
   const [editingComment, setEditingComment] = useState(false);
 
+  const fetchRequestIdRef = useRef(0);
+
   const fetchData = useCallback(async () => {
+    const requestId = ++fetchRequestIdRef.current;
+
     setLoading(true);
+
+    // Clear previous truck data immediately.
+    setTrips([]);
+    setCollections([]);
+    setSelectedTripIds([]);
 
     try {
       const params: { truck?: string } = {};
@@ -154,14 +170,24 @@ export default function CollectionsPage() {
         api.get("/collections", { params }),
       ]);
 
+      // Ignore response if a newer request already started.
+      if (requestId !== fetchRequestIdRef.current) return;
+
       setTrips(tripsResponse.data.rows || []);
       setCollections(collectionsResponse.data.rows || []);
     } catch (error) {
+      // Ignore errors from stale requests.
+      if (requestId !== fetchRequestIdRef.current) return;
+
       console.error("Failed to load collections:", error);
+
       setTrips([]);
       setCollections([]);
     } finally {
-      setLoading(false);
+      // Only the newest request can end loading.
+      if (requestId === fetchRequestIdRef.current) {
+        setLoading(false);
+      }
     }
   }, [selectedTruck]);
 
@@ -180,6 +206,15 @@ export default function CollectionsPage() {
   const selectedTruckName = truckOptions.find(
     (truck) => truck._id === selectedTruck,
   )?.truckName;
+
+  const selectedTruckData = truckRows.find(
+    (truck) => truck._id === selectedTruck,
+  );
+
+  const selectedTruckBillingType =
+    selectedTruckData?.billingType ?? "subcontracted";
+
+  const isDirectTruck = selectedTruckBillingType === "direct";
 
   const collectedTripIds = useMemo(() => {
     return new Set(
@@ -319,31 +354,39 @@ export default function CollectionsPage() {
   const stats = useMemo(() => {
     const workingTrips = trips.filter((trip) => trip.status === "Working Day");
 
-    // Always RATE ONLY
+    const receivableValue = (trip: TripRow) => {
+      const rate = Number(trip.rate || 0);
+      const vat = Number(trip.vat || 0);
+
+      return isDirectTruck ? rate + vat : rate;
+    };
+
+    // Subcontracted = Rate
+    // Direct = Rate + VAT
     const totalBillings = workingTrips.reduce(
-      (sum, trip) => sum + Number(trip.rate || 0),
+      (sum, trip) => sum + receivableValue(trip),
       0,
     );
 
-    // Actual amount collected:
-    // Rate Only batches = Rate
-    // Rate + VAT batches = Rate + VAT
+    // Actual recorded collection amount.
+    // Keep independent from the truck billing type because each
+    // collection can still be Rate Only or Rate + VAT + adjustments.
     const collected = collections.reduce(
       (sum, collection) => sum + Number(collection.totalAmount || 0),
       0,
     );
 
-    // Always RATE ONLY for trips not yet collected
+    // Same receivable basis as Total Receivables.
     const outstanding = workingTrips
       .filter((trip) => !collectedTripIds.has(trip._id))
-      .reduce((sum, trip) => sum + Number(trip.rate || 0), 0);
+      .reduce((sum, trip) => sum + receivableValue(trip), 0);
 
     return {
       totalBillings,
       collected,
       outstanding,
     };
-  }, [trips, collections, collectedTripIds]);
+  }, [trips, collections, collectedTripIds, isDirectTruck]);
 
   const handleCreateCollection = async () => {
     if (!selectedTruck || selectedTripIds.length === 0) {
@@ -604,8 +647,23 @@ export default function CollectionsPage() {
         <div className="relative overflow-hidden rounded-xl border border-border bg-background p-4 shadow-sm">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <div className="text-[0.68rem] font-semibold tracking-[0.08em] uppercase text-muted-foreground">
-                Total Receivables
+              <div className="flex items-center gap-1.5">
+                <div className="text-[0.68rem] font-semibold tracking-[0.08em] uppercase text-muted-foreground">
+                  Total Receivables
+                </div>
+
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-3.5 w-3.5 cursor-help text-muted-foreground" />
+                    </TooltipTrigger>
+
+                    <TooltipContent className="max-w-[260px] text-xs">
+                      Total value of all working trips. Direct trucks include
+                      VAT; subcontracted trucks use Rate only.
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
 
               <div className="mt-2 text-2xl font-bold tabular-nums text-blue-600 dark:text-blue-400">
@@ -629,8 +687,24 @@ export default function CollectionsPage() {
         <div className="relative overflow-hidden rounded-xl border border-border bg-background p-4 shadow-sm">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <div className="text-[0.68rem] font-semibold tracking-[0.08em] uppercase text-muted-foreground">
-                Collected
+              <div className="flex items-center gap-1.5">
+                <div className="text-[0.68rem] font-semibold tracking-[0.08em] uppercase text-muted-foreground">
+                  Collected
+                </div>
+
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-3.5 w-3.5 cursor-help text-muted-foreground" />
+                    </TooltipTrigger>
+
+                    <TooltipContent className="max-w-[260px] text-xs">
+                      Actual amount received from recorded collections,
+                      including the selected Rate/VAT billing and any Add or
+                      Less adjustments.
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
 
               <div className="mt-2 text-2xl font-bold tabular-nums text-green-600 dark:text-green-400">
@@ -650,12 +724,28 @@ export default function CollectionsPage() {
           <div className="absolute inset-x-0 bottom-0 h-1 bg-green-500/70" />
         </div>
 
-        {/* OUTSTANDING */}
+        {/* UNCOLLECTED */}
         <div className="relative overflow-hidden rounded-xl border border-border bg-background p-4 shadow-sm">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <div className="text-[0.68rem] font-semibold tracking-[0.08em] uppercase text-muted-foreground">
-                Outstanding
+              <div className="flex items-center gap-1.5">
+                <div className="text-[0.68rem] font-semibold tracking-[0.08em] uppercase text-muted-foreground">
+                  Uncollected
+                </div>
+
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-3.5 w-3.5 cursor-help text-muted-foreground" />
+                    </TooltipTrigger>
+
+                    <TooltipContent className="max-w-[260px] text-xs">
+                      Value of working trips not yet included in a collection.
+                      Direct trucks include VAT; subcontracted trucks use Rate
+                      only.
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
 
               <div className="mt-2 text-2xl font-bold tabular-nums text-red-500">

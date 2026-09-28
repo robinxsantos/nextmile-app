@@ -16,6 +16,7 @@ import {
   Route,
   HandCoins,
   Clock3,
+  Info,
   Search,
   AlertTriangle,
   CheckCheck,
@@ -56,6 +57,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Tooltip as UiTooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 import { Command, CommandGroup, CommandItem } from "@/components/ui/command";
 
@@ -196,6 +203,7 @@ export default function DashboardPage() {
     error,
     selectedTruck,
     truckOptions,
+    truckRows,
     initApp,
     fetchDashboard,
     deleteTrip,
@@ -281,8 +289,14 @@ export default function DashboardPage() {
   }, [selectedTruck, fetchDashboard]);
 
   useEffect(() => {
+    let cancelled = false;
+
     const fetchCollectionStats = async () => {
       setCollectionsLoading(true);
+
+      // Clear previous truck immediately.
+      setCollectionTrips([]);
+      setDashboardCollections([]);
 
       try {
         const params: { truck?: string } = {};
@@ -296,19 +310,30 @@ export default function DashboardPage() {
           api.get("/collections", { params }),
         ]);
 
+        // Ignore stale response from previous truck.
+        if (cancelled) return;
+
         setCollectionTrips(tripsResponse.data.rows || []);
         setDashboardCollections(collectionsResponse.data.rows || []);
       } catch (error) {
+        if (cancelled) return;
+
         console.error("Failed to load collection stats:", error);
 
         setCollectionTrips([]);
         setDashboardCollections([]);
       } finally {
-        setCollectionsLoading(false);
+        if (!cancelled) {
+          setCollectionsLoading(false);
+        }
       }
     };
 
     fetchCollectionStats();
+
+    return () => {
+      cancelled = true;
+    };
   }, [selectedTruck]);
 
   useEffect(() => {
@@ -335,6 +360,15 @@ export default function DashboardPage() {
     (t) => t._id === selectedTruck,
   )?.truckName;
 
+  const selectedTruckData = truckRows.find(
+    (truck) => truck._id === selectedTruck,
+  );
+
+  const selectedTruckBillingType =
+    selectedTruckData?.billingType ?? "subcontracted";
+
+  const isDirectTruck = selectedTruckBillingType === "direct";
+
   const getChartMode = () => {
     if (rangePreset === "TM") return "WEEKLY";
     if (rangePreset === "YTD") return "MONTHLY"; // 🔥 FIX
@@ -360,9 +394,17 @@ export default function DashboardPage() {
       ),
     );
 
-    // Same logic as CollectionsPage: RATE ONLY
+    const receivableValue = (trip: TripRow) => {
+      const rate = Number(trip.rate || 0);
+      const vat = Number(trip.vat || 0);
+
+      return isDirectTruck ? rate + vat : rate;
+    };
+
+    // Subcontracted = Rate
+    // Direct = Rate + VAT
     const totalReceivables = workingTrips.reduce(
-      (sum, trip) => sum + Number(trip.rate || 0),
+      (sum, trip) => sum + receivableValue(trip),
       0,
     );
 
@@ -372,17 +414,17 @@ export default function DashboardPage() {
       0,
     );
 
-    // Same logic as CollectionsPage: uncollected working trips, RATE ONLY
+    // Same basis as Total Receivables
     const outstanding = workingTrips
       .filter((trip) => !collectedTripIds.has(trip._id))
-      .reduce((sum, trip) => sum + Number(trip.rate || 0), 0);
+      .reduce((sum, trip) => sum + receivableValue(trip), 0);
 
     return {
       totalReceivables,
       collected,
       outstanding,
     };
-  }, [collectionTrips, dashboardCollections]);
+  }, [collectionTrips, dashboardCollections, isDirectTruck]);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -603,7 +645,7 @@ export default function DashboardPage() {
         <div>
           <Card className="p-5 min-h-[600px] flex flex-col justify-start">
             <div className="mb-2">
-              <h2 className="text-sm font-semibold">Financial Summary</h2>
+              <h2 className="text-sm font-medium">Financial Summary</h2>
               <p className="text-xs text-muted-foreground">
                 Overview vs last period
               </p>
@@ -697,8 +739,8 @@ export default function DashboardPage() {
                         </div>
 
                         <div>
-                          <p className="text-xs font-medium">{item.label}</p>
-                          <p className="text-[11px] text-muted-foreground">
+                          <p className="text-sm font-medium">{item.label}</p>
+                          <p className="text-xs text-muted-foreground">
                             vs last period
                           </p>
                         </div>
@@ -803,7 +845,7 @@ export default function DashboardPage() {
             {/* AREA CHART */}
             <Card className="flex-1">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-semibold">
+                <CardTitle className="text-sm font-medium">
                   {chartMode === "WEEKLY"
                     ? "Weekly Gross vs Net Income"
                     : "Monthly Gross vs Net Income"}
@@ -822,9 +864,10 @@ export default function DashboardPage() {
                       stroke="hsl(var(--border))"
                       strokeDasharray="3 3"
                     />
-                    <XAxis dataKey="label" fontSize={12} />
+                    <XAxis dataKey="label" fontSize={12} fontWeight={500} />
                     <YAxis
                       fontSize={12}
+                      fontWeight={500}
                       tickFormatter={(value) =>
                         Number(value).toLocaleString("en-PH", {
                           minimumFractionDigits: 2,
@@ -942,7 +985,7 @@ export default function DashboardPage() {
             {/* BAR CHART */}
             <Card className="flex-1">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-semibold">
+                <CardTitle className="text-sm font-medium">
                   {chartMode === "WEEKLY" ? "Weekly Trips" : "Monthly Trips"}
                 </CardTitle>
                 <span className="text-xs text-muted-foreground">Volume</span>
@@ -959,8 +1002,8 @@ export default function DashboardPage() {
                       stroke="hsl(var(--border))"
                       strokeDasharray="3 3"
                     />
-                    <XAxis dataKey="label" fontSize={12} />
-                    <YAxis fontSize={12} />
+                    <XAxis dataKey="label" fontSize={12} fontWeight={500} />
+                    <YAxis fontSize={12} fontWeight={500} />
                     <Tooltip
                       formatter={(value: number) => [
                         "₱" +
@@ -1023,8 +1066,23 @@ export default function DashboardPage() {
             <CardContent className="h-full p-5 flex flex-col justify-between">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <div className="text-[0.68rem] font-semibold tracking-[0.08em] uppercase text-muted-foreground">
-                    Total Receivables
+                  <div className="flex items-center gap-1.5">
+                    <div className="text-sm font-medium text-muted-foreground">
+                      Total Receivables
+                    </div>
+
+                    <TooltipProvider>
+                      <UiTooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="h-3.5 w-3.5 cursor-help text-muted-foreground" />
+                        </TooltipTrigger>
+
+                        <TooltipContent className="max-w-[260px] text-xs">
+                          Total value of all working trips. Direct trucks
+                          include VAT; subcontracted trucks use Rate only.
+                        </TooltipContent>
+                      </UiTooltip>
+                    </TooltipProvider>
                   </div>
 
                   <div className="mt-2 text-2xl font-bold tabular-nums text-blue-600 dark:text-blue-400">
@@ -1052,8 +1110,24 @@ export default function DashboardPage() {
             <CardContent className="h-full p-5 flex flex-col justify-between">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <div className="text-[0.68rem] font-semibold tracking-[0.08em] uppercase text-muted-foreground">
-                    Collected
+                  <div className="flex items-center gap-1.5">
+                    <div className="text-[0.68rem] font-semibold tracking-[0.08em] uppercase text-muted-foreground">
+                      Collected
+                    </div>
+
+                    <TooltipProvider>
+                      <UiTooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="h-3.5 w-3.5 cursor-help text-muted-foreground" />
+                        </TooltipTrigger>
+
+                        <TooltipContent className="max-w-[260px] text-xs">
+                          Actual amount received from recorded collections,
+                          including the selected Rate/VAT billing and any Add or
+                          Less adjustments.
+                        </TooltipContent>
+                      </UiTooltip>
+                    </TooltipProvider>
                   </div>
 
                   <div className="mt-2 text-2xl font-bold tabular-nums text-green-600 dark:text-green-400">
@@ -1076,13 +1150,29 @@ export default function DashboardPage() {
             <div className="absolute inset-x-0 bottom-0 h-1 bg-green-500/70" />
           </Card>
 
-          {/* OUTSTANDING */}
+          {/* Uncollected */}
           <Card className="relative flex-1 overflow-hidden">
             <CardContent className="h-full p-5 flex flex-col justify-between">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <div className="text-[0.68rem] font-semibold tracking-[0.08em] uppercase text-muted-foreground">
-                    Outstanding
+                  <div className="flex items-center gap-1.5">
+                    <div className="text-[0.68rem] font-semibold tracking-[0.08em] uppercase text-muted-foreground">
+                      Uncollected
+                    </div>
+
+                    <TooltipProvider>
+                      <UiTooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="h-3.5 w-3.5 cursor-help text-muted-foreground" />
+                        </TooltipTrigger>
+
+                        <TooltipContent className="max-w-[260px] text-xs">
+                          Value of working trips not yet included in a
+                          collection. Direct trucks include VAT; subcontracted
+                          trucks use Rate only.
+                        </TooltipContent>
+                      </UiTooltip>
+                    </TooltipProvider>
                   </div>
 
                   <div className="mt-2 text-2xl font-bold tabular-nums text-red-500">

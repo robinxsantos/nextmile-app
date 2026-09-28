@@ -332,6 +332,8 @@ const getStoredTheme = (): "light" | "dark" => {
 
 const REIMBURSABLE_CATEGORIES = new Set(["FUEL", "TOLL", "PARKING/PASSWAY"]);
 
+let reportsRequestId = 0;
+
 export const useAppStore = create<AppState>((set, get) => ({
   // UI
   sidebarCollapsed: localStorage.getItem("nm_sidebar") === "1",
@@ -736,7 +738,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   fetchReports: async (start, end) => {
+    const requestId = ++reportsRequestId;
     const state = get();
+
+    // Clear old report immediately.
+    set({
+      rawReportRows: [],
+      reportRows: [],
+    });
 
     try {
       const params: Record<string, string> = {};
@@ -754,16 +763,27 @@ export const useAppStore = create<AppState>((set, get) => ({
 
       const { data } = await api.get("/dashboard/reports", { params });
 
+      // A newer report request already started.
+      // Ignore this old response.
+      if (requestId !== reportsRequestId) return;
+
       const rawReportRows = data.rows || [];
+
+      // IMPORTANT:
+      // Get the latest expenseRows, not the old state snapshot.
+      const latestExpenseRows = get().expenseRows;
 
       set({
         rawReportRows,
         reportRows: applyReimbursedParkingAdjustments(
           rawReportRows,
-          state.expenseRows,
+          latestExpenseRows,
         ),
       });
     } catch (err: unknown) {
+      // Ignore errors from an obsolete request.
+      if (requestId !== reportsRequestId) return;
+
       console.error("Failed to fetch reports:", err);
       toast.error(getErrorMessage(err, "Failed to load reports"));
     }

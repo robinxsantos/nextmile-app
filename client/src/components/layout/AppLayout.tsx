@@ -22,7 +22,7 @@ import {
 import { Button } from "@/components/ui/button";
 
 const pageNames: Record<string, string> = {
-  "/": "Dashboard",
+  "/": "Overview",
   "/trips": "Trips",
   "/expenses": "Expenses",
   "/payments": "Payments",
