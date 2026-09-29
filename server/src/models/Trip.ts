@@ -8,6 +8,10 @@ export interface ITrip extends Document {
   status: "Working Day" | "Day Off" | "Holiday";
   shipmentNumber: string;
   verificationStatus?: "Verified" | "Pending" | "For Confirmation";
+  originalRate: number;
+  rateAdjustmentType: "none" | "amount" | "percentage";
+  rateAdjustment: number;
+  autoComputeVat: boolean;
   rate: number;
   trips: number;
   crewSalary: number;
@@ -62,6 +66,23 @@ const TripSchema = new Schema<ITrip>(
       type: String,
       enum: ["Verified", "Pending", "For Confirmation"],
       default: "Pending",
+    },
+    originalRate: {
+      type: Number,
+      default: 0,
+    },
+    rateAdjustmentType: {
+      type: String,
+      enum: ["none", "amount", "percentage"],
+      default: "none",
+    },
+    rateAdjustment: {
+      type: Number,
+      default: 0,
+    },
+    autoComputeVat: {
+      type: Boolean,
+      default: true,
     },
     rate: {
       type: Number,

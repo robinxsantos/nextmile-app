@@ -71,7 +71,7 @@ const COLUMN_OPTIONS = [
   ["date", "Date"],
   ["status", "Status"],
   ["shipmentNumber", "Shipment #"],
-  ["rate", "Rate"],
+  ["rate", "Adjusted Rate"],
   ["trips", "Trips"],
   ["grossIncome", "Gross"],
   ["netIncome", "Net"],
@@ -368,9 +368,10 @@ export default function TripsPage() {
 
   const downloadCsvTemplate = () => {
     const csv = [
-      "Date,Shipment Number,Rate,Crew Salary,Cash Advance,Reimbursements",
-      "2026-08-01,1307001,3900,1900,500,250",
-      "2026-08-02,1307002,3900,1900,,",
+      "Date,Shipment Number,Original Rate,Rate Adjustment Type,Rate Adjustment,Auto-Compute VAT,Crew Salary,Cash Advance,Reimbursements",
+      "2026-08-01,1307001,3900,Amount,500,Yes,1900,500,250",
+      "2026-08-02,1307002,3900,Percentage,10,Yes,1900,,",
+      "2026-08-03,1307003,3900,,,No,1900,,",
     ].join("\n");
 
     const blob = new Blob([csv], {
@@ -412,7 +413,8 @@ export default function TripsPage() {
         const requiredColumns = [
           "Date",
           "Shipment Number",
-          "Rate",
+          "Original Rate",
+          "Auto-Compute VAT",
           "Crew Salary",
         ];
 
@@ -1073,7 +1075,7 @@ export default function TripsPage() {
             }
           }}
         >
-          <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+          <DialogContent className="sm:max-w-[1100px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Import Trips from CSV</DialogTitle>
             </DialogHeader>
@@ -1248,6 +1250,9 @@ export default function TripsPage() {
                           <tr>
                             <th className="px-3 py-2 text-left">Date</th>
                             <th className="px-3 py-2 text-left">Shipment</th>
+                            <th className="p-2 text-right">Original Rate</th>
+                            <th className="p-2 text-right">Adjustment</th>
+                            <th className="p-2 text-right">VAT</th>
                             <th className="p-2 text-right">Rate</th>
                             <th className="p-2 text-right">Crew Salary</th>
                             <th className="p-2 text-right">Cash Advance</th>
@@ -1264,7 +1269,32 @@ export default function TripsPage() {
                               row["SHIPMENT NUMBER"] ||
                               "";
 
-                            const rateValue = row["Rate"] ?? row["RATE"] ?? "";
+                            const originalRateValue =
+                              row["Original Rate"] ??
+                              row["ORIGINAL RATE"] ??
+                              "";
+
+                            const adjustmentTypeValue = String(
+                              row["Rate Adjustment Type"] ??
+                                row["RATE ADJUSTMENT TYPE"] ??
+                                "",
+                            )
+                              .trim()
+                              .toLowerCase();
+
+                            const adjustmentValue =
+                              row["Rate Adjustment"] ??
+                              row["RATE ADJUSTMENT"] ??
+                              "";
+
+                            const autoVatValue = String(
+                              row["Auto-Compute VAT"] ??
+                                row["AUTO-COMPUTE VAT"] ??
+                                "",
+                            )
+                              .trim()
+                              .toLowerCase();
+
                             const crewSalaryValue =
                               row["Crew Salary"] ?? row["CREW SALARY"] ?? "";
 
@@ -1277,15 +1307,68 @@ export default function TripsPage() {
                             const validShipment =
                               String(shipmentValue).trim().length > 0;
 
-                            const validRate =
-                              String(rateValue).trim() !== "" &&
-                              Number.isFinite(Number(rateValue)) &&
-                              Number(rateValue) > 0;
+                            const originalRate = Number(originalRateValue);
+                            const adjustment = Number(adjustmentValue || 0);
+
+                            const validOriginalRate =
+                              String(originalRateValue).trim() !== "" &&
+                              Number.isFinite(originalRate) &&
+                              originalRate > 0;
+
+                            const validAdjustmentType =
+                              adjustmentTypeValue === "" ||
+                              adjustmentTypeValue === "amount" ||
+                              adjustmentTypeValue === "percentage";
+
+                            const validAdjustment =
+                              Number.isFinite(adjustment) &&
+                              adjustment >= 0 &&
+                              (adjustmentTypeValue === ""
+                                ? adjustment === 0
+                                : adjustmentTypeValue === "amount"
+                                  ? adjustment <= originalRate
+                                  : adjustment < 100);
+
+                            const validAutoVat =
+                              autoVatValue === "yes" || autoVatValue === "no";
+
+                            const computedVat =
+                              validAutoVat &&
+                              autoVatValue === "yes" &&
+                              validOriginalRate
+                                ? Math.round(
+                                    (originalRate * 0.12 + Number.EPSILON) *
+                                      100,
+                                  ) / 100
+                                : 0;
 
                             const validCrewSalary =
                               String(crewSalaryValue).trim() !== "" &&
                               Number.isFinite(Number(crewSalaryValue)) &&
                               Number(crewSalaryValue) > 0;
+
+                            let computedRate = originalRate;
+
+                            if (
+                              validOriginalRate &&
+                              validAdjustmentType &&
+                              validAdjustment
+                            ) {
+                              if (adjustmentTypeValue === "amount") {
+                                computedRate = originalRate - adjustment;
+                              }
+
+                              if (adjustmentTypeValue === "percentage") {
+                                computedRate =
+                                  originalRate -
+                                  originalRate * (adjustment / 100);
+                              }
+                            }
+
+                            computedRate =
+                              Math.round(
+                                (computedRate + Number.EPSILON) * 100,
+                              ) / 100;
 
                             return (
                               <tr key={index} className="border-t">
@@ -1316,15 +1399,62 @@ export default function TripsPage() {
                                   )}
                                 </td>
 
-                                {/* RATE */}
+                                {/* ORIGINAL RATE */}
                                 <td className="p-2 text-right">
-                                  {validRate ? (
-                                    rateValue
+                                  {validOriginalRate ? (
+                                    originalRate.toLocaleString("en-PH", {
+                                      minimumFractionDigits: 2,
+                                      maximumFractionDigits: 2,
+                                    })
                                   ) : (
                                     <span className="font-medium text-red-500">
                                       *Required
                                     </span>
                                   )}
+                                </td>
+
+                                {/* ADJUSTMENT */}
+                                <td className="p-2 text-right whitespace-nowrap">
+                                  {!validAdjustmentType || !validAdjustment ? (
+                                    <span className="font-medium text-red-500">
+                                      *Invalid
+                                    </span>
+                                  ) : adjustmentTypeValue === "" ? (
+                                    "—"
+                                  ) : adjustmentTypeValue === "amount" ? (
+                                    `₱${adjustment.toLocaleString("en-PH", {
+                                      minimumFractionDigits: 2,
+                                      maximumFractionDigits: 2,
+                                    })}`
+                                  ) : (
+                                    `${adjustment}%`
+                                  )}
+                                </td>
+
+                                {/* VAT */}
+                                <td className="p-2 text-right">
+                                  {validAutoVat ? (
+                                    `₱${computedVat.toLocaleString("en-PH", {
+                                      minimumFractionDigits: 2,
+                                      maximumFractionDigits: 2,
+                                    })}`
+                                  ) : (
+                                    <span className="font-medium text-red-500">
+                                      *Required
+                                    </span>
+                                  )}
+                                </td>
+
+                                {/* COMPUTED RATE */}
+                                <td className="p-2 text-right font-medium">
+                                  {validOriginalRate &&
+                                  validAdjustmentType &&
+                                  validAdjustment
+                                    ? computedRate.toLocaleString("en-PH", {
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 2,
+                                      })
+                                    : "—"}
                                 </td>
 
                                 {/* CREW SALARY */}
@@ -1380,19 +1510,40 @@ export default function TripsPage() {
               <button
                 onClick={handleImportCsv}
                 disabled={
-                  csvRows.length === 0 || (previewResult?.newTrips ?? 0) === 0
+                  csvRows.length === 0 ||
+                  (previewResult?.invalid ?? 0) > 0 ||
+                  (importMode === "add"
+                    ? (previewResult?.newTrips ?? 0) === 0
+                    : importMode === "update"
+                      ? (previewResult?.duplicates ?? 0) === 0
+                      : (previewResult?.newTrips ?? 0) === 0 &&
+                        (previewResult?.duplicates ?? 0) === 0)
                 }
                 className="px-6 py-2 rounded-md bg-foreground text-background disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {(previewResult?.invalid ?? 0) > 0 &&
-                (previewResult?.newTrips ?? 0) === 0
-                  ? "Import"
-                  : (previewResult?.newTrips ?? 0) === 0 &&
-                      (previewResult?.duplicates ?? 0) > 0
-                    ? "Already Imported"
-                    : `Import ${previewResult?.newTrips ?? 0} Trip${
-                        previewResult?.newTrips === 1 ? "" : "s"
-                      }`}
+                {(previewResult?.invalid ?? 0) > 0
+                  ? "Invalid CSV Data"
+                  : importMode === "update"
+                    ? `Update ${previewResult?.duplicates ?? 0} Trip${
+                        previewResult?.duplicates === 1 ? "" : "s"
+                      }`
+                    : importMode === "upsert"
+                      ? `Process ${
+                          (previewResult?.newTrips ?? 0) +
+                          (previewResult?.duplicates ?? 0)
+                        } Trip${
+                          (previewResult?.newTrips ?? 0) +
+                            (previewResult?.duplicates ?? 0) ===
+                          1
+                            ? ""
+                            : "s"
+                        }`
+                      : (previewResult?.newTrips ?? 0) === 0 &&
+                          (previewResult?.duplicates ?? 0) > 0
+                        ? "Already Imported"
+                        : `Import ${previewResult?.newTrips ?? 0} Trip${
+                            previewResult?.newTrips === 1 ? "" : "s"
+                          }`}
               </button>
             </DialogFooter>
           </DialogContent>
@@ -1457,7 +1608,16 @@ export default function TripsPage() {
               </button>
 
               <button
-                disabled={importing || previewResult?.newTrips === 0}
+                disabled={
+                  importing ||
+                  (previewResult?.invalid ?? 0) > 0 ||
+                  (importMode === "add"
+                    ? (previewResult?.newTrips ?? 0) === 0
+                    : importMode === "update"
+                      ? (previewResult?.duplicates ?? 0) === 0
+                      : (previewResult?.newTrips ?? 0) === 0 &&
+                        (previewResult?.duplicates ?? 0) === 0)
+                }
                 onClick={async () => {
                   if (!selectedTruck) return;
                   setImporting(true);
@@ -1497,15 +1657,29 @@ export default function TripsPage() {
               >
                 {importing
                   ? "Importing..."
-                  : (previewResult?.invalid ?? 0) > 0 &&
-                      (previewResult?.newTrips ?? 0) === 0
+                  : (previewResult?.invalid ?? 0) > 0
                     ? "Invalid CSV Data"
-                    : (previewResult?.newTrips ?? 0) === 0 &&
-                        (previewResult?.duplicates ?? 0) > 0
-                      ? "Already Imported"
-                      : `Import ${previewResult?.newTrips ?? 0} Trip${
-                          previewResult?.newTrips === 1 ? "" : "s"
-                        }`}
+                    : importMode === "update"
+                      ? `Update ${previewResult?.duplicates ?? 0} Trip${
+                          previewResult?.duplicates === 1 ? "" : "s"
+                        }`
+                      : importMode === "upsert"
+                        ? `Process ${
+                            (previewResult?.newTrips ?? 0) +
+                            (previewResult?.duplicates ?? 0)
+                          } Trip${
+                            (previewResult?.newTrips ?? 0) +
+                              (previewResult?.duplicates ?? 0) ===
+                            1
+                              ? ""
+                              : "s"
+                          }`
+                        : (previewResult?.newTrips ?? 0) === 0 &&
+                            (previewResult?.duplicates ?? 0) > 0
+                          ? "Already Imported"
+                          : `Import ${previewResult?.newTrips ?? 0} Trip${
+                              previewResult?.newTrips === 1 ? "" : "s"
+                            }`}
               </button>
             </DialogFooter>
           </DialogContent>

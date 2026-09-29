@@ -184,13 +184,21 @@ export function exportMonthlyReport(
   rows: TripRow[],
   truckLabel: string,
   periodText: string,
-  expenseRows: { category?: string; amount?: number }[] = [],
+  expenseRows: {
+    category?: string;
+    amount?: number;
+    description?: string;
+    reimbursed?: boolean;
+    tripId?: string;
+    dateIso?: string;
+  }[] = [],
   clientMode = false,
   deductFuel = false,
   clientName = "",
   billedTo = "",
   billingType: "subcontracted" | "direct" = "subcontracted",
   companyName = "",
+  showRateAdjustment = false,
 ) {
   const labels = getColumnLabels();
 
@@ -299,7 +307,57 @@ export function exportMonthlyReport(
 
     if (lines.length === 0) return "";
 
-    return lines.map((line) => escHtml(line)).join("<br>");
+    return lines
+      .map((line) => {
+        const trimmed = line.trim();
+
+        if (/^PARKING\/PASSWAY\b/i.test(trimmed)) {
+          const amountMatch = trimmed.match(/₱\s*[\d,]+(?:\.\d{1,2})?/);
+
+          return amountMatch
+            ? `PKNG/PSWY: ${escHtml(amountMatch[0])}`
+            : "PKNG/PSWY";
+        }
+
+        return escHtml(trimmed);
+      })
+      .join("<br>");
+  };
+
+  const getInternalExpenseBreakdown = (trip: TripRow) => {
+    const tripExpenses = expenseRows.filter((expense) => {
+      if (expense.tripId) {
+        return expense.tripId === trip._id;
+      }
+
+      return expense.dateIso === trip.dateIso;
+    });
+
+    if (tripExpenses.length === 0) {
+      return escapeBreakdownText(
+        String(trip.expenseBreakdown || trip.note || ""),
+      );
+    }
+
+    return tripExpenses
+      .map((expense) => {
+        const category = String(expense.category || "").trim();
+        const isParkingPassway = category.toUpperCase() === "PARKING/PASSWAY";
+
+        const displayCategory = isParkingPassway ? "PKNG/PSWY" : category;
+
+        const description =
+          !isParkingPassway && expense.description
+            ? `: ${escHtml(expense.description)}`
+            : "";
+
+        const reimbursed = expense.reimbursed ? " (Reimbursed)" : "";
+
+        const amount = peso(Number(expense.amount || 0));
+
+        return `${escHtml(displayCategory)}${description}${reimbursed} ${amount}`;
+      })
+      .join("<br>");
   };
 
   const rangeLabel =
@@ -420,17 +478,24 @@ export function exportMonthlyReport(
       }
 
       const expenseNoteHtml = isFirstRowForDate
-        ? escapeBreakdownText(String(r.expenseBreakdown || r.note || ""))
+        ? getInternalExpenseBreakdown(r)
         : "";
 
       return `<tr>
         <td class="date-col">${escHtml(formatDateShort(r.dateIso || r.dateText))}</td>
         <td class="shipment-col">${escHtml(r.shipmentNumber)}</td>
-        <td>${pesoOrBlank(r.rate)}</td>
-        <td>${pesoOrBlank(r.vat)}</td>
-        <td>${pesoOrBlank(r.crewSalary)}</td>
-        <td>${pesoOrBlank(r.cashAdvance)}</td>
-        <td>
+        ${
+          showRateAdjustment
+            ? `
+                <td class="amount-col">${pesoOrBlank(r.originalRate || r.rate)}</td>
+                <td class="amount-col">${pesoOrBlank(r.rate)}</td>
+              `
+            : `<td class="amount-col">${pesoOrBlank(r.rate)}</td>`
+        }
+        <td class="amount-col">${pesoOrBlank(r.vat)}</td>
+        <td class="amount-col">${pesoOrBlank(r.crewSalary)}</td>
+        <td class="amount-col">${pesoOrBlank(r.cashAdvance)}</td>
+        <td class="amount-col">
   ${(() => {
     const reimbValue = Number(r.reimbursements || 0);
     if (reimbValue === 0) return "";
@@ -438,10 +503,8 @@ export function exportMonthlyReport(
     return r.paid ? `✔ <s>${peso(reimbValue)}</s>` : peso(reimbValue);
   })()}
 </td>
-        <td>${pesoOrBlank(r.expenses)}</td>
+        <td class="amount-col">${pesoOrBlank(r.expenses)}</td>
         <td class="expense-breakdown">${expenseNoteHtml}</td>
-        <td>${pesoOrBlank(r.grossIncome)}</td>
-        <td>${clientMode ? "" : pesoOrBlank(r.reportNetIncome ?? r.netIncome)}</td>
       </tr>`;
     })
     .join("");
@@ -462,7 +525,14 @@ export function exportMonthlyReport(
           formatDateShort(r.dateIso || r.dateText),
         )}</td>
         <td class="shipment-col">${escHtml(r.shipmentNumber)}</td>
-        <td class="amount-col">${pesoOrBlank(r.rate)}</td>
+        ${
+          showRateAdjustment
+            ? `
+                <td class="amount-col">${pesoOrBlank(r.originalRate || r.rate)}</td>
+                <td class="amount-col">${pesoOrBlank(r.rate)}</td>
+              `
+            : `<td class="amount-col">${pesoOrBlank(r.rate)}</td>`
+        }
         <td class="amount-col">${pesoOrBlank(r.vat)}</td>
         <td class="amount-col">${pesoOrBlank(
           (Number(r.rate || 0) + Number(r.vat || 0)) * Number(r.trips || 0),
@@ -1314,18 +1384,38 @@ export function exportMonthlyReport(
                 }">
                   <table class="statement-table">
                     <colgroup>
-                      <col style="width:18%">
-                      <col style="width:23%">
-                      <col style="width:18%">
-                      <col style="width:18%">
-                      <col style="width:23%">
+                      ${
+                        showRateAdjustment
+                          ? `
+                            <col style="width:16%">
+                            <col style="width:20%">
+                            <col style="width:16%">
+                            <col style="width:16%">
+                            <col style="width:14%">
+                            <col style="width:18%">
+                          `
+                          : `
+                            <col style="width:18%">
+                            <col style="width:23%">
+                            <col style="width:18%">
+                            <col style="width:18%">
+                            <col style="width:23%">
+                          `
+                      }
                     </colgroup>
 
                     <thead>
                       <tr>
                         <th class="date-col">Date</th>
                         <th class="shipment-col">${labels.shipmentNumber}</th>
-                        <th class="amount-col">Rate</th>
+                        ${
+                          showRateAdjustment
+                            ? `
+                              <th class="amount-col">Original Rate</th>
+                              <th class="amount-col">Adjusted Rate</th>
+                            `
+                            : `<th class="amount-col">Rate</th>`
+                        }
                         <th class="amount-col">VAT</th>
                         <th class="amount-col">Total (VAT Incl.)</th>
                       </tr>
@@ -1334,7 +1424,7 @@ export function exportMonthlyReport(
                     <tbody>
                       ${
                         renderClientRows(pageRows) ||
-                        '<tr><td colspan="5" style="text-align:center;color:#999;padding:20px">No rows</td></tr>'
+                        `<tr><td colspan="${showRateAdjustment ? 6 : 5}" style="text-align:center;color:#999;padding:20px">No rows</td></tr>`
                       }
                     </tbody>
                   </table>
@@ -1345,39 +1435,61 @@ export function exportMonthlyReport(
         : `
     <table>
       <colgroup>
-        <col style="width:8%">
-        <col style="width:10%">
-        <col style="width:7%">
-        <col style="width:6%">
-        <col style="width:7%">
-        <col style="width:7%">
-        <col style="width:7%">
-        <col style="width:7%">
-        <col style="width:23%">
-        <col style="width:6%">
-        <col style="width:7%">
+        ${
+          showRateAdjustment
+            ? `
+              <col style="width:11%">
+              <col style="width:10%">
+              <col style="width:10%">
+              <col style="width:10%">
+              <col style="width:7%">
+              <col style="width:10%">
+              <col style="width:9%">
+              <col style="width:8%">
+              <col style="width:8%">
+              <col style="width:17%">
+            `
+            : `
+              <col style="width:12%">
+              <col style="width:10%">
+              <col style="width:10%">
+              <col style="width:8%">
+              <col style="width:11%">
+              <col style="width:10%">
+              <col style="width:9%">
+              <col style="width:9%">
+              <col style="width:21%">
+            `
+        }
       </colgroup>
 
       <thead>
         <tr>
           <th class="date-col">Date</th>
           <th class="shipment-col">${labels.shipmentNumber}</th>
-          <th>Rate</th>
-          <th>VAT</th>
-          <th>Crew Salary</th>
-          <th>${labels.cashAdvance}</th>
-          <th>Reimb</th>
-          <th>Expenses</th>
+
+          ${
+            showRateAdjustment
+              ? `
+                <th class="amount-col">Original Rate</th>
+                <th class="amount-col">Adjusted Rate</th>
+              `
+              : `<th class="amount-col">Rate</th>`
+          }
+
+          <th class="amount-col">VAT</th>
+          <th class="amount-col">Crew Salary</th>
+          <th class="amount-col">${labels.cashAdvance}</th>
+          <th class="amount-col">Reimb</th>
+          <th class="amount-col">Expenses</th>
           <th class="expense-breakdown">Expense Breakdown</th>
-          <th>Gross</th>
-          <th>Net</th>
         </tr>
       </thead>
 
       <tbody>
         ${
           rowHtml ||
-          '<tr><td colspan="11" style="text-align:center;color:#999;padding:20px">No rows</td></tr>'
+          `<tr><td colspan="${showRateAdjustment ? 10 : 9}" style="text-align:center;color:#999;padding:20px">No rows</td></tr>`
         }
       </tbody>
     </table>
@@ -1424,6 +1536,7 @@ export function exportClientMonthlyReport(
   billedTo = "",
   billingType: "subcontracted" | "direct" = "subcontracted",
   companyName = "",
+  showRateAdjustment = false,
 ) {
   return exportMonthlyReport(
     rows,
@@ -1436,5 +1549,6 @@ export function exportClientMonthlyReport(
     billedTo,
     billingType,
     companyName,
+    showRateAdjustment,
   );
 }

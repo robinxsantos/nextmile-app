@@ -55,7 +55,7 @@ export default function AppLayout() {
   }, [theme]);
 
   return (
-    <div className="min-h-screen bg-[#fcfcfc] dark:bg-zinc-900 text-foreground transition-colors duration-200">
+    <div className="min-h-screen bg-background text-foreground transition-colors duration-200">
       {/* Mobile overlay */}
       {/* Mobile overlay */}
       {openMobile && (
@@ -72,7 +72,7 @@ export default function AppLayout() {
         className={cn(
           "hidden lg:grid fixed top-0 right-0 z-40 h-14",
           "grid-cols-[1fr_auto_1fr] items-center",
-          "border-b border-border bg-[#fcfcfc] dark:bg-zinc-900",
+          "border-b border-border bg-background",
           "transition-all duration-300 ease-in-out",
           sidebarCollapsed ? "left-[64px]" : "left-[240px]",
         )}
@@ -211,7 +211,7 @@ export default function AppLayout() {
 
       <main
         className={cn(
-          "relative min-h-screen bg-[#fcfcfc] dark:bg-zinc-900 transition-all duration-300 ease-in-out p-4 lg:p-5",
+          "relative min-h-screen bg-background transition-all duration-300 ease-in-out p-4 lg:p-5",
           // Mobile: no offset, add top padding for mobile header
           "ml-0 pt-[72px] lg:pt-[76px]",
           // Desktop: offset by sidebar width (ternary to avoid class conflict)

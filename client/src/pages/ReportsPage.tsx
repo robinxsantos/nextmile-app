@@ -123,6 +123,7 @@ export default function ReportsPage() {
   const [openPeriodType, setOpenPeriodType] = useState(false);
   const [openMonth, setOpenMonth] = useState(false);
   const [deductFuel, setDeductFuel] = useState(true);
+  const [showRateAdjustment, setShowRateAdjustment] = useState(false);
   const [reportPeriodType, setReportPeriodType] = useState<
     "monthly" | "custom"
   >("monthly");
@@ -265,7 +266,19 @@ export default function ReportsPage() {
     const truckLabel = selectedTruckName || "All Trucks";
     const periodText = getReportPeriodText();
 
-    exportMonthlyReport(reportRows, truckLabel, periodText, expenseRows);
+    exportMonthlyReport(
+      reportRows,
+      truckLabel,
+      periodText,
+      expenseRows,
+      false,
+      false,
+      "",
+      "",
+      "subcontracted",
+      "",
+      showRateAdjustment,
+    );
   };
 
   const handleClientReport = () => {
@@ -282,6 +295,7 @@ export default function ReportsPage() {
       selectedBilledTo,
       selectedBillingType,
       selectedCompanyName,
+      showRateAdjustment,
     );
   };
 
@@ -574,6 +588,16 @@ export default function ReportsPage() {
                 className="h-4 w-4 rounded border-border"
               />
               Fuel Deduction
+            </label>
+
+            <label className="h-9 px-3 rounded-md border border-border bg-background flex items-center gap-2 text-xs font-medium cursor-pointer select-none whitespace-nowrap">
+              <input
+                type="checkbox"
+                checked={showRateAdjustment}
+                onChange={(e) => setShowRateAdjustment(e.target.checked)}
+                className="h-4 w-4 rounded border-border"
+              />
+              Show Rate Adjustment
             </label>
 
             <div ref={dropdownRef} className="relative">

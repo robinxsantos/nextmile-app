@@ -9,7 +9,9 @@ export function validateTripData(
     truckId,
     date,
     status,
-    rate,
+    originalRate,
+    rateAdjustmentType,
+    rateAdjustment,
     trips,
     crewSalary,
     cashAdvance,
@@ -23,9 +25,54 @@ export function validateTripData(
   if (!status) errors.push("Status is required");
 
   if (status === "Working Day") {
-    if (rate !== undefined && rate !== null && rate < 0) {
-      errors.push("Rate must be a non-negative number for working days");
+    if (
+      originalRate !== undefined &&
+      originalRate !== null &&
+      Number(originalRate) < 0
+    ) {
+      errors.push(
+        "Original Rate must be a non-negative number for working days",
+      );
     }
+
+    if (
+      rateAdjustmentType !== undefined &&
+      !["none", "amount", "percentage"].includes(rateAdjustmentType)
+    ) {
+      errors.push("Rate Adjustment Type must be none, amount, or percentage");
+    }
+
+    if (
+      rateAdjustment !== undefined &&
+      rateAdjustment !== null &&
+      Number(rateAdjustment) < 0
+    ) {
+      errors.push("Rate Adjustment must be non-negative");
+    }
+
+    if (
+      rateAdjustmentType === "amount" &&
+      Number(rateAdjustment || 0) > Number(originalRate || 0)
+    ) {
+      errors.push("Rate Adjustment amount cannot exceed Original Rate");
+    }
+
+    if (
+      rateAdjustmentType === "percentage" &&
+      Number(rateAdjustment || 0) >= 100
+    ) {
+      errors.push("Rate Adjustment percentage must be less than 100");
+    }
+
+    if (
+      (!rateAdjustmentType || rateAdjustmentType === "none") &&
+      Number(rateAdjustment || 0) > 0
+    ) {
+      errors.push(
+        "Rate Adjustment Type is required when an adjustment is used",
+      );
+    }
+
     if (trips !== undefined && trips < 0) {
       errors.push("Trips must be a non-negative number");
     }
@@ -62,8 +109,17 @@ export function validateTripUpdate(
   res: Response,
   next: NextFunction,
 ) {
-  const { date, status, rate, trips, crewSalary, cashAdvance, reimbursements } =
-    req.body;
+  const {
+    date,
+    status,
+    originalRate,
+    rateAdjustmentType,
+    rateAdjustment,
+    trips,
+    crewSalary,
+    cashAdvance,
+    reimbursements,
+  } = req.body;
 
   const errors: string[] = [];
 
@@ -71,9 +127,54 @@ export function validateTripUpdate(
   if (!status) errors.push("Status is required");
 
   if (status === "Working Day") {
-    if (rate !== undefined && rate !== null && rate < 0) {
-      errors.push("Rate must be a non-negative number for working days");
+    if (
+      originalRate !== undefined &&
+      originalRate !== null &&
+      Number(originalRate) < 0
+    ) {
+      errors.push(
+        "Original Rate must be a non-negative number for working days",
+      );
     }
+
+    if (
+      rateAdjustmentType !== undefined &&
+      !["none", "amount", "percentage"].includes(rateAdjustmentType)
+    ) {
+      errors.push("Rate Adjustment Type must be none, amount, or percentage");
+    }
+
+    if (
+      rateAdjustment !== undefined &&
+      rateAdjustment !== null &&
+      Number(rateAdjustment) < 0
+    ) {
+      errors.push("Rate Adjustment must be non-negative");
+    }
+
+    if (
+      rateAdjustmentType === "amount" &&
+      Number(rateAdjustment || 0) > Number(originalRate || 0)
+    ) {
+      errors.push("Rate Adjustment amount cannot exceed Original Rate");
+    }
+
+    if (
+      rateAdjustmentType === "percentage" &&
+      Number(rateAdjustment || 0) >= 100
+    ) {
+      errors.push("Rate Adjustment percentage must be less than 100");
+    }
+
+    if (
+      (!rateAdjustmentType || rateAdjustmentType === "none") &&
+      Number(rateAdjustment || 0) > 0
+    ) {
+      errors.push(
+        "Rate Adjustment Type is required when an adjustment is used",
+      );
+    }
+
     if (trips !== undefined && trips < 0) {
       errors.push("Trips must be a non-negative number");
     }

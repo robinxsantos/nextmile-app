@@ -98,6 +98,10 @@ export interface TripRow {
   status: string;
   shipmentNumber: string;
   verificationStatus?: "Verified" | "Pending" | "For Confirmation";
+  originalRate: number;
+  rateAdjustmentType: "none" | "amount" | "percentage";
+  rateAdjustment: number;
+  autoComputeVat: boolean;
   rate: number;
   vat: number;
   trips: number;
@@ -451,7 +455,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             date: trip.dateIso,
             category: "REIMBURSEMENT",
             amount: trip.reimbursements,
-            description: `Crew Reimb.`,
+            description: `Reimb.`,
             tripId: trip._id,
           });
         }
@@ -852,7 +856,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           date: newTrip.dateIso,
           category: "REIMBURSEMENT",
           amount: newTrip.reimbursements,
-          description: `Crew Reimb.`,
+          description: `Reimb.`,
           tripId: newTrip._id,
         });
       }

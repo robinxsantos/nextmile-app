@@ -46,6 +46,14 @@ async function recomputeTrip(tripId: any) {
     dayOff: truck?.dayOff ?? 0,
     billingType: truck?.billingType === "direct" ? "direct" : "subcontracted",
     shipmentNumber: trip.shipmentNumber,
+    originalRate:
+      Number(trip.originalRate || 0) > 0 ? trip.originalRate : trip.rate,
+    rateAdjustmentType:
+      Number(trip.originalRate || 0) > 0 ? trip.rateAdjustmentType : "none",
+    rateAdjustment:
+      Number(trip.originalRate || 0) > 0 ? trip.rateAdjustment : 0,
+    autoComputeVat:
+      Number(trip.originalRate || 0) > 0 ? trip.autoComputeVat : false,
     rate: trip.rate,
     vat: trip.vat,
     trips: trip.trips,
@@ -356,13 +364,57 @@ router.post(
         const tripDate = row["Date"] || row["DATE"];
         const shipmentNumber = row["Shipment Number"] || row["SHIPMENT NUMBER"];
 
-        const rate = Number(row["Rate"] || row["RATE"] || 0);
+        const originalRate = Number(
+          row["Original Rate"] || row["ORIGINAL RATE"] || 0,
+        );
+
+        const rawAdjustmentType = String(
+          row["Rate Adjustment Type"] || row["RATE ADJUSTMENT TYPE"] || "",
+        )
+          .trim()
+          .toLowerCase();
+
+        const rateAdjustmentType =
+          rawAdjustmentType === "amount"
+            ? "amount"
+            : rawAdjustmentType === "percentage"
+              ? "percentage"
+              : rawAdjustmentType === ""
+                ? "none"
+                : "invalid";
+
+        const rateAdjustment = Number(
+          row["Rate Adjustment"] || row["RATE ADJUSTMENT"] || 0,
+        );
+
+        const rawAutoComputeVat = String(
+          row["Auto-Compute VAT"] ?? row["AUTO-COMPUTE VAT"] ?? "",
+        )
+          .trim()
+          .toLowerCase();
+
+        const validAutoComputeVat =
+          rawAutoComputeVat === "yes" || rawAutoComputeVat === "no";
 
         const crewSalary = Number(
           row["Crew Salary"] || row["CREW SALARY"] || 0,
         );
 
-        if (!tripDate || !shipmentNumber || rate <= 0 || crewSalary <= 0) {
+        const invalidAdjustment =
+          rateAdjustmentType === "invalid" ||
+          rateAdjustment < 0 ||
+          (rateAdjustmentType === "amount" && rateAdjustment > originalRate) ||
+          (rateAdjustmentType === "percentage" && rateAdjustment >= 100) ||
+          (rateAdjustmentType === "none" && rateAdjustment > 0);
+
+        if (
+          !tripDate ||
+          !shipmentNumber ||
+          originalRate <= 0 ||
+          crewSalary <= 0 ||
+          !validAutoComputeVat ||
+          invalidAdjustment
+        ) {
           invalid++;
           continue;
         }
@@ -452,7 +504,39 @@ router.post(
         const tripDate = row["Date"] || row["DATE"];
         const shipmentNumber = row["Shipment Number"] || row["SHIPMENT NUMBER"];
 
-        const rate = Number(row["Rate"] || row["RATE"] || 0);
+        const originalRate = Number(
+          row["Original Rate"] || row["ORIGINAL RATE"] || 0,
+        );
+
+        const rawAdjustmentType = String(
+          row["Rate Adjustment Type"] || row["RATE ADJUSTMENT TYPE"] || "",
+        )
+          .trim()
+          .toLowerCase();
+
+        const validAdjustmentType =
+          rawAdjustmentType === "" ||
+          rawAdjustmentType === "amount" ||
+          rawAdjustmentType === "percentage";
+
+        const rateAdjustmentType: "none" | "amount" | "percentage" =
+          rawAdjustmentType === "amount"
+            ? "amount"
+            : rawAdjustmentType === "percentage"
+              ? "percentage"
+              : "none";
+
+        const rateAdjustment = Number(
+          row["Rate Adjustment"] || row["RATE ADJUSTMENT"] || 0,
+        );
+
+        const rawAutoComputeVat = String(
+          row["Auto-Compute VAT"] ?? row["AUTO-COMPUTE VAT"] ?? "",
+        )
+          .trim()
+          .toLowerCase();
+
+        const autoComputeVat = rawAutoComputeVat === "yes";
 
         const crewSalary = Number(
           row["Crew Salary"] || row["CREW SALARY"] || 0,
@@ -465,7 +549,24 @@ router.post(
           row["Reimbursements"] || row["REIMBURSEMENTS"] || 0,
         );
 
-        if (!tripDate || !shipmentNumber || rate <= 0 || crewSalary <= 0) {
+        const validAutoComputeVat =
+          rawAutoComputeVat === "yes" || rawAutoComputeVat === "no";
+
+        const invalidAdjustment =
+          rateAdjustment < 0 ||
+          (rateAdjustmentType === "amount" && rateAdjustment > originalRate) ||
+          (rateAdjustmentType === "percentage" && rateAdjustment >= 100) ||
+          (rateAdjustmentType === "none" && rateAdjustment > 0);
+
+        if (
+          !tripDate ||
+          !shipmentNumber ||
+          originalRate <= 0 ||
+          crewSalary <= 0 ||
+          !validAdjustmentType ||
+          !validAutoComputeVat ||
+          invalidAdjustment
+        ) {
           continue;
         }
 
@@ -502,8 +603,12 @@ router.post(
             billingType:
               truck.billingType === "direct" ? "direct" : "subcontracted",
             shipmentNumber,
-            rate,
-            vat: rate * 0.12,
+            originalRate,
+            rateAdjustmentType,
+            rateAdjustment,
+            autoComputeVat,
+            rate: existingTrip.rate,
+            vat: 0,
             trips: 1,
             crewSalary,
             cashAdvance: existingTrip.cashAdvance,
@@ -531,8 +636,12 @@ router.post(
           billingType:
             truck.billingType === "direct" ? "direct" : "subcontracted",
           shipmentNumber,
-          rate,
-          vat: rate * 0.12,
+          originalRate,
+          rateAdjustmentType,
+          rateAdjustment,
+          autoComputeVat,
+          rate: originalRate,
+          vat: 0,
           trips: 1,
           crewSalary,
           cashAdvance,
@@ -580,6 +689,10 @@ router.post(
         date,
         status,
         shipmentNumber,
+        originalRate,
+        rateAdjustmentType,
+        rateAdjustment,
+        autoComputeVat,
         rate,
         vat,
         trips,
@@ -621,9 +734,11 @@ router.post(
       if (
         canManageTripFinancials &&
         status === "Working Day" &&
-        (!rate || Number(rate) <= 0)
+        (!originalRate || Number(originalRate) <= 0)
       ) {
-        res.status(400).json({ error: "Rate is required for Working Day." });
+        res.status(400).json({
+          error: "Original Rate is required for Working Day.",
+        });
         return;
       }
       if (
@@ -682,6 +797,16 @@ router.post(
         billingType:
           truck.billingType === "direct" ? "direct" : "subcontracted",
         shipmentNumber,
+        originalRate: canManageTripFinancials ? Number(originalRate) || 0 : 0,
+        rateAdjustmentType: canManageTripFinancials
+          ? rateAdjustmentType || "none"
+          : "none",
+        rateAdjustment: canManageTripFinancials
+          ? Number(rateAdjustment) || 0
+          : 0,
+        autoComputeVat: canManageTripFinancials
+          ? autoComputeVat !== false
+          : false,
         rate: canManageTripFinancials ? Number(rate) || 0 : 0,
         vat: canManageTripFinancials ? Number(vat) || 0 : 0,
         trips: canManageTripFinancials ? Number(trips) || 0 : 0,
@@ -725,6 +850,10 @@ router.put(
         date,
         status,
         shipmentNumber,
+        originalRate,
+        rateAdjustmentType,
+        rateAdjustment,
+        autoComputeVat,
         rate,
         vat,
         trips,
@@ -802,8 +931,22 @@ router.put(
         billingType:
           truck.billingType === "direct" ? "direct" : "subcontracted",
         shipmentNumber,
-        rate: Number(rate) || 0,
-        vat: Number(vat) || 0,
+        originalRate:
+          originalRate !== undefined
+            ? Number(originalRate) || 0
+            : existingTrip.originalRate || existingTrip.rate,
+        rateAdjustmentType:
+          rateAdjustmentType || existingTrip.rateAdjustmentType || "none",
+        rateAdjustment:
+          rateAdjustment !== undefined
+            ? Number(rateAdjustment) || 0
+            : existingTrip.rateAdjustment || 0,
+        autoComputeVat:
+          autoComputeVat !== undefined
+            ? Boolean(autoComputeVat)
+            : (existingTrip.autoComputeVat ?? false),
+        rate: Number(rate) || existingTrip.rate || 0,
+        vat: Number(vat) || existingTrip.vat || 0,
         trips: Number(trips) || 0,
         crewSalary: Number(crewSalary) || 0,
         cashAdvance: Number(cashAdvance) || 0,
@@ -952,6 +1095,14 @@ router.patch(
             ? "direct"
             : "subcontracted",
         shipmentNumber: trip.shipmentNumber,
+        originalRate:
+          Number(trip.originalRate || 0) > 0 ? trip.originalRate : trip.rate,
+        rateAdjustmentType:
+          Number(trip.originalRate || 0) > 0 ? trip.rateAdjustmentType : "none",
+        rateAdjustment:
+          Number(trip.originalRate || 0) > 0 ? trip.rateAdjustment : 0,
+        autoComputeVat:
+          Number(trip.originalRate || 0) > 0 ? trip.autoComputeVat : false,
         rate: trip.rate,
         vat: trip.vat,
         trips: trip.trips,

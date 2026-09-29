@@ -754,7 +754,11 @@ export default function TripTable({
         label: columnLabels.shipmentNumber,
       });
     if (show("rate"))
-      cols.push({ key: "rate", label: "Rate", sortField: "rate" });
+      cols.push({
+        key: "rate",
+        label: "Adjusted Rate",
+        sortField: "rate",
+      });
     if (show("vat"))
       cols.push({
         key: "vat",
@@ -1660,8 +1664,18 @@ export default function TripTable({
                           </div>
 
                           {/* Detail values */}
-                          <div className="grid grid-cols-[220px_220px_minmax(280px,1fr)] gap-x-8 gap-y-3">
-                            <div>
+                          <div className="grid grid-cols-[180px_180px_180px_minmax(280px,1fr)] gap-x-8 gap-y-3">
+                            {/* ROW 1 */}
+                            <div className="col-start-1 row-start-1">
+                              <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+                                Original Rate
+                              </div>
+                              <div className="text-xs font-normal">
+                                {peso(Number(r.originalRate || r.rate || 0))}
+                              </div>
+                            </div>
+
+                            <div className="col-start-2 row-start-1">
                               <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
                                 Crew Salary
                               </div>
@@ -1670,7 +1684,7 @@ export default function TripTable({
                               </div>
                             </div>
 
-                            <div>
+                            <div className="col-start-3 row-start-1">
                               <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
                                 Expense Amount
                               </div>
@@ -1685,7 +1699,27 @@ export default function TripTable({
                               </div>
                             </div>
 
-                            <div>
+                            {/* ROW 2 */}
+                            <div className="col-start-1 row-start-2">
+                              <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+                                Rate Adjustment
+                              </div>
+                              <div className="text-xs font-normal">
+                                {r.rateAdjustmentType === "amount" &&
+                                Number(r.rateAdjustment || 0) > 0
+                                  ? peso(Number(r.rateAdjustment))
+                                  : r.rateAdjustmentType === "percentage" &&
+                                      Number(r.rateAdjustment || 0) > 0
+                                    ? `${Number(
+                                        r.rateAdjustment,
+                                      ).toLocaleString("en-PH", {
+                                        maximumFractionDigits: 2,
+                                      })}%`
+                                    : "—"}
+                              </div>
+                            </div>
+
+                            <div className="col-start-2 row-start-2">
                               <div
                                 onDoubleClick={() => {
                                   setEditingLabel("cashAdvance");
@@ -1748,7 +1782,54 @@ export default function TripTable({
                               </div>
                             </div>
 
-                            <div className="col-start-3 row-start-1 row-span-3">
+                            {/* ROW 3 */}
+                            <div className="col-start-1 row-start-3">
+                              <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+                                Adjusted Rate
+                              </div>
+                              <div className="text-xs font-normal">
+                                {peso(Number(r.rate || 0))}
+                              </div>
+                            </div>
+
+                            <div className="col-start-2 row-start-3">
+                              <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+                                Crew Reimbursement
+                              </div>
+
+                              <div className="text-xs font-normal flex items-center gap-1.5">
+                                {r.paid &&
+                                  Number(r.reimbursements || 0) > 0 && (
+                                    <CheckCheck
+                                      size={14}
+                                      className="text-green-500"
+                                    />
+                                  )}
+
+                                <span
+                                  className={cn(
+                                    r.paid &&
+                                      Number(r.reimbursements || 0) > 0 &&
+                                      "text-muted-foreground line-through",
+                                  )}
+                                >
+                                  {peso(Number(r.reimbursements || 0))}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* ROW 4 */}
+                            <div className="col-start-1 row-start-4">
+                              <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+                                VAT
+                              </div>
+                              <div className="text-xs font-normal">
+                                {peso(Number(r.vat || 0))}
+                              </div>
+                            </div>
+
+                            {/* EXPENSE BREAKDOWN */}
+                            <div className="col-start-4 row-start-1 row-span-4">
                               <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
                                 Expense Breakdown
                               </div>
@@ -1804,32 +1885,6 @@ export default function TripTable({
                                   —
                                 </div>
                               )}
-                            </div>
-
-                            <div className="col-start-1 row-start-3">
-                              <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
-                                Crew Reimbursement
-                              </div>
-
-                              <div className="text-xs font-normal flex items-center gap-1.5">
-                                {r.paid &&
-                                  Number(r.reimbursements || 0) > 0 && (
-                                    <CheckCheck
-                                      size={14}
-                                      className="text-green-500"
-                                    />
-                                  )}
-
-                                <span
-                                  className={cn(
-                                    r.paid &&
-                                      Number(r.reimbursements || 0) > 0 &&
-                                      "text-muted-foreground line-through",
-                                  )}
-                                >
-                                  {peso(Number(r.reimbursements || 0))}
-                                </span>
-                              </div>
                             </div>
                           </div>
                         </div>

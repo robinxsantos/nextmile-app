@@ -103,6 +103,46 @@ export async function syncTripsForDate(
   }
 }
 
+export function calculateRateAdjustment({
+  originalRate,
+  rateAdjustmentType = "none",
+  rateAdjustment = 0,
+  autoComputeVat = true,
+  manualVat = 0,
+}: {
+  originalRate: number;
+  rateAdjustmentType?: "none" | "amount" | "percentage";
+  rateAdjustment?: number;
+  autoComputeVat?: boolean;
+  manualVat?: number;
+}) {
+  const baseRate = Math.max(0, Number(originalRate) || 0);
+  const adjustment = Math.max(0, Number(rateAdjustment) || 0);
+
+  let rate = baseRate;
+
+  if (rateAdjustmentType === "amount") {
+    rate = Math.max(0, baseRate - adjustment);
+  }
+
+  if (rateAdjustmentType === "percentage") {
+    rate = Math.max(0, baseRate - baseRate * (adjustment / 100));
+  }
+
+  // Keep currency values at 2 decimal places.
+  rate = Math.round((rate + Number.EPSILON) * 100) / 100;
+
+  // VAT currently uses ORIGINAL RATE as its base.
+  const vat = autoComputeVat
+    ? Math.round((baseRate * 0.12 + Number.EPSILON) * 100) / 100
+    : Math.max(0, Number(manualVat) || 0);
+
+  return {
+    rate,
+    vat,
+  };
+}
+
 /**
  * Prepare trip data with auto-defaults and computed fields before save
  */
@@ -111,6 +151,10 @@ export function prepareTripData(data: {
   status?: string;
   dayOff?: number;
   shipmentNumber?: string;
+  originalRate?: number;
+  rateAdjustmentType?: "none" | "amount" | "percentage";
+  rateAdjustment?: number;
+  autoComputeVat?: boolean;
   rate?: number;
   vat?: number;
   trips?: number;
@@ -126,8 +170,34 @@ export function prepareTripData(data: {
   date.setHours(12, 0, 0, 0); // Normalize to noon to avoid timezone issues
 
   const status = normalizeStatus(data.status, date, data.dayOff ?? 0);
-  const rate = data.rate || 0;
-  const vat = data.vat || 0;
+
+  const hasOriginalRate = data.originalRate !== undefined;
+
+  const originalRate = hasOriginalRate
+    ? Number(data.originalRate) || 0
+    : Number(data.rate) || 0;
+
+  const rateAdjustmentType = hasOriginalRate
+    ? data.rateAdjustmentType || "none"
+    : "none";
+
+  const rateAdjustment = hasOriginalRate ? Number(data.rateAdjustment) || 0 : 0;
+
+  const autoComputeVat = hasOriginalRate
+    ? data.autoComputeVat !== false
+    : false;
+
+  const calculated = calculateRateAdjustment({
+    originalRate,
+    rateAdjustmentType,
+    rateAdjustment,
+    autoComputeVat,
+    manualVat: Number(data.vat) || 0,
+  });
+
+  const rate = hasOriginalRate ? calculated.rate : Number(data.rate) || 0;
+  const vat = hasOriginalRate ? calculated.vat : Number(data.vat) || 0;
+
   const trips = tripCountDefault(status, rate, data.trips);
   const crewSalary = crewSalaryDefault(status, rate, data.crewSalary);
   const cashAdvance = data.cashAdvance || 0;
@@ -154,6 +224,10 @@ export function prepareTripData(data: {
     week: weekLabelForDate(date),
     status,
     shipmentNumber: data.shipmentNumber || "",
+    originalRate,
+    rateAdjustmentType,
+    rateAdjustment,
+    autoComputeVat,
     rate,
     vat,
     trips,
@@ -186,6 +260,10 @@ export function formatTripResponse(trip: ITrip & { truck?: any }) {
     status: trip.status,
     shipmentNumber: trip.shipmentNumber,
     verificationStatus: trip.verificationStatus,
+    originalRate: trip.originalRate,
+    rateAdjustmentType: trip.rateAdjustmentType,
+    rateAdjustment: trip.rateAdjustment,
+    autoComputeVat: trip.autoComputeVat,
     rate: trip.rate,
     vat: trip.vat,
     trips: trip.trips,
