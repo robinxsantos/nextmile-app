@@ -10,6 +10,9 @@ import {
   Plus,
   Pencil,
   Trash2,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,7 +26,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
 import {
   Select,
   SelectContent,
@@ -40,6 +42,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface CompanyRow {
   _id: string;
@@ -66,6 +78,9 @@ export default function SettingsPage() {
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
   const [companies, setCompanies] = useState<CompanyRow[]>([]);
+  const [companyDateSort, setCompanyDateSort] = useState<"asc" | "desc" | null>(
+    null,
+  );
   const [loadingCompanies, setLoadingCompanies] = useState(false);
   const [companyModal, setCompanyModal] = useState(false);
   const [editingCompany, setEditingCompany] = useState<CompanyRow | null>(null);
@@ -227,6 +242,23 @@ export default function SettingsPage() {
     }
   };
 
+  const sortedCompanies = [...companies].sort((a, b) => {
+    if (!companyDateSort) return 0;
+
+    const result =
+      new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+
+    return companyDateSort === "asc" ? result : -result;
+  });
+
+  const toggleCompanyDateSort = () => {
+    setCompanyDateSort((current) => {
+      if (!current) return "asc";
+      if (current === "asc") return "desc";
+      return null;
+    });
+  };
+
   return (
     <div className="space-y-6">
       <Tabs defaultValue="profile" className="space-y-5">
@@ -253,19 +285,18 @@ export default function SettingsPage() {
 
         {/* PROFILE */}
         <TabsContent value="profile">
-          <Card className="max-w-3xl mx-auto">
-            <CardHeader>
-              <CardTitle>Profile</CardTitle>
-
-              <CardDescription>
-                Manage your personal account information.
-              </CardDescription>
+          <Card size="sm" className="mx-auto max-w-3xl !gap-0 overflow-hidden">
+            <CardHeader className="border-b">
+              <div>
+                <CardTitle>Profile</CardTitle>
+                <CardDescription>
+                  Manage your personal account information.
+                </CardDescription>
+              </div>
             </CardHeader>
 
-            <Separator />
-
             <form onSubmit={handleUpdateProfile}>
-              <CardContent className="space-y-5 py-6">
+              <CardContent className="space-y-5 py-5">
                 <div className="grid gap-2">
                   <Label htmlFor="username">Username</Label>
 
@@ -277,7 +308,9 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="grid gap-2">
-                  <Label htmlFor="displayName">Display Name</Label>
+                  <Label htmlFor="displayName">
+                    Display Name <span className="text-destructive">*</span>
+                  </Label>
 
                   <Input
                     id="displayName"
@@ -304,8 +337,7 @@ export default function SettingsPage() {
 
               <CardFooter className="justify-end border-t px-6 py-4">
                 <Button type="submit" disabled={savingProfile}>
-                  <Save className="mr-2 h-4 w-4" />
-
+                  <Save data-icon="inline-start" />
                   {savingProfile ? "Saving..." : "Save changes"}
                 </Button>
               </CardFooter>
@@ -315,21 +347,22 @@ export default function SettingsPage() {
 
         {/* SECURITY */}
         <TabsContent value="security">
-          <Card className="max-w-3xl mx-auto">
-            <CardHeader>
-              <CardTitle>Security</CardTitle>
-
-              <CardDescription>
-                Update the password used to sign in to your account.
-              </CardDescription>
+          <Card size="sm" className="mx-auto max-w-3xl !gap-0 overflow-hidden">
+            <CardHeader className="border-b">
+              <div>
+                <CardTitle>Security</CardTitle>
+                <CardDescription>
+                  Update the password used to sign in to your account.
+                </CardDescription>
+              </div>
             </CardHeader>
 
-            <Separator />
-
             <form onSubmit={handleChangePassword}>
-              <CardContent className="space-y-5 py-6">
+              <CardContent className="space-y-5 py-5">
                 <div className="grid gap-2">
-                  <Label htmlFor="currentPassword">Current Password</Label>
+                  <Label htmlFor="currentPassword">
+                    Current Password <span className="text-destructive">*</span>
+                  </Label>
 
                   <Input
                     id="currentPassword"
@@ -342,7 +375,9 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="grid gap-2">
-                  <Label htmlFor="newPassword">New Password</Label>
+                  <Label htmlFor="newPassword">
+                    New Password <span className="text-destructive">*</span>
+                  </Label>
 
                   <Input
                     id="newPassword"
@@ -359,7 +394,10 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="grid gap-2">
-                  <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                  <Label htmlFor="confirmPassword">
+                    Confirm New Password{" "}
+                    <span className="text-destructive">*</span>
+                  </Label>
 
                   <Input
                     id="confirmPassword"
@@ -374,8 +412,7 @@ export default function SettingsPage() {
 
               <CardFooter className="justify-end border-t px-6 py-4">
                 <Button type="submit" disabled={savingPassword}>
-                  <Lock className="mr-2 h-4 w-4" />
-
+                  <Lock data-icon="inline-start" />
                   {savingPassword ? "Changing..." : "Change password"}
                 </Button>
               </CardFooter>
@@ -386,12 +423,15 @@ export default function SettingsPage() {
         {/* COMPANIES — ADMIN ONLY */}
         {isAdmin && (
           <TabsContent value="companies">
-            <Card className="max-w-3xl mx-auto">
-              <CardHeader className="flex flex-row items-start justify-between gap-4">
+            <Card
+              size="sm"
+              className="mx-auto max-w-3xl !gap-0 overflow-hidden"
+            >
+              <CardHeader className="flex flex-row items-start justify-between gap-4 border-b">
                 <div>
                   <CardTitle>Companies</CardTitle>
 
-                  <CardDescription className="mt-1">
+                  <CardDescription>
                     Manage the companies available throughout the application.
                   </CardDescription>
                 </div>
@@ -401,58 +441,69 @@ export default function SettingsPage() {
                   onClick={openAddCompany}
                   className="shrink-0"
                 >
-                  <Plus className="mr-2 h-4 w-4" />
+                  <Plus data-icon="inline-start" />
                   Add company
                 </Button>
               </CardHeader>
 
-              <Separator />
+              {loadingCompanies ? (
+                <div className="py-10 text-center text-sm text-muted-foreground">
+                  Loading companies...
+                </div>
+              ) : companies.length === 0 ? (
+                <div className="flex min-h-[180px] flex-col items-center justify-center text-center">
+                  <Building2 className="mb-3 h-8 w-8 text-muted-foreground" />
 
-              <CardContent className="py-6">
-                {loadingCompanies ? (
-                  <div className="py-10 text-center text-sm text-muted-foreground">
-                    Loading companies...
-                  </div>
-                ) : companies.length === 0 ? (
-                  <div className="flex min-h-[180px] flex-col items-center justify-center text-center">
-                    <Building2 className="mb-3 h-8 w-8 text-muted-foreground" />
+                  <p className="text-sm font-medium">No companies yet</p>
 
-                    <p className="text-sm font-medium">No companies yet</p>
+                  <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+                    Add your first company to start assigning trucks and users.
+                  </p>
+                </div>
+              ) : (
+                <div className="[&>div]:max-h-[calc(100vh-320px)] [&>div]:overflow-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="sticky top-0 z-20 bg-background hover:bg-background">
+                        <TableHead className="pl-4 text-xs">Company</TableHead>
 
-                    <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-                      Add your first company to start assigning trucks and
-                      users.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="overflow-hidden rounded-md border">
-                    {companies.map((company, index) => (
-                      <div
-                        key={company._id}
-                        className={`flex items-center justify-between gap-4 px-4 py-3 ${
-                          index !== companies.length - 1 ? "border-b" : ""
-                        }`}
-                      >
-                        {/* COMPANY INFO */}
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <div className="truncate text-sm font-medium">
-                              {company.companyName}
-                            </div>
+                        <TableHead className="text-xs">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="-ml-2 h-8 gap-1.5 px-2 text-xs font-medium"
+                            onClick={toggleCompanyDateSort}
+                          >
+                            Date Added
+                            {companyDateSort === "asc" ? (
+                              <ArrowUp className="size-3.5" />
+                            ) : companyDateSort === "desc" ? (
+                              <ArrowDown className="size-3.5" />
+                            ) : (
+                              <ArrowUpDown className="size-3.5 text-muted-foreground" />
+                            )}
+                          </Button>
+                        </TableHead>
 
-                            <span
-                              className={`inline-flex min-w-[76px] items-center justify-center rounded-md px-2.5 py-1 text-[0.7rem] font-bold ${
-                                company.status === "Active"
-                                  ? "bg-green-500/10 text-green-500"
-                                  : "bg-slate-400/10 text-slate-400"
-                              }`}
-                            >
-                              {company.status}
-                            </span>
-                          </div>
+                        <TableHead className="w-[100px] text-center text-xs">
+                          Status
+                        </TableHead>
 
-                          <div className="mt-0.5 text-xs text-muted-foreground">
-                            Added{" "}
+                        <TableHead className="w-[100px] text-center text-xs">
+                          Actions
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+
+                    <TableBody>
+                      {sortedCompanies.map((company) => (
+                        <TableRow key={company._id}>
+                          <TableCell className="pl-4 text-xs font-medium">
+                            {company.companyName}
+                          </TableCell>
+
+                          <TableCell className="whitespace-nowrap text-xs">
                             {new Date(company.createdAt).toLocaleDateString(
                               "en-US",
                               {
@@ -461,37 +512,51 @@ export default function SettingsPage() {
                                 year: "numeric",
                               },
                             )}
-                          </div>
-                        </div>
+                          </TableCell>
 
-                        {/* ACTIONS */}
-                        <div className="flex shrink-0 items-center gap-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            onClick={() => openEditCompany(company)}
-                            title="Edit company"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
+                          <TableCell className="text-center text-xs">
+                            <Badge
+                              variant="secondary"
+                              className={
+                                company.status === "Active"
+                                  ? "bg-green-500/10 text-green-600 dark:text-green-400"
+                                  : "text-muted-foreground"
+                              }
+                            >
+                              {company.status}
+                            </Badge>
+                          </TableCell>
 
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            onClick={() => setDeleteCompany(company)}
-                            title="Delete company"
-                            className="hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-500"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
+                          <TableCell className="text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon-sm"
+                                onClick={() => openEditCompany(company)}
+                                aria-label="Edit company"
+                              >
+                                <Pencil />
+                              </Button>
+
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon-sm"
+                                onClick={() => setDeleteCompany(company)}
+                                aria-label="Delete company"
+                                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                              >
+                                <Trash2 />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
             </Card>
           </TabsContent>
         )}
@@ -514,7 +579,7 @@ export default function SettingsPage() {
         <DialogContent className="sm:max-w-[460px]">
           <DialogHeader>
             <DialogTitle>
-              {editingCompany ? "Edit company" : "Add company"}
+              {editingCompany ? "Edit Company" : "Add Company"}
             </DialogTitle>
 
             <DialogDescription>
@@ -526,7 +591,9 @@ export default function SettingsPage() {
 
           <div className="space-y-4 py-2">
             <div className="grid gap-2">
-              <Label htmlFor="companyName">Company Name</Label>
+              <Label htmlFor="companyName">
+                Company Name <span className="text-destructive">*</span>
+              </Label>
 
               <Input
                 id="companyName"

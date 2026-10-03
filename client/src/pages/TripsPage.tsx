@@ -5,14 +5,7 @@ import { useAuthStore } from "../store/useAuthStore";
 import TripModal from "../components/shared/TripModal";
 import TripTable from "../components/shared/TripTable";
 import { exportTripsCsv, exportPayslip } from "../lib/exportHelpers";
-import type { DateRange } from "react-day-picker";
-import { Calendar } from "@/components/ui/calendar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { format } from "date-fns";
+import FilterBar from "../components/shared/FilterBar";
 import {
   Plus,
   Search,
@@ -20,19 +13,17 @@ import {
   Upload,
   FileText,
   FileDown,
-  CalendarDays,
-  Check,
-  ChevronsUpDown,
   AlertTriangle,
   CheckCheck,
   XCircle,
   Trash2,
+  ListFilter,
+  CircleHelp,
+  Clock3,
   Route,
   Columns3,
   CircleCheck,
   CopyCheck,
-  RotateCcw,
-  Clock3,
 } from "lucide-react";
 import ExpenseBreakdownModal from "../components/shared/ExpenseBreakdownModal";
 import { AnimatePresence, motion } from "framer-motion";
@@ -41,29 +32,64 @@ import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-} from "@/components/ui/command";
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
-const RANGE_OPTIONS = [
-  { value: "ALL", label: "All Time" },
-  { value: "CC", label: "This Cutoff" },
-  { value: "LC", label: "Previous Cutoff" },
-  { value: "TM", label: "This Month" },
-  { value: "LM", label: "Last Month" },
-  { value: "MTD", label: "Month to Date" },
-  { value: "YTD", label: "Year to Date" },
-  { value: "CUSTOM", label: "Custom Range" },
-] as const;
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
+
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Spinner } from "@/components/ui/spinner";
+import { Progress } from "@/components/ui/progress";
+
+const RANGE_LABELS: Record<string, string> = {
+  ALL: "All Time",
+  CC: "This Cutoff",
+  LC: "Previous Cutoff",
+  TM: "This Month",
+  LM: "Last Month",
+  MTD: "Month to Date",
+  YTD: "Year to Date",
+  CUSTOM: "Custom Range",
+};
 
 const COLUMN_OPTIONS = [
   ["truck", "Truck"],
@@ -90,17 +116,13 @@ export default function TripsPage() {
     initApp,
     deleteTrip,
     toggleTripPaid,
-    addExpense, // 🔥 ADD THIS
-    deleteExpense, // 🔥 ADD THIS
     fetchDashboard,
+    fetchExpenses,
     searchQuery,
     setSearchQuery,
     startDate,
-    setStartDate,
     endDate,
-    setEndDate,
     rangePreset,
-    setRangePreset,
     selectedTripIds,
     setSelectedTripIds,
     bulkTogglePaid,
@@ -112,10 +134,6 @@ export default function TripsPage() {
   const { user } = useAuthStore();
 
   const canManageTrips = user?.role === "admin" || user?.role === "manager";
-
-  const [driverStatus, setDriverStatus] = useState<"ALL" | "UNPAID" | "PAID">(
-    "ALL",
-  );
   const [tripModal, setTripModal] = useState(false);
   const [importModal, setImportModal] = useState(false);
   const [confirmImport, setConfirmImport] = useState(false);
@@ -123,7 +141,6 @@ export default function TripsPage() {
   const [importMode, setImportMode] = useState<"add" | "update" | "upsert">(
     "add",
   );
-  const [openImportMode, setOpenImportMode] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
   const [csvRows, setCsvRows] = useState<any[]>([]);
   const [selectedCsvFile, setSelectedCsvFile] = useState<File | null>(null);
@@ -136,30 +153,20 @@ export default function TripsPage() {
   const [editRow, setEditRow] = useState<TripRow | null>(null);
   const [duplicateFrom, setDuplicateFrom] = useState<TripRow | null>(null);
   const [deleteModal, setDeleteModal] = useState<TripRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [bulkDeleteModal, setBulkDeleteModal] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const [showTruckWarning, setShowTruckWarning] = useState(false);
+  const [isDraggingCsv, setIsDraggingCsv] = useState(false);
   const [expenseBreakdown, setExpenseBreakdown] = useState<{
     truckId: string;
     dateIso: string;
     dateText: string;
   } | null>(null);
-  const [showColumnsMenu, setShowColumnsMenu] = useState(false);
   const COLUMN_STORAGE_KEY = "trips-columns";
   const [verificationFilter, setVerificationFilter] = useState<
     "ALL" | "Verified" | "Pending" | "For Confirmation"
   >("ALL");
-  const [openDateRange, setOpenDateRange] = useState(false);
-  const [openVerification, setOpenVerification] = useState(false);
-  const [openRangePreset, setOpenRangePreset] = useState(false);
-
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
-    if (!startDate) return undefined;
-
-    return {
-      from: new Date(`${startDate}T00:00:00`),
-      to: endDate ? new Date(`${endDate}T00:00:00`) : undefined,
-    };
-  });
 
   const defaultVisibleColumns: Record<ColumnKey, boolean> = {
     truck: true,
@@ -189,46 +196,28 @@ export default function TripsPage() {
       return defaultVisibleColumns;
     }
   });
-  const searchInputRef = useRef<HTMLInputElement>(null);
   const csvInputRef = useRef<HTMLInputElement>(null);
 
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
-    if (!startDate) {
-      setDateRange(undefined);
-      return;
-    }
+    const load = async () => {
+      await initApp();
+      await fetchExpenses(startDate, endDate);
+      await fetchDashboard();
+    };
 
-    setDateRange({
-      from: new Date(`${startDate}T00:00:00`),
-      to: endDate ? new Date(`${endDate}T00:00:00`) : undefined,
-    });
-  }, [startDate, endDate]);
-
-  useEffect(() => {
-    initApp();
-  }, [initApp]);
+    load();
+  }, [
+    initApp,
+    fetchExpenses,
+    fetchDashboard,
+    selectedTruck,
+    startDate,
+    endDate,
+  ]);
 
   useEffect(() => {
     localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(visibleColumns));
   }, [visibleColumns]);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setShowColumnsMenu(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
 
   const selectedTruckName = truckOptions.find(
     (t) => t._id === selectedTruck,
@@ -236,58 +225,16 @@ export default function TripsPage() {
   const showTruckColumn = !selectedTruck || selectedTruck === "ALL";
 
   const handleTogglePaid = async (id: string) => {
-    const trip = tripRows.find((r) => r._id === id);
-    if (!trip) return;
-
-    const willBePaid = !trip.paid;
-
     try {
-      const latestExpenses = useAppStore.getState().expenseRows;
-
-      const existing = latestExpenses.find((e) => e.tripId === trip._id);
-
-      // 🔴 UNPAID
-      if (!willBePaid) {
-        if (existing) {
-          await deleteExpense(existing._id);
-        }
-      }
-
-      // 🔥 TOGGLE FIRST
       await toggleTripPaid(id);
-
-      // 🟢 PAID
-      if (willBePaid && !existing && trip.reimbursements > 0) {
-        const truckId =
-          typeof trip.truck === "string"
-            ? trip.truck
-            : trip.truck && typeof trip.truck === "object"
-              ? trip.truck._id
-              : selectedTruck;
-
-        if (!truckId) {
-          toast.error("Truck is required.");
-          return;
-        }
-
-        await addExpense({
-          truckId,
-          date: trip.dateIso,
-          category: "REIMBURSEMENT",
-          amount: trip.reimbursements,
-          description: "Crew Reimb.",
-          tripId: trip._id,
-        });
-      }
-
-      await fetchDashboard();
+      await fetchExpenses();
     } catch (err) {
-      console.error(err);
+      console.error("Toggle failed", err);
     }
   };
 
   const handleAddTrip = () => {
-    if (!selectedTruck) {
+    if (!selectedTruck || selectedTruck === "ALL") {
       setShowTruckWarning(true);
       return;
     }
@@ -303,9 +250,7 @@ export default function TripsPage() {
   };
 
   const getRangeLabel = useCallback((): string => {
-    const label =
-      RANGE_OPTIONS.find((option) => option.value === rangePreset)?.label ||
-      "All Time";
+    const label = RANGE_LABELS[rangePreset] || "All Time";
     if (startDate && endDate) {
       const fmtStart = new Date(startDate + "T00:00:00").toLocaleDateString(
         "en-US",
@@ -339,39 +284,37 @@ export default function TripsPage() {
   const handleDelete = async () => {
     if (!deleteModal) return;
 
-    const trip = deleteModal;
+    setDeleting(true);
 
     try {
-      // 🔍 hanapin related expense
-      const latestExpenses = useAppStore.getState().expenseRows;
-
-      const existing = latestExpenses.find((e) => e.tripId === trip._id);
-
-      // 🔥 delete expense first (if exists)
-      if (existing) {
-        await deleteExpense(existing._id);
-      }
-
-      // 🔥 then delete trip
-      await deleteTrip(trip._id);
-
+      await deleteTrip(deleteModal._id);
       setDeleteModal(null);
     } catch (err) {
       console.error("Delete failed", err);
+    } finally {
+      setDeleting(false);
     }
   };
 
   const handleBulkDelete = async () => {
-    await bulkDeleteTrips(selectedTripIds);
-    setBulkDeleteModal(false);
+    setBulkDeleting(true);
+
+    try {
+      await bulkDeleteTrips(selectedTripIds);
+      setBulkDeleteModal(false);
+    } catch (err) {
+      console.error("Bulk delete failed", err);
+    } finally {
+      setBulkDeleting(false);
+    }
   };
 
   const downloadCsvTemplate = () => {
     const csv = [
-      "Date,Shipment Number,Original Rate,Rate Adjustment Type,Rate Adjustment,Auto-Compute VAT,Crew Salary,Cash Advance,Reimbursements",
-      "2026-08-01,1307001,3900,Amount,500,Yes,1900,500,250",
-      "2026-08-02,1307002,3900,Percentage,10,Yes,1900,,",
-      "2026-08-03,1307003,3900,,,No,1900,,",
+      "Date,Shipment Number,Original Rate,Rate Adjustment Type,Rate Adjustment,Auto-Compute VAT,Crew Salary,Cash Advance,Reimbursement Category,Reimbursements",
+      "2026-08-01,1307001,3900,Amount,500,Yes,1900,500,PARKING/PASSWAY,250",
+      "2026-08-02,1307002,3900,Percentage,10,Yes,1900,,,",
+      "2026-08-03,1307003,3900,,,No,1900,,,",
     ].join("\n");
 
     const blob = new Blob([csv], {
@@ -391,9 +334,12 @@ export default function TripsPage() {
     URL.revokeObjectURL(url);
   };
 
-  const handleCsvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const processCsvFile = (file: File) => {
+    if (!file.name.toLowerCase().endsWith(".csv")) {
+      toast.error("Please select a CSV file.");
+      return;
+    }
+
     setSelectedCsvFile(file);
 
     Papa.parse(file, {
@@ -427,13 +373,22 @@ export default function TripsPage() {
 
         setCsvRows(rows);
 
-        if (!selectedTruck) return;
+        if (!selectedTruck || selectedTruck === "ALL") {
+          toast.error("Please select a specific truck before importing trips.");
+          return;
+        }
 
         const preview = await previewImportTrips(selectedTruck, rows);
-
         setPreviewResult(preview);
       },
     });
+  };
+
+  const handleCsvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    processCsvFile(file);
   };
 
   const handleImportCsv = () => {
@@ -442,382 +397,169 @@ export default function TripsPage() {
 
   return (
     <div>
-      <div className="sticky top-14 z-30 bg-[#fcfcfc] dark:bg-zinc-900 mb-4 py-2 flex flex-wrap items-center justify-between gap-3">
-        {/* LEFT: DATE CONTROLS */}
-        <div className="flex items-center">
-          {/* DATE RANGE */}
-          <Popover open={openRangePreset} onOpenChange={setOpenRangePreset}>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                role="combobox"
-                className="h-9 w-[180px] rounded-l-md rounded-r-none border border-border bg-background px-3 text-sm flex items-center justify-between outline-none focus:z-10 focus:ring-2 focus:ring-ring"
-              >
-                <div className="flex min-w-0 items-center gap-2">
-                  <Clock3 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-
-                  <span className="truncate">
-                    {RANGE_OPTIONS.find(
-                      (option) => option.value === rangePreset,
-                    )?.label || "All Time"}
-                  </span>
-                </div>
-
-                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-              </button>
-            </PopoverTrigger>
-
-            <PopoverContent className="w-[200px] p-0" align="start">
-              <Command>
-                <CommandInput
-                  placeholder="Search range..."
-                  className="text-sm"
-                />
-
-                <CommandEmpty className="text-sm">No range found.</CommandEmpty>
-
-                <CommandGroup>
-                  {RANGE_OPTIONS.map((option) => (
-                    <CommandItem
-                      key={option.value}
-                      value={option.label}
-                      className="text-sm"
-                      onSelect={() => {
-                        setRangePreset(option.value);
-
-                        setTimeout(() => {
-                          fetchDashboard();
-                        }, 0);
-
-                        setOpenRangePreset(false);
-                      }}
-                    >
-                      <Check
-                        className={`mr-2 h-4 w-4 ${
-                          rangePreset === option.value
-                            ? "opacity-100"
-                            : "opacity-0"
-                        }`}
-                      />
-
-                      {option.label}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              </Command>
-            </PopoverContent>
-          </Popover>
-
-          {/* PERIOD */}
-          <Popover open={openDateRange} onOpenChange={setOpenDateRange}>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                className="h-9 w-[290px] rounded-r-md rounded-l-none border border-l-0 border-border bg-background px-3 text-sm flex items-center justify-between outline-none focus:z-10 focus:ring-2 focus:ring-ring"
-              >
-                <div className="flex min-w-0 items-center gap-2">
-                  <CalendarDays className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-
-                  <span
-                    className={`truncate ${
-                      !startDate ? "text-muted-foreground" : ""
-                    }`}
-                  >
-                    {startDate && endDate
-                      ? `${format(
-                          new Date(`${startDate}T00:00:00`),
-                          "MMM d, yyyy",
-                        )} - ${format(
-                          new Date(`${endDate}T00:00:00`),
-                          "MMM d, yyyy",
-                        )}`
-                      : "Select date range"}
-                  </span>
-                </div>
-              </button>
-            </PopoverTrigger>
-
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="range"
-                selected={dateRange}
-                onSelect={(range: DateRange | undefined) => {
-                  setDateRange(range);
-
-                  if (!range?.from) {
-                    setStartDate("");
-                    setEndDate("");
-                    return;
-                  }
-
-                  setStartDate(format(range.from, "yyyy-MM-dd"));
-
-                  if (range.to && range.to.getTime() !== range.from.getTime()) {
-                    setEndDate(format(range.to, "yyyy-MM-dd"));
-                    setRangePreset("CUSTOM");
-                    setOpenDateRange(false);
-
-                    setTimeout(() => {
-                      fetchDashboard();
-                    }, 0);
-                  } else {
-                    setEndDate("");
-                  }
-                }}
-                numberOfMonths={2}
-                defaultMonth={dateRange?.from}
-                showOutsideDays
-              />
-            </PopoverContent>
-          </Popover>
-
-          {/* RESET DATE */}
-          <button
-            type="button"
-            onClick={() => {
-              setRangePreset("CC");
-
-              setTimeout(() => {
-                fetchDashboard();
-              }, 0);
-            }}
-            disabled={rangePreset === "CC"}
-            className="ml-2 h-9 px-3 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:pointer-events-none flex items-center gap-1.5"
-          >
-            <RotateCcw className="h-3.5 w-3.5" />
-            Reset
-          </button>
-        </div>
-
-        {/* RIGHT: ADD TRIP */}
-        <button
-          type="button"
-          onClick={handleAddTrip}
-          className="h-10 px-4 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition flex items-center gap-2"
-        >
-          <Plus size={18} />
-          Add Trip
-        </button>
+      <div className="sticky top-16 z-30 bg-background">
+        <FilterBar
+          showTruck={false}
+          allowedRangePresets={
+            canManageTrips ? undefined : (["CC", "LC"] as const)
+          }
+          actions={
+            <Button onClick={handleAddTrip}>
+              <Plus data-icon="inline-start" />
+              Add Trip
+            </Button>
+          }
+        />
       </div>
 
-      <div className="border border-border rounded-lg bg-background overflow-visible">
-        {/* HEADER */}
-        <div className="flex flex-col gap-3 border-b border-border p-3.5 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h2 className="text-sm font-semibold">Trip Records</h2>
+      <Card size="sm" className="mt-4 !gap-0">
+        <CardHeader className="border-b">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <CardTitle>Trip Records</CardTitle>
 
-            <p className="text-xs text-muted-foreground">
-              {canManageTrips
-                ? "Filter, edit, export, and generate payslips."
-                : "View trips and add new entries."}
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            {canManageTrips && (
-              <>
-                <button
-                  type="button"
-                  onClick={handleExportCsv}
-                  className="h-9 px-3 rounded-md border border-border bg-background text-xs font-medium hover:bg-muted transition-colors flex items-center gap-2"
-                >
-                  <Download size={14} />
-                  Export CSV
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setImportModal(true)}
-                  className="h-9 px-3 rounded-md border border-border bg-background text-xs font-medium hover:bg-muted transition-colors flex items-center gap-2"
-                >
-                  <Upload size={14} />
-                  Import CSV
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleExportPayslip}
-                  className="h-9 px-3 rounded-md border border-border bg-background text-xs font-medium hover:bg-muted transition-colors flex items-center gap-2"
-                >
-                  <FileText size={14} />
-                  Payslip
-                </button>
-              </>
-            )}
-
-            <div ref={dropdownRef} className="relative">
-              <button
-                type="button"
-                onClick={() => setShowColumnsMenu((v) => !v)}
-                className={cn(
-                  "h-9 w-9 rounded-md border border-border flex items-center justify-center text-foreground transition-colors",
-                  showColumnsMenu ? "bg-muted" : "bg-background hover:bg-muted",
-                )}
-                title="Show / Hide Columns"
-              >
-                <Columns3 size={16} />
-              </button>
-
-              {showColumnsMenu && (
-                <div className="absolute right-0 mt-2 z-[70] w-64 max-h-[320px] overflow-y-auto rounded-md border border-border bg-background p-2 shadow-lg">
-                  <div className="px-2 pb-2 text-[11px] font-semibold uppercase text-slate-500">
-                    Show Columns
-                  </div>
-
-                  <div className="flex flex-col">
-                    {COLUMN_OPTIONS.map(([key, label]) => {
-                      const checked = visibleColumns[key as ColumnKey];
-
-                      return (
-                        <button
-                          key={key}
-                          type="button"
-                          onClick={() =>
-                            setVisibleColumns((prev) => ({
-                              ...prev,
-                              [key]: !prev[key as ColumnKey],
-                            }))
-                          }
-                          className="flex items-center px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-xs"
-                        >
-                          <span className="flex-1 pr-4 text-left">{label}</span>
-
-                          <span
-                            className={`relative inline-flex h-4 w-7 items-center rounded-full ${
-                              checked ? "bg-foreground" : "bg-muted"
-                            }`}
-                          >
-                            <span
-                              className={`h-3 w-3 rounded-full bg-white transition-transform ${
-                                checked ? "translate-x-3.5" : "translate-x-0.5"
-                              }`}
-                            />
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+              <CardDescription>
+                {canManageTrips
+                  ? "Filter, edit, export, and generate payslips."
+                  : "View trips and add new entries."}
+              </CardDescription>
             </div>
-          </div>
-        </div>
-        {/* FILTERS */}
-        <div className="flex flex-wrap items-end gap-2 border-b border-border bg-background px-3.5 py-3">
-          {/* SEARCH */}
-          <div className="min-w-[180px] flex-[1.5]">
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">
-              Search
-            </label>
 
-            <div className="relative">
-              <Search
-                size={14}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
-              />
+            <div className="flex flex-wrap items-center gap-2">
+              {canManageTrips && (
+                <>
+                  <Button variant="outline" onClick={handleExportCsv}>
+                    <Download data-icon="inline-start" />
+                    Export CSV
+                  </Button>
 
-              <input
-                ref={searchInputRef}
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search shipment number..."
-                className="w-full h-9 rounded-md border border-border bg-background pl-9 pr-3 text-xs outline-none focus:ring-2 focus:ring-ring"
-              />
-            </div>
-          </div>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      if (!selectedTruck || selectedTruck === "ALL") {
+                        setShowTruckWarning(true);
+                        return;
+                      }
 
-          {/* VERIFICATION */}
-          {canManageTrips && (
-            <div className="min-w-[160px]">
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                Verification
-              </label>
-
-              <Popover
-                open={openVerification}
-                onOpenChange={setOpenVerification}
-              >
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    role="combobox"
-                    className="h-9 w-full rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between outline-none focus:ring-2 focus:ring-ring"
+                      setImportModal(true);
+                    }}
                   >
-                    <span className="truncate">
-                      {verificationFilter === "ALL"
-                        ? "All"
-                        : verificationFilter}
-                    </span>
+                    <Upload data-icon="inline-start" />
+                    Import CSV
+                  </Button>
 
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </button>
-                </PopoverTrigger>
+                  <Button variant="outline" onClick={handleExportPayslip}>
+                    <FileText data-icon="inline-start" />
+                    Payslip
+                  </Button>
+                </>
+              )}
 
-                <PopoverContent className="w-[200px] p-0" align="start">
-                  <Command>
-                    <CommandGroup>
-                      {[
-                        ["ALL", "All"],
-                        ["Verified", "Verified"],
-                        ["Pending", "Pending"],
-                        ["For Confirmation", "For Confirmation"],
-                      ].map(([value, label]) => (
-                        <CommandItem
-                          key={value}
-                          value={label}
-                          className="text-xs"
-                          onSelect={() => {
-                            setVerificationFilter(
-                              value as
-                                | "ALL"
-                                | "Verified"
-                                | "Pending"
-                                | "For Confirmation",
-                            );
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    aria-label="Show or hide columns"
+                  >
+                    <Columns3 />
+                  </Button>
+                </DropdownMenuTrigger>
 
-                            setOpenVerification(false);
-                          }}
-                        >
-                          <Check
-                            className={`mr-2 h-4 w-4 ${
-                              verificationFilter === value
-                                ? "opacity-100"
-                                : "opacity-0"
-                            }`}
-                          />
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuLabel>Toggle columns</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
 
-                          {label}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </Command>
-                </PopoverContent>
-              </Popover>
+                  {COLUMN_OPTIONS.map(([key, label]) => (
+                    <DropdownMenuCheckboxItem
+                      key={key}
+                      checked={visibleColumns[key]}
+                      onCheckedChange={(checked) =>
+                        setVisibleColumns((prev) => ({
+                          ...prev,
+                          [key]: checked === true,
+                        }))
+                      }
+                      onSelect={(event) => event.preventDefault()}
+                    >
+                      {label}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
-          )}
-
-          {/* DRIVER PAYMENT STATUS */}
-          {!canManageTrips && (
-            <div className="min-w-[140px]">
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                Status
+          </div>
+        </CardHeader>
+        <CardContent className="border-b py-4">
+          <div className="flex flex-wrap items-end gap-2">
+            {/* SEARCH */}
+            <div className="min-w-[220px] flex-1">
+              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                Search
               </label>
 
-              <select
-                value={driverStatus}
-                onChange={(e) =>
-                  setDriverStatus(e.target.value as "ALL" | "UNPAID" | "PAID")
-                }
-                className="h-9 w-full rounded-md border border-border bg-background px-3 text-xs outline-none focus:ring-2 focus:ring-ring"
-              >
-                <option value="ALL">All</option>
-                <option value="UNPAID">Unpaid</option>
-                <option value="PAID">Paid</option>
-              </select>
+              <InputGroup>
+                <InputGroupAddon>
+                  <Search />
+                </InputGroupAddon>
+
+                <InputGroupInput
+                  placeholder="Search shipment number..."
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                />
+              </InputGroup>
             </div>
-          )}
-        </div>
+
+            {/* VERIFICATION */}
+            {canManageTrips && (
+              <div className="w-[180px] shrink-0">
+                <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                  Shipment Verification
+                </label>
+
+                <Select
+                  value={verificationFilter}
+                  onValueChange={(value) =>
+                    setVerificationFilter(
+                      value as
+                        | "ALL"
+                        | "Verified"
+                        | "Pending"
+                        | "For Confirmation",
+                    )
+                  }
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    <SelectItem value="ALL">
+                      <ListFilter className="size-4 text-foreground" />
+                      All
+                    </SelectItem>
+
+                    <SelectItem value="Verified">
+                      <CircleCheck className="size-4 text-foreground" />
+                      Verified
+                    </SelectItem>
+
+                    <SelectItem value="Pending">
+                      <Clock3 className="size-4 text-foreground" />
+                      Pending
+                    </SelectItem>
+
+                    <SelectItem value="For Confirmation">
+                      <CircleHelp className="size-4 text-foreground" />
+                      For Confirmation
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+        </CardContent>
 
         <TripTable
           rows={tripRows}
@@ -846,7 +588,6 @@ export default function TripsPage() {
           showTruckColumn={showTruckColumn}
           visibleColumns={visibleColumns}
           onQuickEdit={canManageTrips ? quickEditTrip : undefined}
-          // ✅ ADD THIS
           onVerificationChange={
             canManageTrips
               ? async (id, status) => {
@@ -859,25 +600,22 @@ export default function TripsPage() {
               icon={Route}
               title="No Trips Found!"
               description={
-                selectedTruck
+                selectedTruck && selectedTruck !== "ALL"
                   ? `No trips recorded for ${selectedTruckName} on the selected date range.`
-                  : "Select a truck and add your first trip to start tracking."
+                  : "No trips recorded on the selected date range."
               }
               action={
-                selectedTruck ? (
-                  <button
-                    onClick={handleAddTrip}
-                    className="inline-flex items-center justify-center gap-2 h-9 px-3 rounded-md bg-foreground text-background text-xs font-medium hover:opacity-90 transition"
-                  >
-                    <Plus size={14} />
+                selectedTruck && selectedTruck !== "ALL" ? (
+                  <Button onClick={handleAddTrip}>
+                    <Plus data-icon="inline-start" />
                     Add Trip
-                  </button>
+                  </Button>
                 ) : undefined
               }
             />
           }
         />
-      </div>
+      </Card>
 
       <AnimatePresence>
         {selectedTripIds.length > 0 && (
@@ -889,7 +627,7 @@ export default function TripsPage() {
             className="fixed bottom-6 left-1/2 z-50 w-[calc(100%-2rem)] max-w-lg -translate-x-1/2"
           >
             <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-border bg-background/95 px-4 py-3 shadow-lg backdrop-blur sm:flex-row">
-              <span className="whitespace-nowrap text-sm font-semibold text-foreground">
+              <span className="whitespace-nowrap text-sm font-medium text-foreground">
                 {selectedTripIds.length} trip
                 {selectedTripIds.length !== 1 ? "s" : ""} selected
               </span>
@@ -897,40 +635,43 @@ export default function TripsPage() {
               <div className="hidden h-6 w-px bg-border sm:block" />
 
               <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => bulkTogglePaid(selectedTripIds, true)}
-                  className="inline-flex h-8 items-center gap-1.5 rounded-md border border-green-500/20 bg-green-500/10 px-3 text-xs font-medium text-green-600 transition-colors hover:bg-green-500/20 dark:text-green-400"
+                  className="border-green-500/30 bg-green-500/10 text-green-600 hover:bg-green-500/20 hover:text-green-700 dark:text-green-400"
                 >
-                  <CheckCheck className="h-4 w-4" />
+                  <CheckCheck className="size-4" data-icon="inline-start" />
                   Settled
-                </button>
+                </Button>
 
-                <button
-                  type="button"
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => bulkTogglePaid(selectedTripIds, false)}
-                  className="inline-flex h-8 items-center gap-1.5 rounded-md border border-amber-500/20 bg-amber-500/10 px-3 text-xs font-medium text-amber-600 transition-colors hover:bg-amber-500/20 dark:text-amber-400"
+                  className="border-amber-500/30 bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 hover:text-amber-700 dark:text-amber-400"
                 >
-                  <XCircle className="h-4 w-4" />
+                  <XCircle className="size-4" data-icon="inline-start" />
                   Unsettled
-                </button>
+                </Button>
 
-                <button
-                  type="button"
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => setBulkDeleteModal(true)}
-                  className="inline-flex h-8 items-center gap-1.5 rounded-md border border-red-500/20 bg-red-500/10 px-3 text-xs font-medium text-red-600 transition-colors hover:bg-red-500/20 dark:text-red-400"
+                  className="border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/20 hover:text-destructive"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="size-4" data-icon="inline-start" />
                   Delete
-                </button>
+                </Button>
 
-                <button
-                  type="button"
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => setSelectedTripIds([])}
-                  className="inline-flex h-8 items-center rounded-md px-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 >
                   Clear
-                </button>
+                </Button>
               </div>
             </div>
           </motion.div>
@@ -959,30 +700,29 @@ export default function TripsPage() {
                   selectedTruckName ||
                   "Selected Truck"}
               </DialogTitle>
+
+              <DialogDescription>
+                Are you sure you want to delete this trip?
+              </DialogDescription>
             </DialogHeader>
 
-            <p className="text-sm text-muted-foreground">
-              Are you sure you want to delete
-            </p>
-
-            <p className="font-semibold mt-1">
+            <p className="text-sm font-medium">
               {deleteModal?.dateText} / {deleteModal?.shipmentNumber}
             </p>
 
-            <DialogFooter className="mt-4">
-              <button
-                onClick={() => setDeleteModal(null)}
-                className="px-4 py-2.5 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors"
-              >
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDeleteModal(null)}>
                 Cancel
-              </button>
+              </Button>
 
-              <button
+              <Button
+                variant="destructive"
                 onClick={handleDelete}
-                className="px-6 py-2.5 rounded-md bg-red-500 text-white text-sm font-medium hover:bg-red-600 transition"
+                disabled={deleting}
               >
-                Delete
-              </button>
+                <Trash2 />
+                {deleting ? "Deleting..." : "Delete Trip"}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -992,33 +732,38 @@ export default function TripsPage() {
           <DialogContent className="sm:max-w-[400px]">
             <DialogHeader>
               <DialogTitle>Delete selected trips?</DialogTitle>
+
+              <DialogDescription>
+                Are you sure you want to delete{" "}
+                <strong>{selectedTripIds.length}</strong> selected trip
+                {selectedTripIds.length !== 1 ? "s" : ""}?
+              </DialogDescription>
             </DialogHeader>
 
-            <p>
-              Are you sure you want to delete{" "}
-              <strong>{selectedTripIds.length}</strong> selected trip
-              {selectedTripIds.length !== 1 ? "s" : ""}?
-            </p>
-
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className="text-sm text-muted-foreground">
               This action cannot be undone.
             </p>
 
-            <DialogFooter className="mt-4">
-              <button
+            <DialogFooter>
+              <Button
+                variant="outline"
                 onClick={() => setBulkDeleteModal(false)}
-                className="px-4 py-2 border rounded-md text-sm"
               >
                 Cancel
-              </button>
+              </Button>
 
-              <button
+              <Button
+                variant="destructive"
                 onClick={handleBulkDelete}
-                className="px-6 py-2 bg-red-500 text-white rounded-md text-sm"
+                disabled={bulkDeleting}
               >
-                Delete {selectedTripIds.length} Trip
-                {selectedTripIds.length !== 1 ? "s" : ""}
-              </button>
+                <Trash2 />
+                {bulkDeleting
+                  ? "Deleting..."
+                  : `Delete ${selectedTripIds.length} Trip${
+                      selectedTripIds.length !== 1 ? "s" : ""
+                    }`}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -1034,27 +779,27 @@ export default function TripsPage() {
         {/* TRUCK WARNING */}
         <Dialog open={showTruckWarning} onOpenChange={setShowTruckWarning}>
           <DialogContent className="sm:max-w-[400px] text-center">
-            <div className="py-4">
-              <div className="mx-auto mb-4 w-14 h-14 rounded-full bg-amber-500/10 grid place-items-center text-amber-500">
-                <AlertTriangle size={28} />
+            <DialogHeader className="items-center text-center">
+              <div className="mb-1 grid size-10 place-items-center rounded-full bg-amber-500/10 text-amber-500">
+                <AlertTriangle className="size-5" />
               </div>
 
-              <div className="font-bold text-lg mb-1">
-                Please select a truck first!
-              </div>
+              <DialogTitle className="text-sm">
+                Please select a specific truck first!
+              </DialogTitle>
 
-              <p className="text-sm text-muted-foreground">
-                Choose a truck from the filter bar to add a trip.
-              </p>
-            </div>
+              <DialogDescription>
+                Choose a specific truck to continue.
+              </DialogDescription>
+            </DialogHeader>
 
-            <DialogFooter className="flex justify-center">
-              <button
+            <DialogFooter className="sm:justify-center">
+              <Button
+                variant="outline"
                 onClick={() => setShowTruckWarning(false)}
-                className="px-4 py-2 border rounded-md text-sm"
               >
                 OK
-              </button>
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -1075,192 +820,284 @@ export default function TripsPage() {
             }
           }}
         >
-          <DialogContent className="sm:max-w-[1100px] max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Import Trips from CSV</DialogTitle>
+          <DialogContent className="sm:max-w-[1250px] max-h-[90vh] gap-3 overflow-y-auto">
+            <DialogHeader className="!gap-1">
+              <DialogTitle className="text-base">
+                Import Trips from CSV
+              </DialogTitle>
+
+              <DialogDescription className="text-xs">
+                Upload a CSV file to import trips. Use the template to ensure
+                the correct column format.
+              </DialogDescription>
             </DialogHeader>
 
-            <div className="py-4 text-center">
-              <div className="rounded-lg border border-dashed border-border p-4 text-center">
-                <input
-                  ref={csvInputRef}
-                  type="file"
-                  accept=".csv"
-                  onChange={handleCsvUpload}
-                  className="hidden"
-                  id="trip-csv-upload"
-                />
+            <div>
+              <div className="rounded-lg border border-dashed p-4">
+                <div className="grid gap-2 lg:grid-cols-2">
+                  {/* LEFT: FILE */}
+                  <div className="rounded-lg border p-3">
+                    <input
+                      ref={csvInputRef}
+                      type="file"
+                      accept=".csv"
+                      onChange={handleCsvUpload}
+                      className="hidden"
+                      id="trip-csv-upload"
+                    />
 
-                <div className="mx-auto max-w-md text-left">
-                  {/* FILE ACTIONS */}
-                  <div className="flex items-center gap-2">
-                    <label
-                      htmlFor="trip-csv-upload"
-                      className="inline-flex h-9 cursor-pointer items-center rounded-md border border-border px-3 text-xs font-medium hover:bg-muted"
+                    <Button
+                      variant="outline"
+                      asChild
+                      className={cn(
+                        "h-[54px] w-full border-dashed",
+                        isDraggingCsv && "border-foreground bg-muted",
+                      )}
                     >
-                      Choose CSV File
-                    </label>
+                      <label
+                        htmlFor="trip-csv-upload"
+                        className="flex cursor-pointer items-center justify-center gap-2"
+                        onDragEnter={(e) => {
+                          e.preventDefault();
+                          setIsDraggingCsv(true);
+                        }}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          setIsDraggingCsv(true);
+                        }}
+                        onDragLeave={(e) => {
+                          e.preventDefault();
+                          setIsDraggingCsv(false);
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          setIsDraggingCsv(false);
 
-                    <button
-                      type="button"
-                      onClick={downloadCsvTemplate}
-                      className="inline-flex h-9 items-center gap-2 px-2 text-xs font-medium text-primary hover:underline"
-                    >
-                      <FileDown size={14} />
-                      Download CSV Template
-                    </button>
-                  </div>
+                          const file = e.dataTransfer.files?.[0];
+                          if (!file) return;
 
-                  {/* SELECTED FILE */}
-                  {selectedCsvFile && (
-                    <div className="mt-3 flex items-center gap-2 rounded-md bg-muted/40 px-3 py-2 text-xs">
-                      <FileText
-                        size={14}
-                        className="shrink-0 text-muted-foreground"
-                      />
-
-                      <span className="min-w-0 flex-1 truncate font-medium">
-                        {selectedCsvFile.name}
-                      </span>
-
-                      <span className="shrink-0 text-muted-foreground">
-                        {(selectedCsvFile.size / 1024).toFixed(1)} KB
-                      </span>
-                    </div>
-                  )}
-
-                  {/* IMPORT MODE */}
-                  <div className="mt-4">
-                    <label className="mb-1.5 block text-xs font-medium">
-                      Import Mode
-                    </label>
-
-                    <Popover
-                      open={openImportMode}
-                      onOpenChange={setOpenImportMode}
-                    >
-                      <PopoverTrigger asChild>
-                        <button
-                          type="button"
-                          role="combobox"
-                          className="h-9 w-full rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between outline-none focus:ring-2 focus:ring-ring"
-                        >
-                          <span>
-                            {importMode === "add"
-                              ? "Add New Only"
-                              : importMode === "update"
-                                ? "Update Existing Only"
-                                : "Add New + Update Existing"}
-                          </span>
-
-                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </button>
-                      </PopoverTrigger>
-
-                      <PopoverContent
-                        className="w-[--radix-popover-trigger-width] p-0"
-                        align="start"
+                          processCsvFile(file);
+                        }}
                       >
-                        <Command>
-                          <CommandGroup>
-                            {[
-                              ["add", "Add New Only"],
-                              ["update", "Update Existing Only"],
-                              ["upsert", "Add New + Update Existing"],
-                            ].map(([value, label]) => (
-                              <CommandItem
-                                key={value}
-                                value={label}
-                                className="text-xs"
-                                onSelect={() => {
-                                  setImportMode(
-                                    value as "add" | "update" | "upsert",
-                                  );
-                                  setOpenImportMode(false);
-                                }}
-                              >
-                                <Check
-                                  className={`mr-2 h-4 w-4 ${
-                                    importMode === value
-                                      ? "opacity-100"
-                                      : "opacity-0"
-                                  }`}
-                                />
+                        <Upload data-icon="inline-start" />
 
-                                {label}
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
+                        <span>
+                          {isDraggingCsv
+                            ? "Drag CSV here"
+                            : "Choose or Drag a CSV file"}
+                        </span>
+                      </label>
+                    </Button>
+
+                    {selectedCsvFile && (
+                      <div className="mt-2 flex items-center gap-2 rounded-md bg-muted/30 px-3 py-1.5">
+                        <FileText className="size-4 shrink-0 text-muted-foreground" />
+
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-xs font-medium">
+                            {selectedCsvFile.name}
+                          </p>
+
+                          <p className="text-[11px] text-muted-foreground">
+                            {(selectedCsvFile.size / 1024).toFixed(1)} KB
+                          </p>
+                        </div>
+
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label="Remove selected CSV"
+                          onClick={() => {
+                            setSelectedCsvFile(null);
+                            setCsvRows([]);
+                            setPreviewResult(null);
+
+                            if (csvInputRef.current) {
+                              csvInputRef.current.value = "";
+                            }
+                          }}
+                        >
+                          <XCircle />
+                        </Button>
+                      </div>
+                    )}
                   </div>
 
-                  <p className="mt-2 text-[11px] text-muted-foreground">
-                    Supported file type: .csv
-                  </p>
+                  {/* RIGHT */}
+                  <div className="grid gap-2">
+                    {/* TEMPLATE */}
+                    <div className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="grid size-8 shrink-0 place-items-center rounded-md bg-muted text-foreground">
+                          <FileDown className="size-4" />
+                        </div>
+
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium">Use Template</p>
+
+                          <p className="text-xs text-muted-foreground">
+                            Download the CSV template with the required column
+                            format.
+                          </p>
+                        </div>
+                      </div>
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={downloadCsvTemplate}
+                        className="shrink-0"
+                      >
+                        <FileDown data-icon="inline-start" />
+                        Download Template
+                      </Button>
+                    </div>
+
+                    {/* IMPORT MODE */}
+                    <div className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="grid size-8 shrink-0 place-items-center rounded-md bg-muted text-foreground">
+                          <Route className="size-4" />
+                        </div>
+
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium">Import Mode</p>
+
+                          <p className="text-xs text-muted-foreground">
+                            Choose how existing trips should be handled.
+                          </p>
+                        </div>
+                      </div>
+
+                      <Select
+                        value={importMode}
+                        onValueChange={(value) =>
+                          setImportMode(value as "add" | "update" | "upsert")
+                        }
+                      >
+                        <SelectTrigger className="w-[190px] shrink-0">
+                          <SelectValue />
+                        </SelectTrigger>
+
+                        <SelectContent>
+                          <SelectItem value="add">Add New Only</SelectItem>
+                          <SelectItem value="update">
+                            Update Existing Only
+                          </SelectItem>
+                          <SelectItem value="upsert">
+                            Add New + Update Existing
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
                 </div>
                 {csvRows.length > 0 && (
-                  <div className="mt-6">
+                  <div className="mt-2">
                     {previewResult && (
-                      <div className="mb-4 rounded-lg border border-border bg-muted/30 p-3">
-                        <div className="text-center text-sm font-semibold">
-                          {previewResult.total}{" "}
-                          {previewResult.total === 1 ? "Trip" : "Trips"} Found
+                      <div className="mb-2 flex items-center gap-3 rounded-lg border px-3 py-2">
+                        <div className="min-w-[220px] border-r pr-3">
+                          <p className="text-sm font-semibold">
+                            {previewResult.total}{" "}
+                            {previewResult.total === 1 ? "Trip" : "Trips"} Found
+                          </p>
+
+                          <p className="text-xs text-muted-foreground">
+                            Review the data below before importing.
+                          </p>
                         </div>
 
-                        <div className="mt-3 flex items-center justify-center gap-6 text-xs">
-                          <div className="flex items-center gap-2 text-green-600">
-                            <CircleCheck size={18} />
-                            <span>
-                              New: <strong>{previewResult.newTrips}</strong>
-                            </span>
+                        <div className="grid flex-1 grid-cols-3 gap-3">
+                          <div className="flex items-center gap-2 rounded-md bg-green-500/10 px-3 py-1.5 text-green-600 dark:text-green-400">
+                            <CircleCheck className="size-4" />
+
+                            <div>
+                              <div className="text-sm font-semibold">
+                                {previewResult.newTrips}
+                              </div>
+                              <div className="text-[11px]">New Trips</div>
+                            </div>
                           </div>
 
-                          <div className="flex items-center gap-2 text-amber-600">
-                            <CopyCheck size={18} />
-                            <span>
-                              {importMode === "add"
-                                ? "Duplicates"
-                                : importMode === "update"
-                                  ? "Trips to Update"
-                                  : "Will Update"}
-                              : <strong>{previewResult.duplicates}</strong>
-                            </span>
+                          <div className="flex items-center gap-2 rounded-md bg-amber-500/10 px-3 py-1.5 text-amber-600 dark:text-amber-400">
+                            <CopyCheck className="size-4" />
+
+                            <div>
+                              <div className="text-sm font-semibold">
+                                {previewResult.duplicates}
+                              </div>
+                              <div className="text-[11px]">
+                                {importMode === "add"
+                                  ? "Duplicates"
+                                  : importMode === "update"
+                                    ? "Trips to Update"
+                                    : "Will Update"}
+                              </div>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2 text-red-600">
-                            <AlertTriangle size={18} />
-                            <span>
-                              Invalid: <strong>{previewResult.invalid}</strong>
-                            </span>
+
+                          <div className="flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-1.5 text-destructive">
+                            <AlertTriangle className="size-4" />
+
+                            <div>
+                              <div className="text-sm font-semibold">
+                                {previewResult.invalid}
+                              </div>
+                              <div className="text-[11px]">Invalid Rows</div>
+                            </div>
                           </div>
                         </div>
-                        {previewResult.invalid > 0 && (
-                          <div className="mt-2 text-center text-[11px] text-red-500">
-                            Required fields are missing or contain invalid
-                            values.
-                          </div>
-                        )}
                       </div>
                     )}
 
-                    <div className="max-h-[260px] overflow-auto rounded-md border">
-                      <table className="w-full text-xs">
-                        <thead className="bg-muted sticky top-0">
-                          <tr>
-                            <th className="px-3 py-2 text-left">Date</th>
-                            <th className="px-3 py-2 text-left">Shipment</th>
-                            <th className="p-2 text-right">Original Rate</th>
-                            <th className="p-2 text-right">Adjustment</th>
-                            <th className="p-2 text-right">VAT</th>
-                            <th className="p-2 text-right">Rate</th>
-                            <th className="p-2 text-right">Crew Salary</th>
-                            <th className="p-2 text-right">Cash Advance</th>
-                            <th className="p-2 text-right">Reimbursements</th>
-                          </tr>
-                        </thead>
+                    <div className="rounded-md border [&>div]:max-h-[300px] [&>div]:overflow-auto">
+                      <Table className="text-xs">
+                        <TableHeader>
+                          <TableRow className="sticky top-0 z-20 bg-background hover:bg-muted">
+                            <TableHead className="whitespace-nowrap text-xs">
+                              Date
+                            </TableHead>
 
-                        <tbody>
+                            <TableHead className="whitespace-nowrap text-xs">
+                              Shipment No.
+                            </TableHead>
+
+                            <TableHead className="whitespace-nowrap text-right text-xs">
+                              Original Rate
+                            </TableHead>
+
+                            <TableHead className="whitespace-nowrap text-right text-xs">
+                              Adjustment
+                            </TableHead>
+
+                            <TableHead className="whitespace-nowrap text-right text-xs">
+                              VAT
+                            </TableHead>
+
+                            <TableHead className="whitespace-nowrap text-right text-xs">
+                              Rate
+                            </TableHead>
+
+                            <TableHead className="whitespace-nowrap text-right text-xs">
+                              Crew Salary
+                            </TableHead>
+
+                            <TableHead className="whitespace-nowrap text-right text-xs">
+                              Cash Adv.
+                            </TableHead>
+
+                            <TableHead className="whitespace-nowrap text-xs">
+                              Reimb. Category
+                            </TableHead>
+
+                            <TableHead className="whitespace-nowrap text-right text-xs">
+                              Reimb. Amount
+                            </TableHead>
+                          </TableRow>
+                        </TableHeader>
+
+                        <TableBody>
                           {csvRows.map((row, index) => {
                             const dateValue = row["Date"] || row["DATE"] || "";
                             const shipmentValue =
@@ -1347,6 +1184,15 @@ export default function TripsPage() {
                               Number.isFinite(Number(crewSalaryValue)) &&
                               Number(crewSalaryValue) > 0;
 
+                            const isInvalidRow =
+                              !validDate ||
+                              !validShipment ||
+                              !validOriginalRate ||
+                              !validAdjustmentType ||
+                              !validAdjustment ||
+                              !validAutoVat ||
+                              !validCrewSalary;
+
                             let computedRate = originalRate;
 
                             if (
@@ -1371,9 +1217,15 @@ export default function TripsPage() {
                               ) / 100;
 
                             return (
-                              <tr key={index} className="border-t">
+                              <TableRow
+                                key={index}
+                                className={cn(
+                                  isInvalidRow &&
+                                    "bg-destructive/5 hover:bg-destructive/10 dark:bg-destructive/10 dark:hover:bg-destructive/15",
+                                )}
+                              >
                                 {/* DATE */}
-                                <td className="px-3 py-2 text-left whitespace-nowrap">
+                                <TableCell className="whitespace-nowrap">
                                   {validDate ? (
                                     parsedDate.toLocaleDateString("en-US", {
                                       weekday: "short",
@@ -1386,10 +1238,10 @@ export default function TripsPage() {
                                       *Required
                                     </span>
                                   )}
-                                </td>
+                                </TableCell>
 
                                 {/* SHIPMENT */}
-                                <td className="px-3 py-2 text-left whitespace-nowrap">
+                                <TableCell className="whitespace-nowrap">
                                   {validShipment ? (
                                     shipmentValue
                                   ) : (
@@ -1397,10 +1249,10 @@ export default function TripsPage() {
                                       *Required
                                     </span>
                                   )}
-                                </td>
+                                </TableCell>
 
                                 {/* ORIGINAL RATE */}
-                                <td className="p-2 text-right">
+                                <TableCell className="whitespace-nowrap text-right tabular-nums">
                                   {validOriginalRate ? (
                                     originalRate.toLocaleString("en-PH", {
                                       minimumFractionDigits: 2,
@@ -1411,10 +1263,10 @@ export default function TripsPage() {
                                       *Required
                                     </span>
                                   )}
-                                </td>
+                                </TableCell>
 
                                 {/* ADJUSTMENT */}
-                                <td className="p-2 text-right whitespace-nowrap">
+                                <TableCell className="whitespace-nowrap text-right tabular-nums">
                                   {!validAdjustmentType || !validAdjustment ? (
                                     <span className="font-medium text-red-500">
                                       *Invalid
@@ -1429,10 +1281,10 @@ export default function TripsPage() {
                                   ) : (
                                     `${adjustment}%`
                                   )}
-                                </td>
+                                </TableCell>
 
                                 {/* VAT */}
-                                <td className="p-2 text-right">
+                                <TableCell className="whitespace-nowrap text-right tabular-nums">
                                   {validAutoVat ? (
                                     `₱${computedVat.toLocaleString("en-PH", {
                                       minimumFractionDigits: 2,
@@ -1443,10 +1295,10 @@ export default function TripsPage() {
                                       *Required
                                     </span>
                                   )}
-                                </td>
+                                </TableCell>
 
                                 {/* COMPUTED RATE */}
-                                <td className="p-2 text-right font-medium">
+                                <TableCell className="whitespace-nowrap text-right font-medium tabular-nums">
                                   {validOriginalRate &&
                                   validAdjustmentType &&
                                   validAdjustment
@@ -1455,10 +1307,10 @@ export default function TripsPage() {
                                         maximumFractionDigits: 2,
                                       })
                                     : "—"}
-                                </td>
+                                </TableCell>
 
                                 {/* CREW SALARY */}
-                                <td className="p-2 text-right">
+                                <TableCell className="whitespace-nowrap text-right tabular-nums">
                                   {validCrewSalary ? (
                                     crewSalaryValue
                                   ) : (
@@ -1466,48 +1318,66 @@ export default function TripsPage() {
                                       *Required
                                     </span>
                                   )}
-                                </td>
+                                </TableCell>
 
                                 {/* CASH ADVANCE — OPTIONAL */}
-                                <td className="p-2 text-right">
+                                <TableCell className="whitespace-nowrap text-right tabular-nums">
                                   {row["Cash Advance"] ||
                                     row["CASH ADVANCE"] ||
                                     "—"}
-                                </td>
+                                </TableCell>
+
+                                {/* REIMBURSEMENT CATEGORY — OPTIONAL */}
+                                <TableCell className="whitespace-nowrap">
+                                  {row["Reimbursement Category"] ||
+                                    row["REIMBURSEMENT CATEGORY"] ||
+                                    "—"}
+                                </TableCell>
 
                                 {/* REIMBURSEMENTS — OPTIONAL */}
-                                <td className="p-2 text-right">
+                                <TableCell className="whitespace-nowrap text-right tabular-nums">
                                   {row["Reimbursements"] ||
                                     row["REIMBURSEMENTS"] ||
                                     "—"}
-                                </td>
-                              </tr>
+                                </TableCell>
+                              </TableRow>
                             );
                           })}
-                        </tbody>
-                      </table>
+                        </TableBody>
+                      </Table>
                     </div>
                   </div>
                 )}
               </div>
             </div>
 
+            {(previewResult?.invalid ?? 0) > 0 && (
+              <div className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="size-4 shrink-0" />
+                  Required fields are missing or contain invalid values.
+                </div>
+              </div>
+            )}
+
             <DialogFooter>
-              <button
+              <Button
+                variant="outline"
                 onClick={() => {
                   setImportModal(false);
                   setCsvRows([]);
                   setPreviewResult(null);
+                  setSelectedCsvFile(null);
+
                   if (csvInputRef.current) {
                     csvInputRef.current.value = "";
                   }
                 }}
-                className="px-4 py-2 rounded-md border border-border"
               >
                 Cancel
-              </button>
+              </Button>
 
-              <button
+              <Button
                 onClick={handleImportCsv}
                 disabled={
                   csvRows.length === 0 ||
@@ -1519,7 +1389,6 @@ export default function TripsPage() {
                       : (previewResult?.newTrips ?? 0) === 0 &&
                         (previewResult?.duplicates ?? 0) === 0)
                 }
-                className="px-6 py-2 rounded-md bg-foreground text-background disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {(previewResult?.invalid ?? 0) > 0
                   ? "Invalid CSV Data"
@@ -1544,7 +1413,7 @@ export default function TripsPage() {
                         : `Import ${previewResult?.newTrips ?? 0} Trip${
                             previewResult?.newTrips === 1 ? "" : "s"
                           }`}
-              </button>
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -1552,62 +1421,73 @@ export default function TripsPage() {
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
               <DialogTitle>Import Trips?</DialogTitle>
+
+              <DialogDescription className="sr-only">
+                Review and confirm the CSV trip import.
+              </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                You're about to import{" "}
-                <strong>
-                  {csvRows.length} trip{csvRows.length === 1 ? "" : "s"}
-                </strong>
-                .
-              </p>
+            <div className="space-y-3">
+              <div>
+                <p className="text-sm">
+                  You're about to process{" "}
+                  <span className="font-medium">
+                    {csvRows.length} trip{csvRows.length === 1 ? "" : "s"}
+                  </span>
+                  .
+                </p>
 
-              <div className="rounded-md border border-border bg-muted/30 p-4 text-sm">
-                <div className="flex items-center gap-2">
-                  <Check size={14} className="text-green-600" />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Import mode:{" "}
+                  <span className="text-sm font-medium text-foreground">
+                    {importMode === "add"
+                      ? "Add New Only"
+                      : importMode === "update"
+                        ? "Update Existing Only"
+                        : "Add New + Update Existing"}
+                  </span>
+                </p>
+              </div>
+
+              <div className="space-y-1.5 rounded-md border bg-muted/20 px-3 py-2.5">
+                <div className="flex items-center gap-2 text-xs">
+                  <CircleCheck className="size-4 text-green-600 dark:text-green-400" />
                   <span>CSV parsed successfully</span>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <Check size={14} className="text-green-600" />
+                <div className="flex items-center gap-2 text-xs">
+                  <CircleCheck className="size-4 text-green-600 dark:text-green-400" />
                   <span>Required columns validated</span>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <Check size={14} className="text-green-600" />
+                <div className="flex items-center gap-2 text-xs">
+                  <CircleCheck className="size-4 text-green-600 dark:text-green-400" />
                   <span>Ready for import</span>
                 </div>
               </div>
             </div>
 
             {importing && (
-              <div className="space-y-2">
-                <div className="flex justify-between text-xs text-muted-foreground">
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <span>Importing trips...</span>
-                  <span>{importProgress}%</span>
+                  <span className="tabular-nums">{importProgress}%</span>
                 </div>
 
-                <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="h-full bg-green-600 transition-all duration-300"
-                    style={{
-                      width: `${importProgress}%`,
-                    }}
-                  />
-                </div>
+                <Progress value={importProgress} />
               </div>
             )}
 
             <DialogFooter>
-              <button
+              <Button
+                variant="outline"
+                disabled={importing}
                 onClick={() => setConfirmImport(false)}
-                className="px-4 py-2 rounded-md border border-border"
               >
                 Cancel
-              </button>
+              </Button>
 
-              <button
+              <Button
                 disabled={
                   importing ||
                   (previewResult?.invalid ?? 0) > 0 ||
@@ -1619,7 +1499,13 @@ export default function TripsPage() {
                         (previewResult?.duplicates ?? 0) === 0)
                 }
                 onClick={async () => {
-                  if (!selectedTruck) return;
+                  if (!selectedTruck || selectedTruck === "ALL") {
+                    toast.error(
+                      "Please select a specific truck before importing trips.",
+                    );
+                    return;
+                  }
+
                   setImporting(true);
                   setImportProgress(10);
 
@@ -1653,34 +1539,38 @@ export default function TripsPage() {
                     setSelectedCsvFile(null);
                   }
                 }}
-                className="px-6 py-2 rounded-md bg-foreground text-background disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {importing
-                  ? "Importing..."
-                  : (previewResult?.invalid ?? 0) > 0
-                    ? "Invalid CSV Data"
-                    : importMode === "update"
-                      ? `Update ${previewResult?.duplicates ?? 0} Trip${
-                          previewResult?.duplicates === 1 ? "" : "s"
-                        }`
-                      : importMode === "upsert"
-                        ? `Process ${
-                            (previewResult?.newTrips ?? 0) +
-                            (previewResult?.duplicates ?? 0)
-                          } Trip${
-                            (previewResult?.newTrips ?? 0) +
-                              (previewResult?.duplicates ?? 0) ===
-                            1
-                              ? ""
-                              : "s"
-                          }`
-                        : (previewResult?.newTrips ?? 0) === 0 &&
-                            (previewResult?.duplicates ?? 0) > 0
-                          ? "Already Imported"
-                          : `Import ${previewResult?.newTrips ?? 0} Trip${
-                              previewResult?.newTrips === 1 ? "" : "s"
-                            }`}
-              </button>
+                {importing ? (
+                  <>
+                    <Spinner data-icon="inline-start" />
+                    Importing...
+                  </>
+                ) : (previewResult?.invalid ?? 0) > 0 ? (
+                  "Invalid CSV Data"
+                ) : importMode === "update" ? (
+                  `Update ${previewResult?.duplicates ?? 0} Trip${
+                    previewResult?.duplicates === 1 ? "" : "s"
+                  }`
+                ) : importMode === "upsert" ? (
+                  `Process ${
+                    (previewResult?.newTrips ?? 0) +
+                    (previewResult?.duplicates ?? 0)
+                  } Trip${
+                    (previewResult?.newTrips ?? 0) +
+                      (previewResult?.duplicates ?? 0) ===
+                    1
+                      ? ""
+                      : "s"
+                  }`
+                ) : (previewResult?.newTrips ?? 0) === 0 &&
+                  (previewResult?.duplicates ?? 0) > 0 ? (
+                  "Already Imported"
+                ) : (
+                  `Import ${previewResult?.newTrips ?? 0} Trip${
+                    previewResult?.newTrips === 1 ? "" : "s"
+                  }`
+                )}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

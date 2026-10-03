@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import TripTable from "../components/shared/TripTable";
 import ExpenseBreakdownModal from "../components/shared/ExpenseBreakdownModal";
@@ -11,10 +11,7 @@ import {
   BarChart3,
   Columns3,
   Search,
-  ChevronsUpDown,
   RotateCcw,
-  Check,
-  Clock3,
   CalendarDays,
 } from "lucide-react";
 import EmptyState from "../components/shared/EmptyState";
@@ -24,17 +21,43 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-} from "@/components/ui/command";
-
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import type { DateRange } from "react-day-picker";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
+
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const MONTH_OPTIONS = [
   { value: "ALL", label: "Whole Year" },
@@ -120,8 +143,6 @@ export default function ReportsPage() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [openPeriod, setOpenPeriod] = useState(false);
-  const [openPeriodType, setOpenPeriodType] = useState(false);
-  const [openMonth, setOpenMonth] = useState(false);
   const [deductFuel, setDeductFuel] = useState(true);
   const [showRateAdjustment, setShowRateAdjustment] = useState(false);
   const [reportPeriodType, setReportPeriodType] = useState<
@@ -186,22 +207,6 @@ export default function ReportsPage() {
     localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(visibleColumns));
   }, [visibleColumns]);
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setShowColumnsMenu(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
-
   const selectedTruckOption = truckOptions.find((t) => t._id === selectedTruck);
 
   const selectedTruckData = truckRows.find((t) => t._id === selectedTruck);
@@ -218,10 +223,6 @@ export default function ReportsPage() {
       : (selectedTruckData?.billedTo ?? "");
 
   const selectedClient = selectedTruckData?.client ?? "";
-
-  // Sorting state
-  const [showColumnsMenu, setShowColumnsMenu] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const formatCustomPeriodDate = (value: string) => {
     const date = new Date(`${value}T00:00:00`);
@@ -301,359 +302,262 @@ export default function ReportsPage() {
 
   return (
     <div>
-      <div className="sticky top-14 z-30 bg-[#fcfcfc] dark:bg-zinc-900">
-        <div className="py-2">
-          <div className="flex flex-wrap items-center justify-center gap-0">
-            {/* PERIOD TYPE */}
-            <Popover open={openPeriodType} onOpenChange={setOpenPeriodType}>
+      <div className="sticky top-14 z-30 bg-background py-2">
+        <div className="flex flex-wrap items-center justify-center gap-0">
+          {/* PERIOD TYPE */}
+          <Select
+            value={reportPeriodType}
+            onValueChange={(value) =>
+              setReportPeriodType(value as "monthly" | "custom")
+            }
+          >
+            <SelectTrigger className="w-[180px] rounded-r-none">
+              <SelectValue />
+            </SelectTrigger>
+
+            <SelectContent>
+              <SelectItem value="monthly">Monthly</SelectItem>
+              <SelectItem value="custom">Custom</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* MONTH */}
+          {reportPeriodType === "monthly" && (
+            <Select value={reportsMonth} onValueChange={setReportsMonth}>
+              <SelectTrigger className="w-[290px] rounded-l-none border-l-0">
+                <SelectValue placeholder="Select month" />
+              </SelectTrigger>
+
+              <SelectContent>
+                {MONTH_OPTIONS.map((month) => (
+                  <SelectItem key={month.value} value={month.value}>
+                    {month.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+
+          {/* CUSTOM DATE RANGE */}
+          {reportPeriodType === "custom" && (
+            <Popover open={openPeriod} onOpenChange={setOpenPeriod}>
               <PopoverTrigger asChild>
-                <button
+                <Button
                   type="button"
-                  role="combobox"
-                  className="h-9 w-[180px] rounded-l-md rounded-r-none border border-border bg-background px-3 text-sm flex items-center justify-between outline-none focus:z-10 focus:ring-2 focus:ring-ring"
+                  variant="outline"
+                  className="w-[290px] justify-start rounded-l-none border-l-0 font-normal"
                 >
-                  <div className="flex min-w-0 items-center gap-2">
-                    <Clock3 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  <CalendarDays className="size-4 shrink-0 text-muted-foreground" />
 
-                    <span className="truncate">
-                      {reportPeriodType === "monthly" ? "Monthly" : "Custom"}
-                    </span>
-                  </div>
-
-                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </button>
+                  <span
+                    className={`truncate ${
+                      !customStartDate ? "text-muted-foreground" : ""
+                    }`}
+                  >
+                    {customStartDate && customEndDate
+                      ? `${format(
+                          new Date(`${customStartDate}T00:00:00`),
+                          "MMM d, yyyy",
+                        )} - ${format(
+                          new Date(`${customEndDate}T00:00:00`),
+                          "MMM d, yyyy",
+                        )}`
+                      : "Select date range"}
+                  </span>
+                </Button>
               </PopoverTrigger>
 
-              <PopoverContent className="w-[180px] p-0" align="start">
-                <Command>
-                  <CommandGroup>
-                    <CommandItem
-                      value="Monthly"
-                      className="text-sm"
-                      onSelect={() => {
-                        setReportPeriodType("monthly");
-                        setOpenPeriodType(false);
-                      }}
-                    >
-                      <Check
-                        className={`mr-2 h-4 w-4 ${
-                          reportPeriodType === "monthly"
-                            ? "opacity-100"
-                            : "opacity-0"
-                        }`}
-                      />
-                      Monthly
-                    </CommandItem>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="range"
+                  selected={
+                    customStartDate
+                      ? {
+                          from: new Date(`${customStartDate}T00:00:00`),
+                          to: customEndDate
+                            ? new Date(`${customEndDate}T00:00:00`)
+                            : undefined,
+                        }
+                      : undefined
+                  }
+                  onSelect={(range: DateRange | undefined) => {
+                    if (!range?.from) {
+                      setCustomStartDate("");
+                      setCustomEndDate("");
+                      return;
+                    }
 
-                    <CommandItem
-                      value="Custom"
-                      className="text-sm"
-                      onSelect={() => {
-                        setReportPeriodType("custom");
-                        setOpenPeriodType(false);
-                      }}
-                    >
-                      <Check
-                        className={`mr-2 h-4 w-4 ${
-                          reportPeriodType === "custom"
-                            ? "opacity-100"
-                            : "opacity-0"
-                        }`}
-                      />
-                      Custom
-                    </CommandItem>
-                  </CommandGroup>
-                </Command>
+                    const start = range.from;
+                    const end = range.to;
+
+                    setCustomStartDate(format(start, "yyyy-MM-dd"));
+
+                    const completeRange =
+                      end && end.getTime() !== start.getTime();
+
+                    if (completeRange) {
+                      setCustomEndDate(format(end, "yyyy-MM-dd"));
+                      setOpenPeriod(false);
+                    } else {
+                      setCustomEndDate("");
+                    }
+                  }}
+                  numberOfMonths={2}
+                  defaultMonth={
+                    customStartDate
+                      ? new Date(`${customStartDate}T00:00:00`)
+                      : new Date()
+                  }
+                  showOutsideDays
+                />
               </PopoverContent>
             </Popover>
+          )}
 
-            {/* MONTH */}
-            {reportPeriodType === "monthly" && (
-              <Popover open={openMonth} onOpenChange={setOpenMonth}>
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    role="combobox"
-                    className="h-9 w-[290px] rounded-r-md rounded-l-none border border-l-0 border-border bg-background px-3 text-sm flex items-center justify-between outline-none focus:z-10 focus:ring-2 focus:ring-ring"
-                  >
-                    <div className="flex min-w-0 items-center gap-2">
-                      <CalendarDays className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-
-                      <span className="truncate">
-                        {MONTH_OPTIONS.find(
-                          (month) => month.value === reportsMonth,
-                        )?.label || "Select month"}
-                      </span>
-                    </div>
-
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </button>
-                </PopoverTrigger>
-
-                <PopoverContent className="w-[200px] p-0" align="start">
-                  <Command>
-                    <CommandInput
-                      placeholder="Search month..."
-                      className="text-sm"
-                    />
-
-                    <CommandEmpty className="text-sm">
-                      No month found.
-                    </CommandEmpty>
-
-                    <CommandGroup>
-                      {MONTH_OPTIONS.map((month) => (
-                        <CommandItem
-                          key={month.value}
-                          value={month.label}
-                          className="text-sm"
-                          onSelect={() => {
-                            setReportsMonth(month.value);
-                            setOpenMonth(false);
-                          }}
-                        >
-                          <Check
-                            className={`mr-2 h-4 w-4 ${
-                              reportsMonth === month.value
-                                ? "opacity-100"
-                                : "opacity-0"
-                            }`}
-                          />
-
-                          {month.label}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            )}
-
-            {/* CUSTOM DATE RANGE */}
-            {reportPeriodType === "custom" && (
-              <Popover open={openPeriod} onOpenChange={setOpenPeriod}>
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    className="h-9 w-[290px] rounded-r-md rounded-l-none border border-l-0 border-border bg-background px-3 text-sm flex items-center justify-between outline-none focus:z-10 focus:ring-2 focus:ring-ring"
-                  >
-                    <div className="flex min-w-0 items-center gap-2">
-                      <CalendarDays className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-
-                      <span
-                        className={`truncate ${
-                          !customStartDate ? "text-muted-foreground" : ""
-                        }`}
-                      >
-                        {customStartDate && customEndDate
-                          ? `${format(
-                              new Date(`${customStartDate}T00:00:00`),
-                              "MMM d, yyyy",
-                            )} - ${format(
-                              new Date(`${customEndDate}T00:00:00`),
-                              "MMM d, yyyy",
-                            )}`
-                          : "Select date range"}
-                      </span>
-                    </div>
-                  </button>
-                </PopoverTrigger>
-
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="range"
-                    selected={
-                      customStartDate
-                        ? {
-                            from: new Date(`${customStartDate}T00:00:00`),
-                            to: customEndDate
-                              ? new Date(`${customEndDate}T00:00:00`)
-                              : undefined,
-                          }
-                        : undefined
-                    }
-                    onSelect={(range: DateRange | undefined) => {
-                      if (!range?.from) {
-                        setCustomStartDate("");
-                        setCustomEndDate("");
-                        return;
-                      }
-
-                      const start = range.from;
-                      const end = range.to;
-
-                      setCustomStartDate(format(start, "yyyy-MM-dd"));
-
-                      const completeRange =
-                        end && end.getTime() !== start.getTime();
-
-                      if (completeRange) {
-                        setCustomEndDate(format(end, "yyyy-MM-dd"));
-                        setOpenPeriod(false);
-                      } else {
-                        setCustomEndDate("");
-                      }
-                    }}
-                    numberOfMonths={2}
-                    defaultMonth={
-                      customStartDate
-                        ? new Date(`${customStartDate}T00:00:00`)
-                        : new Date()
-                    }
-                    showOutsideDays
-                  />
-                </PopoverContent>
-              </Popover>
-            )}
-
-            {/* RESET */}
-            <button
-              type="button"
-              onClick={() => {
-                setReportPeriodType("monthly");
-                setReportsMonth(String(new Date().getMonth() + 1));
-                setCustomStartDate("");
-                setCustomEndDate("");
-              }}
-              disabled={
-                reportPeriodType === "monthly" &&
-                reportsMonth === String(new Date().getMonth() + 1) &&
-                !customStartDate &&
-                !customEndDate
-              }
-              className="ml-2 h-9 px-3 inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:pointer-events-none whitespace-nowrap"
-            >
-              <RotateCcw size={14} />
-              Reset
-            </button>
-          </div>
+          {/* RESET */}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="ml-2"
+            aria-label="Reset report period"
+            onClick={() => {
+              setReportPeriodType("monthly");
+              setReportsMonth(String(new Date().getMonth() + 1));
+              setCustomStartDate("");
+              setCustomEndDate("");
+            }}
+            disabled={
+              reportPeriodType === "monthly" &&
+              reportsMonth === String(new Date().getMonth() + 1) &&
+              !customStartDate &&
+              !customEndDate
+            }
+          >
+            <RotateCcw />
+          </Button>
         </div>
       </div>
-      <div className="border border-border rounded-lg bg-background overflow-hidden mt-4">
-        <div className="p-3.5 border-b border-border">
-          <h2 className="text-sm font-semibold">Monthly Reports</h2>
-          <p className="text-xs text-muted-foreground">
-            Same columns as the trip table, filtered by month.
-          </p>
-        </div>
+      <Card size="sm" className="mt-4 !gap-0">
+        <CardHeader className="border-b">
+          <div>
+            <CardTitle>Reports</CardTitle>
 
-        <div className="flex flex-wrap items-end gap-2 border-b border-border bg-background px-3.5 py-3">
-          {/* SEARCH */}
-          <div className="min-w-[180px] flex-1">
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">
-              Search
-            </label>
-
-            <div className="relative">
-              <Search
-                size={14}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
-              />
-
-              <input
-                type="text"
-                placeholder="Search shipment number..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full h-9 rounded-md border border-border bg-background pl-9 pr-3 text-xs outline-none focus:ring-2 focus:ring-ring"
-              />
-            </div>
+            <CardDescription>
+              Trip report for the selected reporting period.
+            </CardDescription>
           </div>
+        </CardHeader>
 
-          {/* ACTIONS */}
-          <div className="flex items-center gap-2">
-            <button
+        <CardContent className="border-b py-4">
+          <div className="flex flex-wrap items-end gap-2">
+            {/* SEARCH */}
+            <div className="min-w-[220px] flex-1 space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Search</Label>
+
+              <InputGroup>
+                <InputGroupAddon>
+                  <Search />
+                </InputGroupAddon>
+
+                <InputGroupInput
+                  placeholder="Search shipment number..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </InputGroup>
+            </div>
+
+            {/* REPORT ACTIONS */}
+            <Button
               type="button"
+              variant="outline"
               onClick={handleDownloadReport}
-              className="h-9 px-3 rounded-md border border-border bg-background text-xs font-medium hover:bg-muted transition-colors inline-flex items-center gap-2 whitespace-nowrap"
             >
-              <Download size={14} />
+              <Download />
               Internal Report
-            </button>
+            </Button>
 
-            <button
+            <Button
               type="button"
+              variant="outline"
               onClick={handleClientReport}
-              className="h-9 px-3 rounded-md border border-border bg-background text-xs font-medium hover:bg-muted transition-colors inline-flex items-center gap-2 whitespace-nowrap"
             >
-              <Download size={14} />
+              <Download />
               Client Report
-            </button>
+            </Button>
 
-            <label className="h-9 px-3 rounded-md border border-border bg-background flex items-center gap-2 text-xs font-medium cursor-pointer select-none whitespace-nowrap">
-              <input
-                type="checkbox"
+            {/* FUEL DEDUCTION */}
+            <div className="flex h-9 items-center gap-2 px-2">
+              <Checkbox
+                id="deduct-fuel"
                 checked={deductFuel}
-                onChange={(e) => setDeductFuel(e.target.checked)}
-                className="h-4 w-4 rounded border-border"
+                onCheckedChange={(checked) => setDeductFuel(checked === true)}
               />
-              Fuel Deduction
-            </label>
 
-            <label className="h-9 px-3 rounded-md border border-border bg-background flex items-center gap-2 text-xs font-medium cursor-pointer select-none whitespace-nowrap">
-              <input
-                type="checkbox"
-                checked={showRateAdjustment}
-                onChange={(e) => setShowRateAdjustment(e.target.checked)}
-                className="h-4 w-4 rounded border-border"
-              />
-              Show Rate Adjustment
-            </label>
-
-            <div ref={dropdownRef} className="relative">
-              <button
-                type="button"
-                onClick={() => setShowColumnsMenu((v) => !v)}
-                className="h-9 w-9 rounded-md border border-border bg-background hover:bg-muted transition-colors flex items-center justify-center"
-                title="Show / Hide Columns"
+              <Label
+                htmlFor="deduct-fuel"
+                className="cursor-pointer whitespace-nowrap text-xs"
               >
-                <Columns3 size={16} />
-              </button>
-
-              {showColumnsMenu && (
-                <div className="absolute right-0 mt-2 z-[70] w-64 max-h-[320px] overflow-y-auto rounded-md border border-border bg-background p-2 shadow-lg">
-                  <div className="px-2 pb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                    Show Columns
-                  </div>
-
-                  <div className="flex flex-col">
-                    {COLUMN_OPTIONS.map(([key, label]) => {
-                      const checked = visibleColumns[key as ColumnKey];
-
-                      return (
-                        <button
-                          key={key}
-                          type="button"
-                          onClick={() =>
-                            setVisibleColumns((prev) => ({
-                              ...prev,
-                              [key]: !prev[key as ColumnKey],
-                            }))
-                          }
-                          className="flex items-center px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-xs"
-                        >
-                          <span className="flex-1 pr-4 text-left">{label}</span>
-
-                          <span
-                            className={`relative inline-flex h-4 w-7 items-center rounded-full ${
-                              checked ? "bg-foreground" : "bg-muted"
-                            }`}
-                          >
-                            <span
-                              className={`h-3 w-3 rounded-full bg-white transition-transform ${
-                                checked ? "translate-x-3.5" : "translate-x-0.5"
-                              }`}
-                            />
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+                Fuel Deduction
+              </Label>
             </div>
+
+            {/* RATE ADJUSTMENT */}
+            <div className="flex h-9 items-center gap-2 px-2">
+              <Checkbox
+                id="show-rate-adjustment"
+                checked={showRateAdjustment}
+                onCheckedChange={(checked) =>
+                  setShowRateAdjustment(checked === true)
+                }
+              />
+
+              <Label
+                htmlFor="show-rate-adjustment"
+                className="cursor-pointer whitespace-nowrap text-xs"
+              >
+                Rate Adjustment
+              </Label>
+            </div>
+
+            {/* COLUMNS */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  aria-label="Show or hide columns"
+                >
+                  <Columns3 />
+                </Button>
+              </DropdownMenuTrigger>
+
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuLabel>Toggle columns</DropdownMenuLabel>
+
+                <DropdownMenuSeparator />
+
+                {COLUMN_OPTIONS.map(([key, label]) => (
+                  <DropdownMenuCheckboxItem
+                    key={key}
+                    checked={visibleColumns[key]}
+                    onCheckedChange={(checked) =>
+                      setVisibleColumns((current) => ({
+                        ...current,
+                        [key]: checked === true,
+                      }))
+                    }
+                    onSelect={(event) => event.preventDefault()}
+                  >
+                    {label}
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
-        </div>
+        </CardContent>
 
         <TripTable
           rows={reportRows}
@@ -680,7 +584,7 @@ export default function ReportsPage() {
             />
           }
         />
-      </div>
+      </Card>
 
       {/* Expense Breakdown Modal */}
       <ExpenseBreakdownModal

@@ -12,8 +12,6 @@ import {
   LifeBuoy,
   UserShield,
   Truck as TruckIcon,
-  Check,
-  ChevronsUpDown,
 } from "lucide-react";
 import {
   Dialog,
@@ -28,18 +26,39 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-} from "@/components/ui/command";
 import { Calendar } from "@/components/ui/calendar";
 import { CalendarDays } from "lucide-react";
 import { format } from "date-fns";
 import EmptyState from "../components/shared/EmptyState";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+
+import {
+  Card,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 interface UserRow {
   _id: string;
@@ -77,10 +96,6 @@ export default function UsersPage() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [companies, setCompanies] = useState<CompanyOption[]>([]);
   const [companyFilter, setCompanyFilter] = useState("ALL");
-  const [openCompanyFilter, setOpenCompanyFilter] = useState(false);
-  const [openRole, setOpenRole] = useState(false);
-  const [openFormCompany, setOpenFormCompany] = useState(false);
-  const [openFormTruck, setOpenFormTruck] = useState(false);
   const [openStartDate, setOpenStartDate] = useState(false);
   const [loading, setLoading] = useState(false);
   const [modal, setModal] = useState(false);
@@ -287,9 +302,6 @@ export default function UsersPage() {
     }
   };
 
-  const inputClass =
-    "w-full min-h-[44px] rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 px-3.5 text-xs focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10 outline-none transition-colors";
-
   const roleOptions = isAdmin
     ? [
         { value: "admin", label: "Admin" },
@@ -349,131 +361,65 @@ export default function UsersPage() {
 
   return (
     <div>
-      <div className="mb-4 flex items-end justify-between gap-3">
-        {isAdmin ? (
-          <div className="w-full sm:w-[280px]">
-            <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
-              Company
-            </label>
-
-            <Popover
-              open={openCompanyFilter}
-              onOpenChange={setOpenCompanyFilter}
-            >
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  role="combobox"
-                  className="h-10 w-full rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between outline-none focus:ring-2 focus:ring-ring"
-                >
-                  <span className="truncate">
-                    {companyFilter === "ALL" ? "All Companies" : companyFilter}
-                  </span>
-
-                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </button>
-              </PopoverTrigger>
-
-              <PopoverContent
-                className="w-[var(--radix-popover-trigger-width)] p-0"
-                align="start"
-              >
-                <Command>
-                  <CommandInput
-                    placeholder="Search company..."
-                    className="text-xs"
-                  />
-
-                  <CommandEmpty className="text-xs">
-                    No company found.
-                  </CommandEmpty>
-
-                  <CommandGroup>
-                    <CommandItem
-                      value="All Companies"
-                      className="text-xs"
-                      onSelect={() => {
-                        setCompanyFilter("ALL");
-                        setOpenCompanyFilter(false);
-                      }}
-                    >
-                      <Check
-                        className={`mr-2 h-4 w-4 ${
-                          companyFilter === "ALL" ? "opacity-100" : "opacity-0"
-                        }`}
-                      />
-                      All Companies
-                    </CommandItem>
-
-                    {companies.map((company) => (
-                      <CommandItem
-                        key={company._id}
-                        value={company.companyName}
-                        className="text-xs"
-                        onSelect={() => {
-                          setCompanyFilter(company.companyName);
-                          setOpenCompanyFilter(false);
-                        }}
-                      >
-                        <Check
-                          className={`mr-2 h-4 w-4 ${
-                            companyFilter === company.companyName
-                              ? "opacity-100"
-                              : "opacity-0"
-                          }`}
-                        />
-
-                        {company.companyName}
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </Command>
-              </PopoverContent>
-            </Popover>
-          </div>
-        ) : (
-          <div />
-        )}
-
-        <button
-          onClick={openAdd}
-          className="h-10 px-4 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition flex items-center gap-2 shrink-0"
-        >
-          <Plus size={18} />
+      <div className="mb-4 flex justify-end">
+        <Button type="button" onClick={openAdd}>
+          <Plus data-icon="inline-start" />
           Add User
-        </button>
+        </Button>
       </div>
 
-      <div className="border rounded-lg bg-background overflow-hidden">
+      <Card size="sm" className="!gap-0 overflow-hidden">
+        <CardHeader className="border-b">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <CardTitle>User Records</CardTitle>
+              <CardDescription>User accounts and assignments.</CardDescription>
+            </div>
+
+            {isAdmin && (
+              <Select value={companyFilter} onValueChange={setCompanyFilter}>
+                <SelectTrigger className="w-[220px]">
+                  <SelectValue />
+                </SelectTrigger>
+
+                <SelectContent>
+                  <SelectItem value="ALL">All Companies</SelectItem>
+
+                  {companies.map((company) => (
+                    <SelectItem key={company._id} value={company.companyName}>
+                      {company.companyName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+        </CardHeader>
+
         {/* Desktop Table */}
-        <div className="overflow-auto bg-background hidden md:block">
-          <table className="w-full border-separate border-spacing-0">
-            <thead>
-              <tr>
-                {[
-                  "Username",
-                  "Display Name",
-                  "Role",
-                  "Company",
-                  "Assigned Truck",
-                  "License No.",
-                  "Start Date",
-                  "Status",
-                  "Actions",
-                ].map((h) => (
-                  <th
-                    key={h}
-                    className="sticky top-0 bg-muted/40 border-b border-slate-200 dark:border-slate-700 text-left text-xs font-semibold text-muted-foreground px-3 py-3 whitespace-nowrap"
-                  >
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
+        <div className="[&>div]:max-h-[calc(100vh-280px)] [&>div]:overflow-auto">
+          <Table>
+            <TableHeader>
+              <TableRow className="sticky top-0 z-20 bg-background hover:bg-background">
+                <TableHead className="pl-4 text-xs">Username</TableHead>
+                <TableHead className="text-xs">Display Name</TableHead>
+                <TableHead className="text-xs text-center">Role</TableHead>
+                <TableHead className="text-xs">Company</TableHead>
+                <TableHead className="text-xs">Assigned Truck</TableHead>
+                <TableHead className="text-xs">License No.</TableHead>
+                <TableHead className="text-xs">Start Date</TableHead>
+                <TableHead className="w-[100px] text-center text-xs">
+                  Status
+                </TableHead>
+                <TableHead className="w-[100px] text-center text-xs">
+                  Actions
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {filteredUsers.length === 0 ? (
-                <tr>
-                  <td colSpan={9}>
+                <TableRow>
+                  <TableCell colSpan={9}>
                     <EmptyState
                       icon={Users}
                       title="No users found"
@@ -483,232 +429,142 @@ export default function UsersPage() {
                           : "Create your first user account."
                       }
                     />
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ) : (
                 filteredUsers.map((u) => (
-                  <tr
-                    key={u._id}
-                    className="hover:bg-blue-50/50 dark:hover:bg-slate-800/50"
-                  >
-                    <td className="text-left text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800 font-mono font-semibold">
+                  <TableRow key={u._id}>
+                    <TableCell className="pl-4 text-xs font-mono font-medium">
                       {u.username}
-                    </td>
-                    <td className="text-left text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800 font-semibold">
-                      {u.displayName}
-                    </td>
-                    <td className="text-left text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800">
-                      <span
-                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold ${
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      <div className="flex items-center gap-2">
+                        <Avatar className="size-7">
+                          <AvatarFallback className="text-[10px]">
+                            {u.displayName
+                              .split(" ")
+                              .filter(Boolean)
+                              .slice(0, 2)
+                              .map((part) => part[0]?.toUpperCase())
+                              .join("") || "U"}
+                          </AvatarFallback>
+                        </Avatar>
+
+                        <span className="font-medium">{u.displayName}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-xs text-center">
+                      <Badge
+                        variant="secondary"
+                        className={cn(
+                          "gap-1 font-normal",
                           u.role === "admin"
                             ? "bg-purple-500/10 text-purple-600 dark:text-purple-400"
                             : u.role === "manager"
                               ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
-                              : "bg-blue-500/10 text-blue-600 dark:text-blue-400"
-                        }`}
+                              : "bg-blue-500/10 text-blue-600 dark:text-blue-400",
+                        )}
                       >
                         {u.role === "employee" ? (
-                          <LifeBuoy size={12} />
+                          <LifeBuoy className="size-3" />
                         ) : u.role === "manager" ? (
-                          <UserShield size={12} />
+                          <UserShield className="size-3" />
                         ) : (
-                          <Shield size={12} />
+                          <Shield className="size-3" />
                         )}
 
                         {u.role === "employee"
                           ? "Driver"
                           : u.role.charAt(0).toUpperCase() + u.role.slice(1)}
-                      </span>
-                    </td>
-                    <td className="text-left text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800">
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-xs">
                       {u.companyName ? (
-                        <span className="font-medium text-slate-700 dark:text-slate-300">
-                          {u.companyName}
-                        </span>
+                        <span className="font-medium">{u.companyName}</span>
                       ) : (
-                        <span className="text-slate-300 dark:text-slate-600">
-                          —
-                        </span>
+                        <span className="text-muted-foreground">—</span>
                       )}
-                    </td>
-                    <td className="text-left text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800">
+                    </TableCell>
+                    <TableCell className="text-xs">
                       {u.truckName ? (
-                        <span className="inline-flex items-center gap-1 text-slate-700 dark:text-slate-300">
-                          <TruckIcon size={12} /> {u.truckName}
+                        <span className="inline-flex items-center gap-1">
+                          {u.truckName}
                         </span>
                       ) : (
-                        <span className="text-slate-300 dark:text-slate-600">
-                          —
-                        </span>
+                        <span className="text-muted-foreground">—</span>
                       )}
-                    </td>
-                    <td className="text-left text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800">
+                    </TableCell>
+                    <TableCell className="text-xs">
                       {u.role === "employee" && u.licenseNumber ? (
-                        <span className="font-medium">{u.licenseNumber}</span>
+                        <span>{u.licenseNumber}</span>
                       ) : (
-                        <span className="text-slate-300 dark:text-slate-600">
-                          —
-                        </span>
+                        <span className="text-muted-foreground">—</span>
                       )}
-                    </td>
+                    </TableCell>
 
-                    <td className="text-left text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800 whitespace-nowrap">
+                    <TableCell className="whitespace-nowrap text-xs">
                       {u.role !== "admin" && u.startDate ? (
                         new Date(u.startDate).toLocaleDateString("en-US", {
-                          month: "short",
+                          month: "long",
                           day: "numeric",
                           year: "numeric",
                         })
                       ) : (
-                        <span className="text-slate-300 dark:text-slate-600">
-                          —
-                        </span>
+                        <span className="text-muted-foreground">—</span>
                       )}
-                    </td>
-                    <td className="text-left text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800">
-                      <span
+                    </TableCell>
+                    <TableCell className="text-center text-xs">
+                      <Badge
+                        variant="secondary"
                         className={cn(
-                          "inline-flex min-w-[76px] rounded-md items-center justify-center px-2.5 py-1 text-[0.7rem] font-bold",
                           u.active
-                            ? "bg-green-500/10 text-green-500"
-                            : "bg-slate-400/10 text-slate-400",
+                            ? "bg-green-500/10 text-green-600 dark:text-green-400"
+                            : "text-muted-foreground",
                         )}
                       >
                         {u.active ? "Active" : "Inactive"}
-                      </span>
-                    </td>
-                    <td className="text-left text-xs px-3 py-2.5 border-b border-slate-100 dark:border-slate-800">
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-center text-xs">
                       {isManager && u._id === currentUser?._id ? (
-                        <span className="text-[11px] text-muted-foreground">
+                        <span className="text-xs text-muted-foreground">
                           Your account
                         </span>
                       ) : (
                         <div className="flex items-center justify-center gap-1">
-                          <button
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon-sm"
                             onClick={() => openEdit(u)}
-                            className="w-[34px] h-[34px] rounded-md inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-blue-500/10 hover:text-blue-600 transition-all"
+                            aria-label="Edit user"
                           >
-                            <Pencil size={14} />
-                          </button>
+                            <Pencil />
+                          </Button>
 
-                          <button
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon-sm"
                             onClick={() => setDeleteModal(u)}
-                            className="w-[34px] h-[34px] rounded-md inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-red-500/10 hover:text-red-500 transition-all"
+                            aria-label="Delete user"
+                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                           >
-                            <Trash2 size={14} />
-                          </button>
+                            <Trash2 />
+                          </Button>
                         </div>
                       )}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))
               )}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
-
-        {/* Mobile Cards */}
-        <div className="flex flex-col gap-3 md:hidden p-3">
-          {filteredUsers.length === 0 ? (
-            <EmptyState
-              icon={Users}
-              title="No users found"
-              description={
-                isAdmin && companyFilter !== "ALL"
-                  ? "No users are available for the selected company."
-                  : "Create your first user account."
-              }
-            />
-          ) : (
-            filteredUsers.map((u) => (
-              <div
-                key={u._id}
-                className="glass-card rounded-xl border border-slate-200 dark:border-slate-700 p-4"
-              >
-                <div className="flex justify-between items-start mb-2">
-                  <div>
-                    <div className="font-bold text-sm">{u.displayName}</div>
-                    <div className="text-xs font-mono text-slate-500">
-                      @{u.username}
-                    </div>
-                  </div>
-                  <span
-                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[0.72rem] font-bold ${
-                      u.role === "admin"
-                        ? "bg-purple-500/10 text-purple-600"
-                        : u.role === "manager"
-                          ? "bg-amber-500/10 text-amber-600"
-                          : "bg-blue-500/10 text-blue-600"
-                    }`}
-                  >
-                    {u.role === "employee" ? (
-                      <LifeBuoy size={12} />
-                    ) : u.role === "manager" ? (
-                      <UserShield size={12} />
-                    ) : (
-                      <Shield size={12} />
-                    )}
-                    {u.role === "employee"
-                      ? "Driver"
-                      : u.role.charAt(0).toUpperCase() + u.role.slice(1)}
-                  </span>
-                </div>
-                {u.companyName && (
-                  <div className="text-xs text-slate-500 mb-1">
-                    {u.companyName}
-                  </div>
-                )}
-                {u.truckName && (
-                  <div className="text-xs text-slate-500 mb-2 flex items-center gap-1">
-                    <TruckIcon size={12} /> {u.truckName}
-                  </div>
-                )}
-                {u.role === "employee" && u.licenseNumber && (
-                  <div className="text-xs text-slate-500 mb-1">
-                    License: {u.licenseNumber}
-                  </div>
-                )}
-
-                {u.role !== "admin" && u.startDate && (
-                  <div className="text-xs text-slate-500 mb-2">
-                    Start Date:{" "}
-                    {new Date(u.startDate).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    })}
-                  </div>
-                )}
-                {isManager && u._id === currentUser?._id ? (
-                  <div className="pt-2 border-t border-slate-200 dark:border-slate-700 text-xs text-muted-foreground">
-                    Your account
-                  </div>
-                ) : (
-                  <div className="flex gap-2 pt-2 border-t border-slate-200 dark:border-slate-700">
-                    <button
-                      onClick={() => openEdit(u)}
-                      className="flex-1 h-9 rounded-xl inline-flex items-center justify-center gap-1.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-blue-500/10 hover:text-blue-600 transition-all text-xs font-semibold"
-                    >
-                      <Pencil size={14} /> Edit
-                    </button>
-
-                    <button
-                      onClick={() => setDeleteModal(u)}
-                      className="h-9 w-9 rounded-xl inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-red-500/10 hover:text-red-500 transition-all"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))
-          )}
-        </div>
-      </div>
+      </Card>
 
       {/* Add/Edit Modal */}
       <>
-        {/* Add/Edit Modal */}
         <Dialog open={modal} onOpenChange={setModal}>
           <DialogContent
             className="sm:max-w-[700px]"
@@ -722,331 +578,197 @@ export default function UsersPage() {
 
             {/* 🔥 ORIGINAL BODY — UNCHANGED */}
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
-                  Username <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
+              <div className="space-y-1.5">
+                <Label className="text-xs">
+                  Username <span className="text-destructive">*</span>
+                </Label>
+
+                <Input
                   value={form.username}
                   onChange={(e) =>
                     setForm({ ...form, username: e.target.value })
                   }
                   disabled={!!editUser}
-                  className={inputClass + (editUser ? " opacity-50" : "")}
                   placeholder="e.g. juan"
                 />
               </div>
 
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
+              <div className="space-y-1.5">
+                <Label className="text-xs">
                   Password{" "}
-                  {!editUser && <span className="text-red-500">*</span>}
+                  {!editUser && <span className="text-destructive">*</span>}
                   {editUser && (
-                    <span className="text-slate-400 font-normal">
+                    <span className="font-normal text-muted-foreground">
                       (leave blank to keep)
                     </span>
                   )}
-                </label>
-                <input
+                </Label>
+
+                <Input
                   type="password"
                   value={form.password}
                   onChange={(e) =>
                     setForm({ ...form, password: e.target.value })
                   }
-                  className={inputClass}
                   placeholder={editUser ? "••••••" : "Set password"}
                 />
               </div>
 
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
-                  Display Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
+              <div className="space-y-1.5">
+                <Label className="text-xs">
+                  Display Name <span className="text-destructive">*</span>
+                </Label>
+
+                <Input
                   value={form.displayName}
                   onChange={(e) =>
                     setForm({ ...form, displayName: e.target.value })
                   }
-                  className={inputClass}
                   placeholder="e.g. Juan Dela Cruz"
                 />
               </div>
 
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
-                  Role
-                </label>
-                <Popover open={openRole} onOpenChange={setOpenRole}>
-                  <PopoverTrigger asChild>
-                    <button
-                      type="button"
-                      role="combobox"
-                      className="w-full h-11 rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between outline-none focus:ring-2 focus:ring-ring"
-                    >
-                      <span className="truncate">
-                        {roleOptions.find((opt) => opt.value === form.role)
-                          ?.label || "Select role"}
-                      </span>
+              {/* ROLE */}
+              <div className="space-y-1.5">
+                <Label className="text-xs">Role</Label>
 
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </button>
-                  </PopoverTrigger>
+                <Select
+                  value={form.role}
+                  onValueChange={(val) => {
+                    setForm({
+                      ...form,
+                      role: val,
+                      companyName:
+                        val === "admin"
+                          ? ""
+                          : isManager
+                            ? currentUser?.companyName || ""
+                            : val === "employee"
+                              ? ""
+                              : form.companyName,
+                      truck: "none",
+                      licenseNumber:
+                        val === "employee" ? form.licenseNumber : "",
+                      startDate: val === "admin" ? "" : form.startDate,
+                    });
+                  }}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
 
-                  <PopoverContent
-                    className="w-[var(--radix-popover-trigger-width)] p-0 z-[9999]"
-                    align="start"
-                  >
-                    <Command>
-                      <CommandGroup>
-                        {roleOptions.map((opt) => (
-                          <CommandItem
-                            key={opt.value}
-                            value={opt.label}
-                            className="text-xs"
-                            onSelect={() => {
-                              const val = opt.value;
-
-                              setForm({
-                                ...form,
-                                role: val,
-                                companyName:
-                                  val === "admin"
-                                    ? ""
-                                    : isManager
-                                      ? currentUser?.companyName || ""
-                                      : val === "employee"
-                                        ? ""
-                                        : form.companyName,
-                                truck: "none",
-                                licenseNumber:
-                                  val === "employee" ? form.licenseNumber : "",
-                                startDate:
-                                  val === "admin" ? "" : form.startDate,
-                              });
-
-                              setOpenRole(false);
-                            }}
-                          >
-                            <Check
-                              className={`mr-2 h-4 w-4 ${
-                                form.role === opt.value
-                                  ? "opacity-100"
-                                  : "opacity-0"
-                              }`}
-                            />
-
-                            {opt.label}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
+                  <SelectContent>
+                    {roleOptions.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* COMPANY */}
               {form.role === "manager" && (
-                <div>
-                  <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
-                    Company <span className="text-red-500">*</span>
-                  </label>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">
+                    Company <span className="text-destructive">*</span>
+                  </Label>
 
                   {isManager ? (
-                    <input
-                      value={currentUser?.companyName || ""}
-                      disabled
-                      className={`${inputClass} opacity-60 cursor-not-allowed bg-muted`}
-                    />
+                    <Input value={currentUser?.companyName || ""} disabled />
                   ) : (
-                    <Popover
-                      open={openFormCompany}
-                      onOpenChange={setOpenFormCompany}
+                    <Select
+                      value={form.companyName}
+                      onValueChange={(company) =>
+                        setForm({
+                          ...form,
+                          companyName: company,
+                          truck: "none",
+                        })
+                      }
                     >
-                      <PopoverTrigger asChild>
-                        <button
-                          type="button"
-                          role="combobox"
-                          className="w-full h-11 rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between outline-none focus:ring-2 focus:ring-ring"
-                        >
-                          <span
-                            className={`truncate ${
-                              !form.companyName ? "text-muted-foreground" : ""
-                            }`}
-                          >
-                            {form.companyName || "Select company..."}
-                          </span>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select company..." />
+                      </SelectTrigger>
 
-                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </button>
-                      </PopoverTrigger>
-
-                      <PopoverContent
-                        className="w-[var(--radix-popover-trigger-width)] p-0 z-[9999]"
-                        align="start"
-                      >
-                        <Command>
-                          <CommandInput
-                            placeholder="Search company..."
-                            className="text-xs"
-                          />
-
-                          <CommandEmpty className="text-xs">
-                            No company found.
-                          </CommandEmpty>
-
-                          <CommandGroup>
-                            {companyOptions.map((company) => (
-                              <CommandItem
-                                key={company}
-                                value={company}
-                                className="text-xs"
-                                onSelect={() => {
-                                  setForm({
-                                    ...form,
-                                    companyName: company,
-                                    truck: "none",
-                                  });
-
-                                  setOpenFormCompany(false);
-                                }}
-                              >
-                                <Check
-                                  className={`mr-2 h-4 w-4 ${
-                                    form.companyName === company
-                                      ? "opacity-100"
-                                      : "opacity-0"
-                                  }`}
-                                />
-
-                                {company}
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
+                      <SelectContent>
+                        {companyOptions.map((company) => (
+                          <SelectItem key={company} value={company}>
+                            {company}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   )}
                 </div>
               )}
 
               {/* EMPLOYEE COMPANY */}
               {form.role === "employee" && (
-                <div>
-                  <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
-                    Company
-                  </label>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">
+                    Company <span className="text-destructive">*</span>
+                  </Label>
 
                   {isManager ? (
-                    <input
-                      value={currentUser?.companyName || ""}
-                      disabled
-                      className={`${inputClass} opacity-60`}
-                    />
+                    <Input value={currentUser?.companyName || ""} disabled />
                   ) : (
-                    <Popover
-                      open={openFormCompany}
-                      onOpenChange={setOpenFormCompany}
+                    <Select
+                      value={form.companyName}
+                      onValueChange={(company) =>
+                        setForm({
+                          ...form,
+                          companyName: company,
+                          truck: "none",
+                        })
+                      }
                     >
-                      <PopoverTrigger asChild>
-                        <button
-                          type="button"
-                          role="combobox"
-                          className="w-full h-11 rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between outline-none focus:ring-2 focus:ring-ring"
-                        >
-                          <span
-                            className={`truncate ${
-                              !form.companyName ? "text-muted-foreground" : ""
-                            }`}
-                          >
-                            {form.companyName || "Select company..."}
-                          </span>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select company..." />
+                      </SelectTrigger>
 
-                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </button>
-                      </PopoverTrigger>
-
-                      <PopoverContent
-                        className="w-[var(--radix-popover-trigger-width)] p-0 z-[9999]"
-                        align="start"
-                      >
-                        <Command>
-                          <CommandInput
-                            placeholder="Search company..."
-                            className="text-xs"
-                          />
-
-                          <CommandEmpty className="text-xs">
-                            No company found.
-                          </CommandEmpty>
-
-                          <CommandGroup>
-                            {companyOptions.map((company) => (
-                              <CommandItem
-                                key={company}
-                                value={company}
-                                className="text-xs"
-                                onSelect={() => {
-                                  setForm({
-                                    ...form,
-                                    companyName: company,
-                                    truck: "none",
-                                  });
-
-                                  setOpenFormCompany(false);
-                                }}
-                              >
-                                <Check
-                                  className={`mr-2 h-4 w-4 ${
-                                    form.companyName === company
-                                      ? "opacity-100"
-                                      : "opacity-0"
-                                  }`}
-                                />
-
-                                {company}
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
+                      <SelectContent>
+                        {companyOptions.map((company) => (
+                          <SelectItem key={company} value={company}>
+                            {company}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   )}
                 </div>
               )}
 
               {form.role !== "admin" && (
-                <div>
-                  <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
-                    Start Date <span className="text-red-500">*</span>
-                  </label>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">
+                    Start Date <span className="text-destructive">*</span>
+                  </Label>
 
                   <Popover open={openStartDate} onOpenChange={setOpenStartDate}>
                     <PopoverTrigger asChild>
-                      <button
+                      <Button
                         type="button"
-                        className={`w-full h-11 rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between outline-none focus:ring-2 focus:ring-ring ${
-                          !form.startDate ? "text-muted-foreground" : ""
-                        }`}
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start font-normal",
+                          !form.startDate && "text-muted-foreground",
+                        )}
                       >
-                        <span>
+                        <CalendarDays className="size-4 shrink-0 text-muted-foreground" />
+
+                        <span className="truncate">
                           {form.startDate
                             ? format(
                                 new Date(`${form.startDate}T00:00:00`),
-                                "MMM d, yyyy",
+                                "MMMM d, yyyy",
                               )
                             : "Select date"}
                         </span>
-
-                        <CalendarDays className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </button>
+                      </Button>
                     </PopoverTrigger>
 
-                    <PopoverContent
-                      className="w-auto p-0 z-[9999]"
-                      align="start"
-                    >
+                    <PopoverContent className="w-auto p-0" align="start">
                       <Calendar
                         mode="single"
                         selected={
@@ -1073,13 +795,12 @@ export default function UsersPage() {
 
               {/* DRIVER LICENSE */}
               {form.role === "employee" && (
-                <div>
-                  <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
-                    License Number <span className="text-red-500">*</span>
-                  </label>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">
+                    License Number <span className="text-destructive">*</span>
+                  </Label>
 
-                  <input
-                    type="text"
+                  <Input
                     value={form.licenseNumber}
                     onChange={(e) =>
                       setForm({
@@ -1087,7 +808,6 @@ export default function UsersPage() {
                         licenseNumber: e.target.value,
                       })
                     }
-                    className={inputClass}
                     placeholder="Enter driver's license number"
                   />
                 </div>
@@ -1095,98 +815,55 @@ export default function UsersPage() {
 
               {/* EMPLOYEE TRUCK */}
               {form.role === "employee" && (
-                <div>
-                  <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
-                    Assigned Truck <span className="text-red-500">*</span>
-                  </label>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">
+                    Assigned Truck <span className="text-destructive">*</span>
+                  </Label>
 
-                  <Popover open={openFormTruck} onOpenChange={setOpenFormTruck}>
-                    <PopoverTrigger asChild>
-                      <button
-                        type="button"
-                        role="combobox"
-                        disabled={isAdmin && !form.companyName}
-                        className="w-full h-11 rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        <span
-                          className={`truncate ${
-                            form.truck === "none" ? "text-muted-foreground" : ""
-                          }`}
-                        >
-                          {isAdmin && !form.companyName
+                  <Select
+                    value={form.truck}
+                    onValueChange={(truck) =>
+                      setForm({
+                        ...form,
+                        truck,
+                      })
+                    }
+                    disabled={isAdmin && !form.companyName}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue
+                        placeholder={
+                          isAdmin && !form.companyName
                             ? "Select company first"
-                            : truckSelectOptions.find(
-                                (opt) => opt.value === form.truck,
-                              )?.label || "Select truck..."}
-                        </span>
+                            : "Select truck..."
+                        }
+                      />
+                    </SelectTrigger>
 
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </button>
-                    </PopoverTrigger>
-
-                    <PopoverContent
-                      className="w-[var(--radix-popover-trigger-width)] p-0 z-[9999]"
-                      align="start"
-                    >
-                      <Command>
-                        <CommandInput
-                          placeholder="Search truck..."
-                          className="text-xs"
-                        />
-
-                        <CommandEmpty className="text-xs">
-                          No truck found.
-                        </CommandEmpty>
-
-                        <CommandGroup>
-                          {truckSelectOptions.map((opt) => (
-                            <CommandItem
-                              key={opt.value}
-                              value={opt.label}
-                              className="text-xs"
-                              onSelect={() => {
-                                setForm({
-                                  ...form,
-                                  truck: opt.value,
-                                });
-
-                                setOpenFormTruck(false);
-                              }}
-                            >
-                              <Check
-                                className={`mr-2 h-4 w-4 ${
-                                  form.truck === opt.value
-                                    ? "opacity-100"
-                                    : "opacity-0"
-                                }`}
-                              />
-
-                              {opt.label}
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
+                    <SelectContent>
+                      {truckSelectOptions.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               )}
             </div>
 
             <DialogFooter className="mt-4">
-              <button
+              <Button
+                type="button"
+                variant="outline"
                 onClick={() => setModal(false)}
-                className="px-4 py-2.5 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors"
               >
                 Cancel
-              </button>
+              </Button>
 
-              <button
-                onClick={handleSave}
-                disabled={loading}
-                className="px-6 py-2.5 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition disabled:opacity-50"
-              >
+              <Button type="button" onClick={handleSave} disabled={loading}>
                 {loading ? "Saving..." : editUser ? "Update" : "Create"}
-              </button>
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -1207,19 +884,22 @@ export default function UsersPage() {
             </p>
 
             <DialogFooter className="mt-4">
-              <button
+              <Button
+                type="button"
+                variant="outline"
                 onClick={() => setDeleteModal(null)}
-                className="px-4 py-2.5 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors"
               >
                 Cancel
-              </button>
+              </Button>
 
-              <button
+              <Button
+                type="button"
+                variant="destructive"
                 onClick={handleDelete}
-                className="px-6 py-2.5 rounded-md bg-red-500 text-white text-sm font-medium hover:bg-red-600 transition"
               >
+                <Trash2 />
                 Delete
-              </button>
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

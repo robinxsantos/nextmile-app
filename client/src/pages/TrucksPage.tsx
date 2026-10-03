@@ -3,7 +3,6 @@ import { toast } from "sonner";
 import api from "../api/client";
 import { useAppStore, type TruckRow } from "../store/useAppStore";
 import { useAuthStore } from "../store/useAuthStore";
-import KpiCard from "../components/shared/KpiCard";
 import {
   Dialog,
   DialogContent,
@@ -15,6 +14,8 @@ import {
   Truck,
   CheckCircle2,
   ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
   Plus,
   Pencil,
   Trash2,
@@ -23,7 +24,7 @@ import {
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import {
-  Select as UiSelect,
+  Select,
   SelectTrigger,
   SelectContent,
   SelectItem,
@@ -36,6 +37,27 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface CompanyOption {
   _id: string;
@@ -103,6 +125,12 @@ export default function TrucksPage() {
   const isAdmin = currentUser?.role === "admin";
 
   const [companies, setCompanies] = useState<CompanyOption[]>([]);
+  const [fleetSort, setFleetSort] = useState<{
+    field: "truckName" | "companyName" | "status";
+    direction: "asc" | "desc";
+  } | null>(null);
+
+  const [companyFilter, setCompanyFilter] = useState("ALL");
   const [truckModal, setTruckModal] = useState(false);
   const [editRow, setEditRow] = useState<TruckRow | null>(null);
   const [deleteModal, setDeleteModal] = useState<TruckRow | null>(null);
@@ -274,6 +302,9 @@ export default function TrucksPage() {
   };
 
   const openChangeOilHistory = (row: TruckRow) => {
+    setEditingOilRecordId(null);
+    setDeleteOilRecordId(null);
+    setOpenChangeOilDate(false);
     setChangeOilModal(row);
 
     setChangeOilForm({
@@ -432,216 +463,354 @@ export default function TrucksPage() {
     }
   };
 
-  const inputClass =
-    "w-full h-11 rounded-md border border-border bg-background px-3 text-xs focus:ring-2 focus:ring-ring focus:border-ring outline-none transition-colors";
+  const filteredTruckRows = [...truckRows]
+    .filter((row) => {
+      if (!isAdmin || companyFilter === "ALL") return true;
+
+      return row.companyName === companyFilter;
+    })
+    .sort((a, b) => {
+      if (!fleetSort) return 0;
+
+      const aValue =
+        fleetSort.field === "truckName"
+          ? a.truckName || ""
+          : fleetSort.field === "companyName"
+            ? a.companyName || ""
+            : a.status || "";
+
+      const bValue =
+        fleetSort.field === "truckName"
+          ? b.truckName || ""
+          : fleetSort.field === "companyName"
+            ? b.companyName || ""
+            : b.status || "";
+
+      const result = aValue.localeCompare(bValue, undefined, {
+        numeric: true,
+        sensitivity: "base",
+      });
+
+      return fleetSort.direction === "asc" ? result : -result;
+    });
+
+  const toggleFleetSort = (field: "truckName" | "companyName" | "status") => {
+    setFleetSort((current) => {
+      if (!current || current.field !== field) {
+        return {
+          field,
+          direction: "asc",
+        };
+      }
+
+      if (current.direction === "asc") {
+        return {
+          field,
+          direction: "desc",
+        };
+      }
+
+      return null;
+    });
+  };
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <h1 className="text-[20px] font-bold tracking-[-0.03em]">
-          Fleet Management
-          {currentUser?.companyName ? ` – ${currentUser.companyName}` : ""}
-        </h1>
-
-        <button
-          onClick={openAdd}
-          className="h-10 px-4 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition flex items-center gap-2"
-        >
-          <Plus size={18} />
-          Add Truck
-        </button>
+      <div className="mb-4 flex justify-end">
+        <Button type="button" onClick={openAdd}>
+          <Plus data-icon="inline-start" />
+          Add Vehicle
+        </Button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
-        <KpiCard
-          label="Total Trucks"
-          value={truckStats.total.toLocaleString()}
-          subtitle="Registered fleet entries"
-          icon={<Truck size={22} />}
-          colorClass="bg-muted text-foreground"
-        />
-        <KpiCard
-          label="Active"
-          value={truckStats.active.toLocaleString()}
-          subtitle="Available and active"
-          icon={<CheckCircle2 size={22} />}
-          colorClass="bg-muted text-foreground"
-        />
-        <KpiCard
-          label="Inactive"
-          value={truckStats.inactive.toLocaleString()}
-          subtitle="Paused or archived"
-          icon={<ArrowUpDown size={22} />}
-          colorClass="bg-muted text-foreground"
-        />
+      <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {/* TOTAL TRUCKS */}
+        <Card size="sm">
+          <CardHeader className="grid grid-cols-[1fr_auto] items-start">
+            <CardTitle>Total Trucks</CardTitle>
+
+            <div className="grid size-8 place-items-center rounded-md bg-muted text-muted-foreground">
+              <Truck className="size-4" />
+            </div>
+          </CardHeader>
+
+          <CardContent>
+            <div className="text-2xl font-semibold tabular-nums">
+              {truckStats.total.toLocaleString()}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* ACTIVE */}
+        <Card size="sm">
+          <CardHeader className="grid grid-cols-[1fr_auto] items-start">
+            <CardTitle>Active</CardTitle>
+
+            <div className="grid size-8 place-items-center rounded-md bg-muted text-muted-foreground">
+              <CheckCircle2 className="size-4" />
+            </div>
+          </CardHeader>
+
+          <CardContent>
+            <div className="text-2xl font-semibold tabular-nums">
+              {truckStats.active.toLocaleString()}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* INACTIVE */}
+        <Card size="sm">
+          <CardHeader className="grid grid-cols-[1fr_auto] items-start">
+            <CardTitle>Inactive</CardTitle>
+
+            <div className="grid size-8 place-items-center rounded-md bg-muted text-muted-foreground">
+              <ArrowUpDown className="size-4" />
+            </div>
+          </CardHeader>
+
+          <CardContent>
+            <div className="text-2xl font-semibold tabular-nums">
+              {truckStats.inactive.toLocaleString()}
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      <div className="border rounded-lg bg-background p-3.5 overflow-hidden">
-        <div className="mb-3">
-          <h2 className="text-sm font-semibold">Fleet Records</h2>
-          <p className="text-xs text-muted-foreground">
-            Truck registry and linked data.
-          </p>
-        </div>
+      <Card size="sm" className="!gap-0 overflow-hidden">
+        <CardHeader className="border-b">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <CardTitle>Fleet Records</CardTitle>
 
-        {/* Fleet Cards */}
-        {truckRows.length === 0 ? (
+              <CardDescription>Truck registry and records</CardDescription>
+            </div>
+
+            {isAdmin && (
+              <Select value={companyFilter} onValueChange={setCompanyFilter}>
+                <SelectTrigger className="w-[220px]">
+                  <SelectValue placeholder="Filter by company" />
+                </SelectTrigger>
+
+                <SelectContent>
+                  <SelectItem value="ALL">All Companies</SelectItem>
+
+                  {Array.from(
+                    new Set(
+                      truckRows.map((row) => row.companyName).filter(Boolean),
+                    ),
+                  )
+                    .sort((a, b) => a.localeCompare(b))
+                    .map((company) => (
+                      <SelectItem key={company} value={company}>
+                        {company}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+        </CardHeader>
+        {/* FLEET TABLE */}
+        {filteredTruckRows.length === 0 ? (
           <div className="py-12 text-center text-sm text-muted-foreground">
             No trucks found
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-3">
-            {truckRows.map((r) => {
-              const client = r.client ?? r.notes ?? "";
-
-              return (
-                <div
-                  key={r._id}
-                  className="rounded-lg border border-border bg-background p-4"
-                >
-                  {/* HEADER */}
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="text-base font-bold">{r.truckName}</div>
-
-                      <div className="mt-0.5 truncate text-xs text-muted-foreground">
-                        {r.companyName || "No company"}
-                      </div>
-                    </div>
-
-                    <span
-                      className={cn(
-                        "inline-flex min-w-[76px] rounded-md items-center justify-center px-2.5 py-1 text-[0.7rem] font-bold",
-                        r.status === "Active"
-                          ? "bg-green-500/10 text-green-500"
-                          : "bg-slate-400/10 text-slate-400",
+          <div className="[&>div]:max-h-[calc(100vh-320px)] [&>div]:overflow-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="sticky top-0 z-20 bg-background hover:bg-background">
+                  <TableHead className="pl-4 text-xs">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="-ml-2 h-8 gap-1.5 px-2 text-xs font-medium"
+                      onClick={() => toggleFleetSort("truckName")}
+                    >
+                      Vehicle Name
+                      {fleetSort?.field === "truckName" ? (
+                        fleetSort.direction === "asc" ? (
+                          <ArrowUp className="size-3.5" />
+                        ) : (
+                          <ArrowDown className="size-3.5" />
+                        )
+                      ) : (
+                        <ArrowUpDown className="size-3.5 text-muted-foreground" />
                       )}
+                    </Button>
+                  </TableHead>
+
+                  <TableHead className="w-[100px] text-center text-xs">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 gap-1.5 px-2 text-xs font-medium"
+                      onClick={() => toggleFleetSort("status")}
                     >
-                      {r.status}
-                    </span>
-                  </div>
+                      Status
+                      {fleetSort?.field === "status" ? (
+                        fleetSort.direction === "asc" ? (
+                          <ArrowUp className="size-3.5" />
+                        ) : (
+                          <ArrowDown className="size-3.5" />
+                        )
+                      ) : (
+                        <ArrowUpDown className="size-3.5 text-muted-foreground" />
+                      )}
+                    </Button>
+                  </TableHead>
 
-                  {/* DETAILS */}
-                  <div className="mt-4 grid grid-cols-2 gap-x-5 gap-y-3 text-xs">
-                    <div>
-                      <div className="text-muted-foreground">Client</div>
-                      <div className="mt-0.5 font-medium">{client || "—"}</div>
-                    </div>
+                  <TableHead className="text-xs">
+                    {isAdmin ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="-ml-2 h-8 gap-1.5 px-2 text-xs font-medium"
+                        onClick={() => toggleFleetSort("companyName")}
+                      >
+                        Company
+                        {fleetSort?.field === "companyName" ? (
+                          fleetSort.direction === "asc" ? (
+                            <ArrowUp className="size-3.5" />
+                          ) : (
+                            <ArrowDown className="size-3.5" />
+                          )
+                        ) : (
+                          <ArrowUpDown className="size-3.5 text-muted-foreground" />
+                        )}
+                      </Button>
+                    ) : (
+                      "Company"
+                    )}
+                  </TableHead>
 
-                    <div>
-                      <div className="text-muted-foreground">Billed To</div>
-                      <div className="mt-0.5 font-medium">
+                  <TableHead className="text-xs">Client</TableHead>
+
+                  <TableHead className="text-xs">Billed To</TableHead>
+
+                  <TableHead className="text-xs">Last Change Oil</TableHead>
+
+                  <TableHead className="text-xs">Cutoff Type</TableHead>
+
+                  <TableHead className="w-[130px] text-center text-xs">
+                    Actions
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+
+              <TableBody>
+                {filteredTruckRows.map((r) => {
+                  const client = r.client ?? r.notes ?? "";
+
+                  return (
+                    <TableRow key={r._id}>
+                      {/* TRUCK */}
+                      <TableCell className="pl-4 whitespace-nowrap text-sm font-medium">
+                        {r.truckName}
+                      </TableCell>
+
+                      {/* STATUS */}
+                      <TableCell className="text-center text-xs">
+                        <Badge
+                          variant="secondary"
+                          className={cn(
+                            r.status === "Active"
+                              ? "bg-green-500/10 text-green-600 dark:text-green-400"
+                              : "text-muted-foreground",
+                          )}
+                        >
+                          {r.status}
+                        </Badge>
+                      </TableCell>
+
+                      {/* COMPANY */}
+                      <TableCell className="text-xs">
+                        {r.companyName || "—"}
+                      </TableCell>
+
+                      {/* CLIENT */}
+                      <TableCell className="text-xs">{client || "—"}</TableCell>
+
+                      {/* BILLING */}
+                      <TableCell className="whitespace-nowrap text-xs">
                         {r.billingType === "direct"
-                          ? "Direct"
+                          ? `Direct (${client || "—"})`
                           : r.billedTo || "—"}
-                      </div>
-                    </div>
+                      </TableCell>
 
-                    <div>
-                      <div className="text-muted-foreground">
-                        Last Change Oil
-                      </div>
-                      <div className="mt-0.5 font-medium">
+                      {/* LAST CHANGE OIL */}
+                      <TableCell className="whitespace-nowrap text-xs tabular-nums">
                         {kmDisplay(r.lastChangeOil)}
-                      </div>
-                    </div>
+                      </TableCell>
 
-                    <div>
-                      <div className="text-muted-foreground">Date Added</div>
-                      <div className="mt-0.5 font-medium">{r.dateAdded}</div>
-                    </div>
-                  </div>
+                      {/* CUTOFF TYPE */}
+                      <TableCell className="whitespace-nowrap text-xs capitalize">
+                        {r.cutoffType}
+                      </TableCell>
 
-                  {/* SCHEDULE */}
-                  <div className="mt-4 border-t border-border pt-3">
-                    <div className="grid grid-cols-4 gap-2 text-center">
-                      <div>
-                        <div className="text-[10px] text-muted-foreground">
-                          Cutoff Start
-                        </div>
-                        <div className="mt-1 text-xs font-semibold">
-                          {r.cutoffType === "monthly"
-                            ? String(r.cutoffStart)
-                            : r.cutoffStartText}
-                        </div>
-                      </div>
+                      {/* ACTIONS */}
+                      <TableCell className="text-xs">
+                        <div className="flex items-center justify-center gap-1">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon-sm"
+                            onClick={() => openChangeOilHistory(r)}
+                            aria-label="Change Oil"
+                          >
+                            <Wrench />
+                          </Button>
 
-                      <div>
-                        <div className="text-[10px] text-muted-foreground">
-                          Cutoff End
-                        </div>
-                        <div className="mt-1 text-xs font-semibold">
-                          {r.cutoffType === "monthly"
-                            ? String(r.cutoffEnd)
-                            : r.cutoffEndText}
-                        </div>
-                      </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon-sm"
+                            onClick={() => openEdit(r)}
+                            aria-label="Edit Truck"
+                          >
+                            <Pencil />
+                          </Button>
 
-                      <div>
-                        <div className="text-[10px] text-muted-foreground">
-                          Payday
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon-sm"
+                            onClick={() => {
+                              setDeletePassword("");
+                              setDeleteModal(r);
+                            }}
+                            aria-label="Delete Truck"
+                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          >
+                            <Trash2 />
+                          </Button>
                         </div>
-                        <div className="mt-1 text-xs font-semibold">
-                          {r.cutoffType === "monthly"
-                            ? String(r.payday)
-                            : r.paydayText}
-                        </div>
-                      </div>
-
-                      <div>
-                        <div className="text-[10px] text-muted-foreground">
-                          Day Off
-                        </div>
-                        <div className="mt-1 text-xs font-semibold">
-                          {r.cutoffType === "monthly" ? "—" : r.dayOffText}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* ACTIONS */}
-                  <div className="mt-4 flex items-center justify-end gap-1.5 border-t border-border pt-3">
-                    <button
-                      type="button"
-                      onClick={() => openChangeOilHistory(r)}
-                      title="Change Oil"
-                      className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                    >
-                      <Wrench size={14} />
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => openEdit(r)}
-                      title="Edit Truck"
-                      className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                    >
-                      <Pencil size={14} />
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setDeletePassword("");
-                        setDeleteModal(r);
-                      }}
-                      title="Delete Truck"
-                      className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:border-red-500/20 hover:bg-red-500/10 hover:text-red-500"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
           </div>
         )}
-      </div>
+      </Card>
 
       {/* Truck Modal */}
       <>
         {/* ADD / EDIT TRUCK */}
-        <Dialog open={truckModal} onOpenChange={setTruckModal}>
+        <Dialog
+          open={truckModal}
+          onOpenChange={(open) => {
+            setTruckModal(open);
+
+            if (!open) {
+              setEditRow(null);
+            }
+          }}
+        >
           <DialogContent
             className="sm:max-w-[700px]"
             onOpenAutoFocus={(e) => e.preventDefault()}
@@ -649,45 +818,34 @@ export default function TrucksPage() {
             <DialogHeader>
               <DialogTitle>
                 {editRow
-                  ? `Edit Truck – ${editRow.truckName}`
+                  ? `Edit Vehicle – ${editRow.truckName}`
                   : form.companyName
-                    ? `Add Truck – ${form.companyName}`
-                    : "Add Truck"}
+                    ? `Add Vehicle – ${form.companyName}`
+                    : "Add Vehicle"}
               </DialogTitle>
             </DialogHeader>
 
             {/* ✅ ORIGINAL FORM (UNCHANGED) */}
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground mb-1 block">
-                  Truck Name
-                </label>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Vehicle Name</Label>
 
-                <input
-                  type="text"
+                <Input
                   value={form.truckName}
                   onChange={(e) =>
                     setForm({ ...form, truckName: e.target.value })
                   }
-                  placeholder="e.g. CCK 5297"
-                  className={inputClass}
+                  placeholder="e.g. AAA 1234"
                 />
               </div>
 
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
-                  Company Name
-                </label>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Company Name</Label>
 
                 {isManager ? (
-                  <input
-                    type="text"
-                    value={currentUser?.companyName || ""}
-                    disabled
-                    className={`${inputClass} opacity-60 cursor-not-allowed bg-muted`}
-                  />
+                  <Input value={currentUser?.companyName || ""} disabled />
                 ) : (
-                  <UiSelect
+                  <Select
                     value={form.companyName}
                     onValueChange={(val) =>
                       setForm({
@@ -696,58 +854,46 @@ export default function TrucksPage() {
                       })
                     }
                   >
-                    <SelectTrigger className="w-full min-h-[44px] px-3.5 text-xs">
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select company..." />
                     </SelectTrigger>
 
-                    <SelectContent className="z-[9999]">
+                    <SelectContent>
                       {companyOptions.map((company) => (
-                        <SelectItem
-                          key={company}
-                          value={company}
-                          className="text-xs"
-                        >
+                        <SelectItem key={company} value={company}>
                           {company}
                         </SelectItem>
                       ))}
                     </SelectContent>
-                  </UiSelect>
+                  </Select>
                 )}
               </div>
 
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
-                  Status
-                </label>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Status</Label>
 
-                <UiSelect
+                <Select
                   value={form.status}
                   onValueChange={(val) => setForm({ ...form, status: val })}
                 >
-                  <SelectTrigger className="w-full min-h-[44px] px-3.5 text-xs">
+                  <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
 
                   <SelectContent>
                     {STATUS_OPTIONS.map((opt) => (
-                      <SelectItem
-                        key={opt.value}
-                        value={opt.value}
-                        className="text-xs"
-                      >
+                      <SelectItem key={opt.value} value={opt.value}>
                         {opt.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
-                </UiSelect>
+                </Select>
               </div>
 
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
-                  Cutoff Type
-                </label>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Cutoff Type</Label>
 
-                <UiSelect
+                <Select
                   value={form.cutoffType}
                   onValueChange={(val) => {
                     setForm((prev) =>
@@ -771,30 +917,24 @@ export default function TrucksPage() {
                     );
                   }}
                 >
-                  <SelectTrigger className="w-full min-h-[44px] px-3.5 text-xs">
+                  <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
 
                   <SelectContent>
                     {CUTOFF_TYPE_OPTIONS.map((opt) => (
-                      <SelectItem
-                        key={opt.value}
-                        value={opt.value}
-                        className="text-xs"
-                      >
+                      <SelectItem key={opt.value} value={opt.value}>
                         {opt.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
-                </UiSelect>
+                </Select>
               </div>
 
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
-                  Billing Type
-                </label>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Billing Type</Label>
 
-                <UiSelect
+                <Select
                   value={form.billingType}
                   onValueChange={(val) =>
                     setForm((prev) => ({
@@ -804,62 +944,48 @@ export default function TrucksPage() {
                     }))
                   }
                 >
-                  <SelectTrigger className="w-full min-h-[44px] px-3.5 text-xs">
+                  <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
 
                   <SelectContent>
                     {BILLING_TYPE_OPTIONS.map((opt) => (
-                      <SelectItem
-                        key={opt.value}
-                        value={opt.value}
-                        className="text-xs"
-                      >
+                      <SelectItem key={opt.value} value={opt.value}>
                         {opt.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
-                </UiSelect>
+                </Select>
               </div>
 
               {form.billingType === "subcontracted" && (
-                <div>
-                  <label className="text-xs font-semibold text-muted-foreground mb-1 block">
-                    Billed To
-                  </label>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Billed To</Label>
 
-                  <input
-                    type="text"
+                  <Input
                     value={form.billedTo}
                     onChange={(e) =>
                       setForm({ ...form, billedTo: e.target.value })
                     }
                     placeholder="Company Name"
-                    className={inputClass}
                   />
                 </div>
               )}
 
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground mb-1 block">
-                  Client
-                </label>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Client</Label>
 
-                <input
-                  type="text"
+                <Input
                   value={form.client}
                   onChange={(e) => setForm({ ...form, client: e.target.value })}
                   placeholder="e.g. Shopee"
-                  className={inputClass}
                 />
               </div>
 
               {/* 🔥 KEEP YOUR WEEKLY / MONTHLY BLOCK EXACTLY */}
               {form.cutoffType === "weekly" ? (
-                <div className="col-span-2">
-                  <label className="text-xs font-semibold text-muted-foreground mb-2 block">
-                    Cutoff Settings
-                  </label>
+                <div className="col-span-2 space-y-2">
+                  <Label className="text-xs">Cutoff Settings</Label>
 
                   <div className="grid grid-cols-2 gap-3">
                     {[
@@ -868,57 +994,53 @@ export default function TrucksPage() {
                       ["payday", "Payday"],
                       ["dayOff", "Day Off"],
                     ].map(([key, label]) => (
-                      <div key={key}>
-                        <label className="text-xs text-muted-foreground mb-1.5 block">
-                          {label}
-                        </label>
+                      <div key={key} className="space-y-1.5">
+                        <Label className="text-xs">{label}</Label>
 
-                        <UiSelect
+                        <Select
                           value={form[key as keyof typeof form]}
                           onValueChange={(val) =>
                             setForm({ ...form, [key]: val })
                           }
                         >
-                          <SelectTrigger className="w-full min-h-[44px] px-3.5 text-xs">
+                          <SelectTrigger className="w-full">
                             <SelectValue />
                           </SelectTrigger>
 
                           <SelectContent>
                             {DAY_OPTIONS.map((opt) => (
-                              <SelectItem
-                                key={opt.value}
-                                value={opt.value}
-                                className="text-xs"
-                              >
+                              <SelectItem key={opt.value} value={opt.value}>
                                 {opt.label}
                               </SelectItem>
                             ))}
                           </SelectContent>
-                        </UiSelect>
+                        </Select>
                       </div>
                     ))}
                   </div>
                 </div>
               ) : (
-                <div className="col-span-2">
-                  <label className="text-xs font-semibold text-muted-foreground mb-2 block">
-                    Monthly Cutoff Settings
-                  </label>
+                <div className="col-span-2 space-y-2">
+                  <Label className="text-xs">Monthly Cutoff Settings</Label>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-3 gap-3">
                     {["cutoffStart", "cutoffEnd", "payday"].map((key) => (
-                      <div key={key}>
-                        <label className="text-xs text-muted-foreground mb-1.5 block">
-                          {key}
-                        </label>
+                      <div key={key} className="space-y-1.5">
+                        <Label className="text-xs">
+                          {key === "cutoffStart"
+                            ? "Cutoff Start"
+                            : key === "cutoffEnd"
+                              ? "Cutoff End"
+                              : "Payday"}
+                        </Label>
 
-                        <UiSelect
+                        <Select
                           value={form[key as keyof typeof form]}
                           onValueChange={(val) =>
                             setForm({ ...form, [key]: val })
                           }
                         >
-                          <SelectTrigger className="w-full min-h-[44px] px-3.5 text-sm">
+                          <SelectTrigger className="w-full">
                             <SelectValue />
                           </SelectTrigger>
 
@@ -929,24 +1051,26 @@ export default function TrucksPage() {
                               </SelectItem>
                             ))}
                           </SelectContent>
-                        </UiSelect>
+                        </Select>
                       </div>
                     ))}
                   </div>
 
-                  <div className="mt-2 text-xs text-muted-foreground">
-                    <strong>Monthly Cutoff</strong>
-                    <br />
-                    When the cutoff start date is set to the 1st day of the
-                    month and the cutoff end date is set to the 31st, the cutoff
-                    period covers the entire calendar month.
-                    <br />
-                    <strong>Cross-Month Cutoff</strong>
-                    <br />
-                    When the cutoff start date is set to the 26th and the cutoff
-                    end date is set to the 25th, the cutoff period begins on the
-                    26th of the current month and ends on the 25th of the
-                    following month.
+                  <div className="rounded-md bg-muted/50 px-3 py-2.5 text-xs text-muted-foreground">
+                    <p>
+                      <span className="font-medium text-foreground">
+                        Monthly Cutoff:
+                      </span>{" "}
+                      1 to 31 covers the entire calendar month.
+                    </p>
+
+                    <p className="mt-1">
+                      <span className="font-medium text-foreground">
+                        Cross-Month Cutoff:
+                      </span>{" "}
+                      26 to 25 starts on the 26th of the current month and ends
+                      on the 25th of the following month.
+                    </p>
                   </div>
                 </div>
               )}
@@ -954,20 +1078,20 @@ export default function TrucksPage() {
 
             {/* FOOTER */}
             <DialogFooter className="mt-4">
-              <button
-                onClick={() => setTruckModal(false)}
-                className="px-4 py-2.5 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors"
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setTruckModal(false);
+                  setEditRow(null);
+                }}
               >
                 Cancel
-              </button>
+              </Button>
 
-              <button
-                onClick={handleSave}
-                disabled={loading}
-                className="px-6 py-2.5 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition disabled:opacity-50"
-              >
+              <Button type="button" onClick={handleSave} disabled={loading}>
                 {loading ? "Saving..." : editRow ? "Update" : "Save"}
-              </button>
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -976,7 +1100,12 @@ export default function TrucksPage() {
         <Dialog
           open={!!changeOilModal}
           onOpenChange={(open) => {
-            if (!open) setChangeOilModal(null);
+            if (!open) {
+              setChangeOilModal(null);
+              setEditingOilRecordId(null);
+              setDeleteOilRecordId(null);
+              setOpenChangeOilDate(false);
+            }
           }}
         >
           <DialogContent className="sm:max-w-[700px]">
@@ -989,265 +1118,262 @@ export default function TrucksPage() {
 
             <div className="space-y-5">
               {/* CURRENT */}
-              <div className="rounded-lg border border-border bg-muted/30 p-4">
-                <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Current Last Change Oil
-                </div>
+              <Card size="sm" className="gap-2">
+                <CardHeader>
+                  <CardTitle>Current Last Change Oil</CardTitle>
+                </CardHeader>
 
-                <div className="mt-1 text-xl font-bold">
-                  {changeOilModal?.lastChangeOil != null
-                    ? `${Number(changeOilModal.lastChangeOil).toLocaleString()} km`
-                    : "No record"}
-                </div>
-              </div>
+                <CardContent>
+                  <div className="text-xl font-semibold tabular-nums">
+                    {changeOilModal?.lastChangeOil != null
+                      ? `${Number(changeOilModal.lastChangeOil).toLocaleString()} km`
+                      : "No record"}
+                  </div>
+                </CardContent>
+              </Card>
 
               {/* ADD RECORD */}
-              <div>
-                <div className="text-sm font-bold mb-3">
-                  Add Change Oil Record
-                </div>
+              <Card size="sm" className="gap-0">
+                <CardHeader className="border-b">
+                  <CardTitle>
+                    {editingOilRecordId
+                      ? "Edit Change Oil Record"
+                      : "Add Change Oil Record"}
+                  </CardTitle>
+                </CardHeader>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs font-semibold text-muted-foreground mb-1 block">
-                      Date
-                    </label>
+                <CardContent className="pt-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Date</Label>
 
-                    <Popover
-                      open={openChangeOilDate}
-                      onOpenChange={setOpenChangeOilDate}
-                    >
-                      <PopoverTrigger asChild>
-                        <button
-                          type="button"
-                          className={`w-full h-11 rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between outline-none focus:ring-2 focus:ring-ring ${
-                            !changeOilForm.date ? "text-muted-foreground" : ""
-                          }`}
-                        >
-                          <span>
-                            {changeOilForm.date
-                              ? format(
-                                  new Date(`${changeOilForm.date}T00:00:00`),
-                                  "MMM d, yyyy",
-                                )
-                              : "Select date"}
-                          </span>
+                      <Popover
+                        open={openChangeOilDate}
+                        onOpenChange={setOpenChangeOilDate}
+                      >
+                        <PopoverTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className={`w-full justify-start font-normal ${
+                              !changeOilForm.date ? "text-muted-foreground" : ""
+                            }`}
+                          >
+                            <CalendarDays className="size-4 shrink-0 text-muted-foreground" />
 
-                          <CalendarDays className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </button>
-                      </PopoverTrigger>
+                            <span className="truncate">
+                              {changeOilForm.date
+                                ? format(
+                                    new Date(`${changeOilForm.date}T00:00:00`),
+                                    "MMMM d, yyyy",
+                                  )
+                                : "Select date"}
+                            </span>
+                          </Button>
+                        </PopoverTrigger>
 
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={
-                            changeOilForm.date
-                              ? new Date(`${changeOilForm.date}T00:00:00`)
-                              : undefined
-                          }
-                          onSelect={(date) => {
-                            if (!date) return;
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={
+                              changeOilForm.date
+                                ? new Date(`${changeOilForm.date}T00:00:00`)
+                                : undefined
+                            }
+                            onSelect={(date) => {
+                              if (!date) return;
+
+                              setChangeOilForm((prev) => ({
+                                ...prev,
+                                date: format(date, "yyyy-MM-dd"),
+                              }));
+
+                              setOpenChangeOilDate(false);
+                            }}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Odometer</Label>
+
+                      <div className="relative">
+                        <Input
+                          value={formatNumberWithComma(changeOilForm.odometer)}
+                          onChange={(e) => {
+                            const raw = e.target.value.replace(/,/g, "");
+
+                            if (!/^\d*$/.test(raw)) return;
 
                             setChangeOilForm((prev) => ({
                               ...prev,
-                              date: format(date, "yyyy-MM-dd"),
+                              odometer: raw,
                             }));
-
-                            setOpenChangeOilDate(false);
                           }}
-                          initialFocus
+                          placeholder="e.g. 510,250"
+                          className="pr-12"
                         />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
 
-                  <div>
-                    <label className="text-xs font-semibold text-muted-foreground mb-1 block">
-                      Odometer
-                    </label>
+                        <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs font-medium text-muted-foreground">
+                          KM
+                        </div>
+                      </div>
+                    </div>
 
-                    <div className="relative">
-                      <input
-                        type="text"
-                        value={formatNumberWithComma(changeOilForm.odometer)}
-                        onChange={(e) => {
-                          const raw = e.target.value.replace(/,/g, "");
+                    <div className="space-y-1.5 sm:col-span-2">
+                      <Label className="text-xs">Notes</Label>
 
-                          if (!/^\d*$/.test(raw)) return;
-
+                      <Input
+                        value={changeOilForm.notes}
+                        onChange={(e) =>
                           setChangeOilForm((prev) => ({
                             ...prev,
-                            odometer: raw,
-                          }));
-                        }}
-                        placeholder="e.g. 510,250"
-                        className={`${inputClass} pr-12`}
+                            notes: e.target.value,
+                          }))
+                        }
                       />
-
-                      <div className="absolute inset-y-0 right-3 flex items-center text-xs font-semibold text-muted-foreground">
-                        KM
-                      </div>
                     </div>
                   </div>
 
-                  <div className="sm:col-span-2">
-                    <label className="text-xs font-semibold text-muted-foreground mb-1 block">
-                      Notes
-                    </label>
+                  <div className="flex justify-end items-center gap-3 mt-3">
+                    {editingOilRecordId && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setEditingOilRecordId(null);
 
-                    <input
-                      type="text"
-                      value={changeOilForm.notes}
-                      onChange={(e) =>
-                        setChangeOilForm((prev) => ({
-                          ...prev,
-                          notes: e.target.value,
-                        }))
-                      }
-                      className={inputClass}
-                    />
-                  </div>
-                </div>
-
-                <div className="flex justify-end items-center gap-3 mt-3">
-                  {editingOilRecordId && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditingOilRecordId(null);
-
-                        setChangeOilForm({
-                          date: new Date().toISOString().slice(0, 10),
-                          odometer:
-                            changeOilModal?.lastChangeOil != null
-                              ? String(changeOilModal.lastChangeOil)
-                              : "",
-                          notes: "",
-                        });
-                      }}
-                      disabled={changeOilLoading}
-                      className="h-10 px-4 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors disabled:opacity-50"
-                    >
-                      Cancel Edit
-                    </button>
-                  )}
-                  <button
-                    onClick={
-                      editingOilRecordId
-                        ? handleUpdateChangeOilRecord
-                        : handleAddChangeOilRecord
-                    }
-                    disabled={changeOilLoading}
-                    className="h-10 px-4 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition disabled:opacity-50 flex items-center gap-2"
-                  >
-                    {editingOilRecordId ? (
-                      <Pencil size={16} />
-                    ) : (
-                      <Plus size={16} />
+                          setChangeOilForm({
+                            date: new Date().toISOString().slice(0, 10),
+                            odometer:
+                              changeOilModal?.lastChangeOil != null
+                                ? String(changeOilModal.lastChangeOil)
+                                : "",
+                            notes: "",
+                          });
+                        }}
+                        disabled={changeOilLoading}
+                      >
+                        Cancel Edit
+                      </Button>
                     )}
+                    <Button
+                      type="button"
+                      onClick={
+                        editingOilRecordId
+                          ? handleUpdateChangeOilRecord
+                          : handleAddChangeOilRecord
+                      }
+                      disabled={changeOilLoading}
+                    >
+                      {editingOilRecordId ? (
+                        <Pencil data-icon="inline-start" />
+                      ) : (
+                        <Plus data-icon="inline-start" />
+                      )}
 
-                    {changeOilLoading
-                      ? "Saving..."
-                      : editingOilRecordId
-                        ? "Update Record"
-                        : "Add Record"}
-                  </button>
-                </div>
-              </div>
+                      {changeOilLoading
+                        ? "Saving..."
+                        : editingOilRecordId
+                          ? "Update Record"
+                          : "Add Record"}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
 
               {/* HISTORY */}
-              <div>
-                <div className="text-sm font-bold mb-3">History</div>
+              <div className="space-y-2">
+                <div className="text-sm font-medium">History</div>
 
-                <div className="rounded-lg border border-border overflow-hidden">
+                <div className="overflow-hidden rounded-md border">
                   {!changeOilModal?.changeOilHistory?.length ? (
-                    <div className="py-8 px-4 text-center text-sm text-muted-foreground">
+                    <div className="px-4 py-8 text-center text-xs text-muted-foreground">
                       No change oil history yet.
                     </div>
                   ) : (
-                    <div className="max-h-[260px] overflow-auto">
-                      <table className="w-full text-sm">
-                        <thead className="sticky top-0 bg-muted">
-                          <tr>
-                            <th className="px-3 py-2 text-left text-xs font-semibold">
-                              Date
-                            </th>
+                    <div className="[&>div]:max-h-[260px] [&>div]:overflow-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="sticky top-0 z-20 bg-background hover:bg-background">
+                            <TableHead className="text-xs">Date</TableHead>
 
-                            <th className="px-3 py-2 text-right text-xs font-semibold">
+                            <TableHead className="text-right text-xs">
                               Odometer
-                            </th>
+                            </TableHead>
 
-                            <th className="px-3 py-2 text-left text-xs font-semibold">
-                              Notes
-                            </th>
-                            <th className="px-3 py-2 text-center text-xs font-semibold">
+                            <TableHead className="text-xs">Notes</TableHead>
+
+                            <TableHead className="w-[90px] text-center text-xs">
                               Actions
-                            </th>
-                          </tr>
-                        </thead>
+                            </TableHead>
+                          </TableRow>
+                        </TableHeader>
 
-                        <tbody>
+                        <TableBody>
                           {[...(changeOilModal.changeOilHistory || [])]
                             .sort(
                               (a, b) =>
                                 new Date(b.date).getTime() -
                                 new Date(a.date).getTime(),
                             )
-                            .map((record, index) => (
-                              <tr
-                                key={record._id}
-                                className="border-t border-border"
-                              >
-                                <td className="px-3 py-2 text-xs whitespace-nowrap">
+                            .map((record) => (
+                              <TableRow key={record._id}>
+                                <TableCell className="whitespace-nowrap text-xs">
                                   {new Date(record.date).toLocaleDateString(
                                     "en-US",
                                     {
-                                      month: "short",
+                                      month: "long",
                                       day: "numeric",
                                       year: "numeric",
                                     },
                                   )}
-                                </td>
+                                </TableCell>
 
-                                <td className="px-3 py-2 text-xs text-right whitespace-nowrap font-semibold">
+                                <TableCell className="whitespace-nowrap text-right text-xs font-medium tabular-nums">
                                   {record.odometer != null
-                                    ? `${Number(record.odometer).toLocaleString()} KM
-                                    `
+                                    ? `${Number(record.odometer).toLocaleString()} KM`
                                     : "—"}
-                                </td>
+                                </TableCell>
 
-                                <td className="px-3 py-2">
+                                <TableCell className="text-xs">
                                   {record.notes || "—"}
-                                </td>
-                                <td className="px-3 py-2">
+                                </TableCell>
+
+                                <TableCell className="w-[90px]">
                                   <div className="flex items-center justify-center gap-1">
-                                    <button
+                                    <Button
                                       type="button"
+                                      variant="outline"
+                                      size="icon-sm"
                                       onClick={() =>
                                         handleEditChangeOilRecord(record)
                                       }
-                                      title="Edit record"
-                                      className="w-8 h-8 rounded-md inline-flex items-center justify-center border border-border hover:bg-muted transition-colors"
+                                      aria-label="Edit record"
                                     >
-                                      <Pencil size={13} />
-                                    </button>
+                                      <Pencil />
+                                    </Button>
 
-                                    <button
+                                    <Button
                                       type="button"
+                                      variant="outline"
+                                      size="icon-sm"
                                       onClick={() =>
                                         setDeleteOilRecordId(record._id)
                                       }
-                                      title="Delete record"
-                                      className="w-8 h-8 rounded-md inline-flex items-center justify-center border border-border hover:bg-red-500/10 hover:text-red-500 transition-colors"
+                                      aria-label="Delete record"
+                                      className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                                     >
-                                      <Trash2 size={13} />
-                                    </button>
+                                      <Trash2 />
+                                    </Button>
                                   </div>
-                                </td>
-                              </tr>
+                                </TableCell>
+                              </TableRow>
                             ))}
-                        </tbody>
-                      </table>
+                        </TableBody>
+                      </Table>
                     </div>
                   )}
                 </div>
@@ -1255,12 +1381,18 @@ export default function TrucksPage() {
             </div>
 
             <DialogFooter>
-              <button
-                onClick={() => setChangeOilModal(null)}
-                className="px-4 py-2.5 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors"
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setChangeOilModal(null);
+                  setEditingOilRecordId(null);
+                  setDeleteOilRecordId(null);
+                  setOpenChangeOilDate(false);
+                }}
               >
                 Close
-              </button>
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -1285,23 +1417,24 @@ export default function TrucksPage() {
             </p>
 
             <DialogFooter className="mt-4">
-              <button
+              <Button
                 type="button"
+                variant="outline"
                 onClick={() => setDeleteOilRecordId(null)}
                 disabled={changeOilLoading}
-                className="px-4 py-2.5 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors disabled:opacity-50"
               >
                 Cancel
-              </button>
+              </Button>
 
-              <button
+              <Button
                 type="button"
+                variant="destructive"
                 onClick={handleDeleteChangeOilRecord}
                 disabled={changeOilLoading}
-                className="px-5 py-2.5 rounded-md bg-red-500 text-white text-sm font-medium hover:bg-red-600 transition-colors disabled:opacity-50"
               >
+                <Trash2 />
                 {changeOilLoading ? "Deleting..." : "Delete"}
-              </button>
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -1337,19 +1470,18 @@ export default function TrucksPage() {
                 </p>
               </div>
 
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
+              <div className="space-y-1.5">
+                <Label className="text-xs">
                   Enter your password to confirm
-                </label>
+                </Label>
 
-                <input
+                <Input
                   type="password"
                   value={deletePassword}
                   onChange={(e) => setDeletePassword(e.target.value)}
                   placeholder="Enter password"
                   autoComplete="current-password"
                   disabled={deleteLoading}
-                  className={inputClass}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && deletePassword.trim()) {
                       e.preventDefault();
@@ -1362,21 +1494,22 @@ export default function TrucksPage() {
             </div>
 
             <DialogFooter className="mt-4">
-              <button
+              <Button
                 type="button"
+                variant="outline"
                 onClick={() => {
                   setDeleteModal(null);
                   setDeletePassword("");
                 }}
                 disabled={deleteLoading}
-                className="px-4 py-2.5 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors disabled:opacity-50"
               >
                 Cancel
-              </button>
+              </Button>
 
-              <button
+              <Button
                 id="confirm-delete-truck"
                 type="button"
+                variant="destructive"
                 disabled={deleteLoading || !deletePassword.trim()}
                 onClick={async () => {
                   if (!deleteModal || !deletePassword.trim()) {
@@ -1397,10 +1530,10 @@ export default function TrucksPage() {
                     setDeleteLoading(false);
                   }
                 }}
-                className="px-6 py-2.5 rounded-md bg-red-500 text-white text-sm font-medium hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
+                <Trash2 />
                 {deleteLoading ? "Deleting..." : "Delete"}
-              </button>
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

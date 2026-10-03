@@ -17,6 +17,7 @@ export interface ITrip extends Document {
   crewSalary: number;
   cashAdvance: number;
   reimbursements: number;
+  reimbursementCategory: string;
   paid: boolean;
   note: string;
   collectionComment: string;
@@ -103,6 +104,12 @@ const TripSchema = new Schema<ITrip>(
     reimbursements: {
       type: Number,
       default: 0,
+    },
+    reimbursementCategory: {
+      type: String,
+      default: "",
+      trim: true,
+      uppercase: true,
     },
     paid: {
       type: Boolean,

@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import api from "../api/client";
 import { useAppStore, type TripRow } from "../store/useAppStore";
 import { peso } from "../lib/utils";
-import Modal from "../components/shared/Modal";
 import { toast } from "sonner";
 import Pagination from "../components/shared/Pagination";
 import {
@@ -12,9 +11,7 @@ import {
   Search,
   Info,
   CalendarDays,
-  ChevronsUpDown,
   CheckCheck,
-  Check,
   RotateCcw,
 } from "lucide-react";
 import type { DateRange } from "react-day-picker";
@@ -27,18 +24,56 @@ import {
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { format } from "date-fns";
 import { AnimatePresence, motion } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+
 import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-} from "@/components/ui/command";
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 
 type CollectionTrip = {
   _id: string;
@@ -73,7 +108,7 @@ type CollectionRow = {
 };
 
 export default function CollectionsPage() {
-  const { selectedTruck, truckOptions, truckRows, initApp } = useAppStore();
+  const { selectedTruck, truckRows, initApp } = useAppStore();
 
   const [trips, setTrips] = useState<TripRow[]>([]);
   const [collections, setCollections] = useState<CollectionRow[]>([]);
@@ -83,7 +118,6 @@ export default function CollectionsPage() {
   const [collectionFilter, setCollectionFilter] = useState<
     "ALL" | "Collected" | "Pending"
   >("ALL");
-  const [openCollectionFilter, setOpenCollectionFilter] = useState(false);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [openDateRange, setOpenDateRange] = useState(false);
@@ -91,6 +125,10 @@ export default function CollectionsPage() {
   const [pageSize, setPageSize] = useState(10);
   const [historyPage, setHistoryPage] = useState(1);
   const [historyPageSize, setHistoryPageSize] = useState(10);
+  const [historySearchQuery, setHistorySearchQuery] = useState("");
+  const [historyBillingType, setHistoryBillingType] = useState<
+    "ALL" | "Rate Only" | "Rate + VAT"
+  >("ALL");
   const [showCollectModal, setShowCollectModal] = useState(false);
   const [viewCollection, setViewCollection] = useState<CollectionRow | null>(
     null,
@@ -101,8 +139,6 @@ export default function CollectionsPage() {
   const [savingEditCollection, setSavingEditCollection] = useState(false);
 
   const [editCollectionDate, setEditCollectionDate] = useState("");
-  const [editCoverageStartDate, setEditCoverageStartDate] = useState("");
-  const [editCoverageEndDate, setEditCoverageEndDate] = useState("");
   const [editCollectionMethod, setEditCollectionMethod] = useState("Check");
   const [editCollectionReference, setEditCollectionReference] = useState("");
   const [editCollectionSoaNumber, setEditCollectionSoaNumber] = useState("");
@@ -126,9 +162,6 @@ export default function CollectionsPage() {
   const [collectionDate, setCollectionDate] = useState(
     new Date().toISOString().slice(0, 10),
   );
-
-  const [coverageStartDate, setCoverageStartDate] = useState("");
-  const [coverageEndDate, setCoverageEndDate] = useState("");
 
   const [collectionMethod, setCollectionMethod] = useState("Check");
   const [collectionReference, setCollectionReference] = useState("");
@@ -202,10 +235,6 @@ export default function CollectionsPage() {
   useEffect(() => {
     initApp();
   }, [initApp]);
-
-  const selectedTruckName = truckOptions.find(
-    (truck) => truck._id === selectedTruck,
-  )?.truckName;
 
   const selectedTruckData = truckRows.find(
     (truck) => truck._id === selectedTruck,
@@ -297,21 +326,45 @@ export default function CollectionsPage() {
     return filteredTrips.slice(start, end);
   }, [filteredTrips, currentPage, pageSize]);
 
+  const filteredCollections = useMemo(() => {
+    const query = historySearchQuery.trim().toLowerCase();
+
+    return collections.filter((collection) => {
+      if (
+        query &&
+        !String(collection.soaNumber || "")
+          .toLowerCase()
+          .includes(query)
+      ) {
+        return false;
+      }
+
+      if (
+        historyBillingType !== "ALL" &&
+        collection.billingType !== historyBillingType
+      ) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [collections, historySearchQuery, historyBillingType]);
+
   const totalHistoryPages = Math.max(
     1,
-    Math.ceil(collections.length / historyPageSize),
+    Math.ceil(filteredCollections.length / historyPageSize),
   );
 
   const paginatedCollections = useMemo(() => {
     const start = (historyPage - 1) * historyPageSize;
     const end = start + historyPageSize;
 
-    return collections.slice(start, end);
-  }, [collections, historyPage, historyPageSize]);
+    return filteredCollections.slice(start, end);
+  }, [filteredCollections, historyPage, historyPageSize]);
 
   useEffect(() => {
     setHistoryPage(1);
-  }, [selectedTruck]);
+  }, [selectedTruck, historySearchQuery, historyBillingType]);
 
   useEffect(() => {
     if (historyPage > totalHistoryPages) {
@@ -330,6 +383,44 @@ export default function CollectionsPage() {
   const selectedTrips = useMemo(() => {
     return trips.filter((trip) => selectedTripIds.includes(trip._id));
   }, [trips, selectedTripIds]);
+
+  const selectedCoverageRange = useMemo(() => {
+    if (selectedTrips.length === 0) {
+      return {
+        startDate: "",
+        endDate: "",
+      };
+    }
+
+    const dates = selectedTrips
+      .map((trip) => trip.dateIso)
+      .filter(Boolean)
+      .sort();
+
+    return {
+      startDate: dates[0] || "",
+      endDate: dates[dates.length - 1] || "",
+    };
+  }, [selectedTrips]);
+
+  const editCoverageRange = useMemo(() => {
+    if (!editCollection || editCollectionTripIds.length === 0) {
+      return {
+        startDate: "",
+        endDate: "",
+      };
+    }
+
+    const dates = editCollection.trips
+      .filter((trip) => editCollectionTripIds.includes(trip._id))
+      .map((trip) => new Date(trip.date).toISOString().slice(0, 10))
+      .sort();
+
+    return {
+      startDate: dates[0] || "",
+      endDate: dates[dates.length - 1] || "",
+    };
+  }, [editCollection, editCollectionTripIds]);
 
   const selectedCollectionTotal = useMemo(() => {
     return selectedTrips.reduce((sum, trip) => {
@@ -394,23 +485,6 @@ export default function CollectionsPage() {
       return;
     }
 
-    if (
-      (coverageStartDate && !coverageEndDate) ||
-      (!coverageStartDate && coverageEndDate)
-    ) {
-      toast.error("Please enter both Date Covered fields");
-      return;
-    }
-
-    if (
-      coverageStartDate &&
-      coverageEndDate &&
-      coverageStartDate > coverageEndDate
-    ) {
-      toast.error("Coverage start date cannot be after end date");
-      return;
-    }
-
     const invalidAdjustment = collectionAdjustments.some(
       (adjustment) =>
         !adjustment.description.trim() ||
@@ -435,8 +509,8 @@ export default function CollectionsPage() {
         truckId: selectedTruck,
         tripIds: selectedTripIds,
         collectionDate,
-        coverageStartDate,
-        coverageEndDate,
+        coverageStartDate: selectedCoverageRange.startDate,
+        coverageEndDate: selectedCoverageRange.endDate,
         soaNumber: collectionSoaNumber,
         method: collectionMethod,
         reference: collectionReference,
@@ -451,8 +525,6 @@ export default function CollectionsPage() {
       setCollectionNote("");
       setCollectionSoaNumber("");
       setCollectionAdjustments([]);
-      setCoverageStartDate("");
-      setCoverageEndDate("");
       setBillingType("Rate Only");
 
       toast.success("Collection recorded successfully");
@@ -497,18 +569,6 @@ export default function CollectionsPage() {
       new Date(collection.collectionDate).toISOString().slice(0, 10),
     );
 
-    setEditCoverageStartDate(
-      collection.coverageStartDate
-        ? new Date(collection.coverageStartDate).toISOString().slice(0, 10)
-        : "",
-    );
-
-    setEditCoverageEndDate(
-      collection.coverageEndDate
-        ? new Date(collection.coverageEndDate).toISOString().slice(0, 10)
-        : "",
-    );
-
     setEditCollectionMethod(collection.method || "Check");
     setEditCollectionReference(collection.reference || "");
     setEditCollectionSoaNumber(collection.soaNumber || "");
@@ -528,23 +588,6 @@ export default function CollectionsPage() {
       return;
     }
 
-    if (
-      (editCoverageStartDate && !editCoverageEndDate) ||
-      (!editCoverageStartDate && editCoverageEndDate)
-    ) {
-      toast.error("Please enter both Date Covered fields");
-      return;
-    }
-
-    if (
-      editCoverageStartDate &&
-      editCoverageEndDate &&
-      editCoverageStartDate > editCoverageEndDate
-    ) {
-      toast.error("Coverage start date cannot be after end date");
-      return;
-    }
-
     const invalidAdjustment = editCollectionAdjustments.some(
       (adjustment) =>
         !adjustment.description.trim() ||
@@ -557,12 +600,14 @@ export default function CollectionsPage() {
       return;
     }
 
-    const editTripSubtotal = editCollection.trips.reduce((sum, trip) => {
-      const rate = Number(trip.rate || 0);
-      const vat = Number(trip.vat || 0);
+    const editTripSubtotal = editCollection.trips
+      .filter((trip) => editCollectionTripIds.includes(trip._id))
+      .reduce((sum, trip) => {
+        const rate = Number(trip.rate || 0);
+        const vat = Number(trip.vat || 0);
 
-      return sum + (editBillingType === "Rate + VAT" ? rate + vat : rate);
-    }, 0);
+        return sum + (editBillingType === "Rate + VAT" ? rate + vat : rate);
+      }, 0);
 
     const editAdjustmentTotal = editCollectionAdjustments.reduce(
       (sum, adjustment) =>
@@ -583,8 +628,8 @@ export default function CollectionsPage() {
     try {
       await api.put(`/collections/${editCollection._id}`, {
         collectionDate: editCollectionDate,
-        coverageStartDate: editCoverageStartDate,
-        coverageEndDate: editCoverageEndDate,
+        coverageStartDate: editCoverageRange.startDate,
+        coverageEndDate: editCoverageRange.endDate,
         soaNumber: editCollectionSoaNumber,
         method: editCollectionMethod,
         reference: editCollectionReference,
@@ -642,328 +687,259 @@ export default function CollectionsPage() {
 
   return (
     <div className="space-y-3.5">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         {/* TOTAL RECEIVABLES */}
-        <div className="relative overflow-hidden rounded-xl border border-border bg-background p-4 shadow-sm">
-          <div className="flex items-start justify-between gap-4">
+        <Card size="sm">
+          <CardHeader className="grid grid-cols-[1fr_auto] items-start">
             <div>
               <div className="flex items-center gap-1.5">
-                <div className="text-[0.68rem] font-semibold tracking-[0.08em] uppercase text-muted-foreground">
-                  Total Receivables
-                </div>
+                <CardTitle>Total Receivables</CardTitle>
 
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className="h-3.5 w-3.5 cursor-help text-muted-foreground" />
-                    </TooltipTrigger>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="size-3.5 cursor-help text-muted-foreground" />
+                  </TooltipTrigger>
 
-                    <TooltipContent className="max-w-[260px] text-xs">
-                      Total value of all working trips. Direct trucks include
-                      VAT; subcontracted trucks use Rate only.
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-
-              <div className="mt-2 text-2xl font-bold tabular-nums text-blue-600 dark:text-blue-400">
-                {loading ? "—" : peso(stats.totalBillings)}
-              </div>
-
-              <div className="mt-1 text-xs text-muted-foreground">
-                Total value of working trips
+                  <TooltipContent className="max-w-[260px]">
+                    Total value of all working trips. Direct trucks include VAT;
+                    subcontracted trucks use Rate only.
+                  </TooltipContent>
+                </Tooltip>
               </div>
             </div>
 
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
-              <HandCoins className="h-5 w-5" strokeWidth={2} />
+            <div className="grid size-8 place-items-center rounded-md bg-muted text-muted-foreground">
+              <HandCoins className="size-4" />
             </div>
-          </div>
+          </CardHeader>
 
-          <div className="absolute inset-x-0 bottom-0 h-1 bg-blue-500/70" />
-        </div>
+          <CardContent>
+            <div className="text-2xl font-semibold tabular-nums">
+              {loading ? "—" : peso(stats.totalBillings)}
+            </div>
+          </CardContent>
+        </Card>
 
         {/* COLLECTED */}
-        <div className="relative overflow-hidden rounded-xl border border-border bg-background p-4 shadow-sm">
-          <div className="flex items-start justify-between gap-4">
+        <Card size="sm">
+          <CardHeader className="grid grid-cols-[1fr_auto] items-start">
             <div>
               <div className="flex items-center gap-1.5">
-                <div className="text-[0.68rem] font-semibold tracking-[0.08em] uppercase text-muted-foreground">
-                  Collected
-                </div>
+                <CardTitle>Collected</CardTitle>
 
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className="h-3.5 w-3.5 cursor-help text-muted-foreground" />
-                    </TooltipTrigger>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="size-3.5 cursor-help text-muted-foreground" />
+                  </TooltipTrigger>
 
-                    <TooltipContent className="max-w-[260px] text-xs">
-                      Actual amount received from recorded collections,
-                      including the selected Rate/VAT billing and any Add or
-                      Less adjustments.
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-
-              <div className="mt-2 text-2xl font-bold tabular-nums text-green-600 dark:text-green-400">
-                {loading ? "—" : peso(stats.collected)}
-              </div>
-
-              <div className="mt-1 text-xs text-muted-foreground">
-                Recorded collections received
+                  <TooltipContent className="max-w-[260px]">
+                    Actual amount received from recorded collections, including
+                    the selected Rate/VAT billing and any Add or Less
+                    adjustments.
+                  </TooltipContent>
+                </Tooltip>
               </div>
             </div>
 
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-green-500/10 text-green-600 dark:text-green-400">
-              <PhilippinePeso className="h-5 w-5" strokeWidth={2} />
+            <div className="grid size-8 place-items-center rounded-md bg-muted text-muted-foreground">
+              <PhilippinePeso className="size-4" />
             </div>
-          </div>
+          </CardHeader>
 
-          <div className="absolute inset-x-0 bottom-0 h-1 bg-green-500/70" />
-        </div>
+          <CardContent>
+            <div className="text-2xl font-semibold tabular-nums">
+              {loading ? "—" : peso(stats.collected)}
+            </div>
+          </CardContent>
+        </Card>
 
         {/* UNCOLLECTED */}
-        <div className="relative overflow-hidden rounded-xl border border-border bg-background p-4 shadow-sm">
-          <div className="flex items-start justify-between gap-4">
+        <Card size="sm">
+          <CardHeader className="grid grid-cols-[1fr_auto] items-start">
             <div>
               <div className="flex items-center gap-1.5">
-                <div className="text-[0.68rem] font-semibold tracking-[0.08em] uppercase text-muted-foreground">
-                  Uncollected
-                </div>
+                <CardTitle>Uncollected</CardTitle>
 
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className="h-3.5 w-3.5 cursor-help text-muted-foreground" />
-                    </TooltipTrigger>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="size-3.5 cursor-help text-muted-foreground" />
+                  </TooltipTrigger>
 
-                    <TooltipContent className="max-w-[260px] text-xs">
-                      Value of working trips not yet included in a collection.
-                      Direct trucks include VAT; subcontracted trucks use Rate
-                      only.
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-
-              <div className="mt-2 text-2xl font-bold tabular-nums text-red-500">
-                {loading ? "—" : peso(stats.outstanding)}
-              </div>
-
-              <div className="mt-1 text-xs text-muted-foreground">
-                To be collected
+                  <TooltipContent className="max-w-[260px]">
+                    Value of working trips not yet included in a collection.
+                    Direct trucks include VAT; subcontracted trucks use Rate
+                    only.
+                  </TooltipContent>
+                </Tooltip>
               </div>
             </div>
 
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-red-500/10 text-red-500 dark:text-red-400">
-              <Clock3 className="h-5 w-5" strokeWidth={2} />
+            <div className="grid size-8 place-items-center rounded-md bg-muted text-muted-foreground">
+              <Clock3 className="size-4" />
             </div>
-          </div>
+          </CardHeader>
 
-          <div className="absolute inset-x-0 bottom-0 h-1 bg-red-500/70" />
-        </div>
+          <CardContent>
+            <div className="text-2xl font-semibold tabular-nums">
+              {loading ? "—" : peso(stats.outstanding)}
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      <div className="border rounded-lg bg-background overflow-hidden">
-        <div className="p-3.5 border-b border-border">
-          <h2 className="text-sm font-semibold">Collection Trips</h2>
+      <Card size="sm" className="!gap-0">
+        <CardHeader className="border-b">
+          <div>
+            <CardTitle>Collection Trips</CardTitle>
 
-          <p className="text-xs text-muted-foreground">
-            Select trips included in a client payment.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-end gap-2 border-b border-border bg-background px-3.5 py-3">
-          <div className="min-w-[200px] flex-1">
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">
-              Search
-            </label>
-
-            <div className="relative">
-              <Search
-                size={14}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
-              />
-
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search shipment number..."
-                className="w-full h-9 rounded-md border border-border bg-background pl-9 pr-3 text-xs outline-none focus:ring-2 focus:ring-ring"
-              />
-            </div>
+            <CardDescription>
+              Select trips included in a client payment.
+            </CardDescription>
           </div>
+        </CardHeader>
 
-          <div className="min-w-[120px]">
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">
-              Collection
-            </label>
+        <CardContent className="border-b py-4">
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="min-w-[200px] flex-1 space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Search</Label>
 
-            <Popover
-              open={openCollectionFilter}
-              onOpenChange={setOpenCollectionFilter}
-            >
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  role="combobox"
-                  className="h-9 w-full rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between outline-none focus:ring-2 focus:ring-ring"
-                >
-                  <span>
-                    {collectionFilter === "ALL" ? "All" : collectionFilter}
-                  </span>
+              <InputGroup>
+                <InputGroupAddon>
+                  <Search />
+                </InputGroupAddon>
 
-                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </button>
-              </PopoverTrigger>
-
-              <PopoverContent className="w-[150px] p-0" align="start">
-                <Command>
-                  <CommandGroup>
-                    {[
-                      ["ALL", "All"],
-                      ["Pending", "Pending"],
-                      ["Collected", "Collected"],
-                    ].map(([value, label]) => (
-                      <CommandItem
-                        key={value}
-                        value={label}
-                        className="text-xs"
-                        onSelect={() => {
-                          setCollectionFilter(
-                            value as "ALL" | "Collected" | "Pending",
-                          );
-                          setOpenCollectionFilter(false);
-                        }}
-                      >
-                        <Check
-                          className={`mr-2 h-4 w-4 ${
-                            collectionFilter === value
-                              ? "opacity-100"
-                              : "opacity-0"
-                          }`}
-                        />
-
-                        {label}
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </Command>
-              </PopoverContent>
-            </Popover>
-          </div>
-
-          <div className="min-w-[260px] flex-1 max-w-[320px]">
-            <label className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1">
-              <CalendarDays size={12} />
-              Period
-            </label>
-
-            <Popover open={openDateRange} onOpenChange={setOpenDateRange}>
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  className="w-full h-9 justify-between rounded-md border border-border bg-background px-3 text-sm flex items-center"
-                >
-                  <span
-                    className={
-                      !startDate ? "text-muted-foreground text-xs" : ""
-                    }
-                  >
-                    {startDate && endDate
-                      ? `${format(
-                          new Date(`${startDate}T00:00:00`),
-                          "MMM d, yyyy",
-                        )} - ${format(
-                          new Date(`${endDate}T00:00:00`),
-                          "MMM d, yyyy",
-                        )}`
-                      : "Select date range"}
-                  </span>
-
-                  <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
-                </button>
-              </PopoverTrigger>
-
-              <PopoverContent className="w-auto p-0">
-                <Calendar
-                  mode="range"
-                  selected={
-                    startDate
-                      ? {
-                          from: new Date(`${startDate}T00:00:00`),
-                          to: endDate
-                            ? new Date(`${endDate}T00:00:00`)
-                            : undefined,
-                        }
-                      : undefined
-                  }
-                  onSelect={(range: DateRange | undefined) => {
-                    if (!range?.from) {
-                      setStartDate("");
-                      setEndDate("");
-                      return;
-                    }
-
-                    const start = range.from;
-                    const end = range.to;
-
-                    setStartDate(format(start, "yyyy-MM-dd"));
-
-                    const hasCompleteRange =
-                      end && end.getTime() !== start.getTime();
-
-                    if (hasCompleteRange) {
-                      setEndDate(format(end, "yyyy-MM-dd"));
-                      setOpenDateRange(false);
-                    } else {
-                      setEndDate("");
-                    }
-                  }}
-                  numberOfMonths={2}
-                  defaultMonth={
-                    startDate ? new Date(`${startDate}T00:00:00`) : new Date()
-                  }
-                  showOutsideDays
+                <InputGroupInput
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search shipment number..."
                 />
-              </PopoverContent>
-            </Popover>
+              </InputGroup>
+            </div>
+
+            <div className="min-w-[140px] space-y-1.5">
+              <Label className="text-xs text-muted-foreground">
+                Collection
+              </Label>
+
+              <Select
+                value={collectionFilter}
+                onValueChange={(value) =>
+                  setCollectionFilter(value as "ALL" | "Collected" | "Pending")
+                }
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+
+                <SelectContent>
+                  <SelectItem value="ALL">All</SelectItem>
+                  <SelectItem value="Pending">Pending</SelectItem>
+                  <SelectItem value="Collected">Collected</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="min-w-[260px] max-w-[320px] flex-1 space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Period</Label>
+
+              <Popover open={openDateRange} onOpenChange={setOpenDateRange}>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full justify-start font-normal"
+                  >
+                    <CalendarDays className="size-4 shrink-0 text-muted-foreground" />
+
+                    <span className={!startDate ? "text-muted-foreground" : ""}>
+                      {startDate && endDate
+                        ? `${format(
+                            new Date(`${startDate}T00:00:00`),
+                            "MMM d, yyyy",
+                          )} - ${format(
+                            new Date(`${endDate}T00:00:00`),
+                            "MMM d, yyyy",
+                          )}`
+                        : "Select date range"}
+                    </span>
+                  </Button>
+                </PopoverTrigger>
+
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="range"
+                    selected={
+                      startDate
+                        ? {
+                            from: new Date(`${startDate}T00:00:00`),
+                            to: endDate
+                              ? new Date(`${endDate}T00:00:00`)
+                              : undefined,
+                          }
+                        : undefined
+                    }
+                    onSelect={(range: DateRange | undefined) => {
+                      if (!range?.from) {
+                        setStartDate("");
+                        setEndDate("");
+                        return;
+                      }
+
+                      const start = range.from;
+                      const end = range.to;
+
+                      setStartDate(format(start, "yyyy-MM-dd"));
+
+                      const hasCompleteRange =
+                        end && end.getTime() !== start.getTime();
+
+                      if (hasCompleteRange) {
+                        setEndDate(format(end, "yyyy-MM-dd"));
+                        setOpenDateRange(false);
+                      } else {
+                        setEndDate("");
+                      }
+                    }}
+                    numberOfMonths={2}
+                    defaultMonth={
+                      startDate ? new Date(`${startDate}T00:00:00`) : new Date()
+                    }
+                    showOutsideDays
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                setSearchQuery("");
+                setCollectionFilter("ALL");
+                setStartDate("");
+                setEndDate("");
+                setSelectedTripIds([]);
+              }}
+              disabled={
+                !searchQuery &&
+                collectionFilter === "ALL" &&
+                !startDate &&
+                !endDate
+              }
+            >
+              <RotateCcw />
+            </Button>
           </div>
+        </CardContent>
 
-          <button
-            type="button"
-            onClick={() => {
-              setSearchQuery("");
-              setCollectionFilter("ALL");
-              setStartDate("");
-              setEndDate("");
-              setSelectedTripIds([]);
-            }}
-            disabled={
-              !searchQuery &&
-              collectionFilter === "ALL" &&
-              !startDate &&
-              !endDate
-            }
-            className="h-9 px-3 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:pointer-events-none flex items-center gap-1.5"
-          >
-            <RotateCcw className="h-3.5 w-3.5" />
-            Reset
-          </button>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr>
-                <th className="bg-muted/60 border-b border-border px-2.5 py-3 w-[40px]">
-                  <input
-                    type="checkbox"
+        <div className="[&>div]:max-h-[calc(100vh-360px)] [&>div]:overflow-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="sticky top-0 z-20 w-[40px] bg-background text-center text-xs">
+                  <Checkbox
                     checked={allSelected}
-                    onChange={() => {
+                    onCheckedChange={() => {
                       if (allSelected) {
                         setSelectedTripIds([]);
                       } else {
@@ -972,97 +948,100 @@ export default function CollectionsPage() {
                         );
                       }
                     }}
-                    className="w-4 h-4 rounded border-border cursor-pointer"
+                    aria-label="Select all available trips"
                   />
-                </th>
+                </TableHead>
 
-                {[
-                  "Date",
-                  "Shipment Number",
-                  "Rate",
-                  "VAT",
-                  "Total (VAT Incl.)",
-                  "Status",
-                  "SOA Number",
-                  "Comment",
-                ].map((label) => {
-                  const numeric = ["Rate", "VAT", "Total (VAT Incl.)"].includes(
-                    label,
-                  );
+                <TableHead className="sticky top-0 z-20 bg-background text-xs">
+                  Date
+                </TableHead>
 
-                  return (
-                    <th
-                      key={label}
-                      className={`bg-muted/60 border-b border-border text-xs font-semibold text-muted-foreground px-2.5 py-3 ${
-                        numeric
-                          ? "text-right"
-                          : label === "Status"
-                            ? "text-center"
-                            : "text-left"
-                      }`}
-                    >
-                      {label}
-                    </th>
-                  );
-                })}
-              </tr>
-            </thead>
+                <TableHead className="sticky top-0 z-20 bg-background text-xs">
+                  Shipment Number
+                </TableHead>
 
-            <tbody>
+                <TableHead className="sticky top-0 z-20 bg-background text-right text-xs">
+                  Rate
+                </TableHead>
+
+                <TableHead className="sticky top-0 z-20 bg-background text-right text-xs">
+                  VAT
+                </TableHead>
+
+                <TableHead className="sticky top-0 z-20 whitespace-nowrap bg-background text-right text-xs">
+                  Total (VAT Incl.)
+                </TableHead>
+
+                <TableHead className="sticky top-0 z-20 bg-background text-center text-xs">
+                  Status
+                </TableHead>
+
+                <TableHead className="sticky top-0 z-20 whitespace-nowrap bg-background text-xs">
+                  SOA Number
+                </TableHead>
+
+                <TableHead className="sticky top-0 z-20 bg-background text-xs">
+                  Comment
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+
+            <TableBody>
               {paginatedTrips.map((trip) => {
                 const collected = collectedTripIds.has(trip._id);
                 const tripCollection = collectionByTripId.get(trip._id);
 
                 return (
-                  <tr key={trip._id} className="hover:bg-muted/50">
-                    <td className="text-center px-2.5 py-2.5 border-b border-border">
-                      <input
-                        type="checkbox"
+                  <TableRow key={trip._id}>
+                    <TableCell className="text-center">
+                      <Checkbox
                         disabled={collected}
                         checked={selectedTripIds.includes(trip._id)}
-                        onChange={() => {
+                        onCheckedChange={() => {
                           setSelectedTripIds((current) =>
                             current.includes(trip._id)
                               ? current.filter((id) => id !== trip._id)
                               : [...current, trip._id],
                           );
                         }}
-                        className="w-4 h-4 rounded border-border cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
+                        aria-label={`Select trip ${trip.shipmentNumber || trip.dateText}`}
                       />
-                    </td>
+                    </TableCell>
 
-                    <td className="text-xs px-2.5 py-2.5 border-b border-border">
+                    <TableCell className="text-xs whitespace-nowrap">
                       {trip.dateText}
-                    </td>
+                    </TableCell>
 
-                    <td className="text-xs px-2.5 py-2.5 border-b border-border">
+                    <TableCell className="text-xs">
                       {trip.shipmentNumber || "—"}
-                    </td>
+                    </TableCell>
 
-                    <td className="text-xs text-right tabular-nums whitespace-nowrap px-2.5 py-2.5 border-b border-border">
+                    <TableCell className="text-right text-xs tabular-nums whitespace-nowrap">
                       {peso(Number(trip.rate || 0))}
-                    </td>
+                    </TableCell>
 
-                    <td className="text-xs text-right tabular-nums whitespace-nowrap px-2.5 py-2.5 border-b border-border">
+                    <TableCell className="text-right text-xs tabular-nums whitespace-nowrap">
                       {peso(Number(trip.vat || 0))}
-                    </td>
+                    </TableCell>
 
-                    <td className="text-xs text-right tabular-nums whitespace-nowrap px-2.5 py-2.5 border-b border-border">
+                    <TableCell className="text-right text-xs tabular-nums whitespace-nowrap">
                       {peso(Number(trip.rate || 0) + Number(trip.vat || 0))}
-                    </td>
+                    </TableCell>
 
-                    <td className="text-center text-xs px-2.5 py-2.5 border-b border-border">
+                    <TableCell className="text-center">
                       {collected ? (
-                        <span className="inline-flex items-center rounded-md border border-green-500/20 bg-green-500/10 px-2.5 py-1 text-xs font-medium text-green-600 dark:text-green-400">
+                        <Badge
+                          variant="secondary"
+                          className="bg-green-500/10 text-green-600 dark:text-green-400"
+                        >
                           Collected
-                        </span>
+                        </Badge>
                       ) : (
-                        <span className="inline-flex items-center rounded-md border border-border bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
-                          Pending
-                        </span>
+                        <Badge variant="secondary">Pending</Badge>
                       )}
-                    </td>
-                    <td className="text-xs px-2.5 py-2.5 border-b border-border whitespace-nowrap">
+                    </TableCell>
+
+                    <TableCell className="text-xs whitespace-nowrap">
                       {collected ? (
                         <span className="font-medium">
                           {tripCollection?.soaNumber || "—"}
@@ -1070,17 +1049,15 @@ export default function CollectionsPage() {
                       ) : (
                         <span className="text-muted-foreground">—</span>
                       )}
-                    </td>
-                    <td className="px-2.5 py-2.5 text-xs border-b border-border whitespace-nowrap">
+                    </TableCell>
+
+                    <TableCell className="text-xs whitespace-nowrap">
                       <Popover
                         open={commentTripId === trip._id}
                         onOpenChange={(open) => {
                           if (open) {
                             setCommentTripId(trip._id);
                             setCommentDraft(trip.collectionComment || "");
-
-                            // Existing comment = View mode
-                            // No comment = Add mode immediately
                             setEditingComment(!trip.collectionComment);
                           } else if (!savingComment) {
                             setCommentTripId(null);
@@ -1090,27 +1067,23 @@ export default function CollectionsPage() {
                         }}
                       >
                         <PopoverTrigger asChild>
-                          <button
+                          <Button
                             type="button"
+                            variant="link"
+                            size="sm"
                             className={
                               trip.collectionComment
-                                ? "whitespace-nowrap text-xs font-medium text-blue-600 hover:text-blue-700 hover:underline dark:text-blue-400 dark:hover:text-blue-300"
-                                : "whitespace-nowrap text-xs font-medium text-muted-foreground hover:text-foreground"
+                                ? "h-auto p-0 text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                                : "h-auto p-0 text-xs text-muted-foreground"
                             }
                           >
-                            {trip.collectionComment ? (
-                              "View comment"
-                            ) : (
-                              <>
-                                <span className="opacity-50">
-                                  Write a comment...
-                                </span>
-                              </>
-                            )}
-                          </button>
+                            {trip.collectionComment
+                              ? "View comments"
+                              : "Write a comment..."}
+                          </Button>
                         </PopoverTrigger>
 
-                        <PopoverContent align="end" className="w-[340px] p-3">
+                        <PopoverContent align="end" className="w-[340px]">
                           <div className="space-y-3">
                             <div>
                               <div className="text-sm font-medium">
@@ -1122,6 +1095,7 @@ export default function CollectionsPage() {
                                   <div className="text-[10px] text-muted-foreground">
                                     Shipment No.
                                   </div>
+
                                   <div className="text-xs font-medium">
                                     {trip.shipmentNumber || "—"}
                                   </div>
@@ -1133,6 +1107,7 @@ export default function CollectionsPage() {
                                   <div className="text-[10px] text-muted-foreground">
                                     SOA Number
                                   </div>
+
                                   <div className="text-xs font-medium">
                                     {tripCollection?.soaNumber || "—"}
                                   </div>
@@ -1142,7 +1117,7 @@ export default function CollectionsPage() {
 
                             {editingComment ? (
                               <>
-                                <textarea
+                                <Textarea
                                   value={commentDraft}
                                   onChange={(e) =>
                                     setCommentDraft(e.target.value)
@@ -1151,7 +1126,7 @@ export default function CollectionsPage() {
                                   rows={4}
                                   autoFocus
                                   placeholder="Add comment..."
-                                  className="w-full resize-none rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                                  className="resize-none"
                                 />
 
                                 <div className="flex items-center justify-between gap-3">
@@ -1160,72 +1135,72 @@ export default function CollectionsPage() {
                                   </span>
 
                                   <div className="flex items-center gap-2">
-                                    <button
+                                    <Button
                                       type="button"
+                                      variant="ghost"
+                                      size="sm"
                                       disabled={savingComment}
                                       onClick={() => {
                                         if (trip.collectionComment) {
-                                          // Existing comment: cancel editing and return to View mode
                                           setCommentDraft(
                                             trip.collectionComment,
                                           );
                                           setEditingComment(false);
                                         } else {
-                                          // New comment: close popover
                                           setCommentTripId(null);
                                           setCommentDraft("");
                                           setEditingComment(false);
                                         }
                                       }}
-                                      className="h-8 rounded-md px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
                                     >
                                       Cancel
-                                    </button>
+                                    </Button>
 
-                                    <button
+                                    <Button
                                       type="button"
+                                      size="sm"
                                       disabled={savingComment}
                                       onClick={() =>
                                         handleSaveCollectionComment(trip._id)
                                       }
-                                      className="h-8 rounded-md bg-foreground px-3 text-xs font-medium text-background transition hover:opacity-90 disabled:opacity-50"
                                     >
                                       {savingComment ? "Saving..." : "Save"}
-                                    </button>
+                                    </Button>
                                   </div>
                                 </div>
                               </>
                             ) : (
                               <>
-                                <div className="rounded-md border border-border bg-muted/40 px-3 py-3 text-xs whitespace-pre-wrap break-words">
+                                <div className="rounded-md border bg-muted/40 px-3 py-3 text-xs whitespace-pre-wrap break-words">
                                   {trip.collectionComment}
                                 </div>
 
                                 <div className="flex justify-end">
-                                  <button
+                                  <Button
                                     type="button"
+                                    variant="outline"
+                                    size="sm"
                                     onClick={() => {
                                       setCommentDraft(
                                         trip.collectionComment || "",
                                       );
                                       setEditingComment(true);
                                     }}
-                                    className="h-8 rounded-md border border-border bg-background px-3 text-xs font-medium transition-colors hover:bg-muted"
                                   >
                                     Edit
-                                  </button>
+                                  </Button>
                                 </div>
                               </>
                             )}
                           </div>
                         </PopoverContent>
                       </Popover>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 );
               })}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
 
         {filteredTrips.length > 0 && (
@@ -1244,147 +1219,210 @@ export default function CollectionsPage() {
             />
           </div>
         )}
-      </div>
+      </Card>
 
       {/* Collection History */}
-      <div className="border rounded-lg bg-background overflow-hidden">
-        <div className="p-3.5 border-b border-border">
-          <h2 className="text-sm font-semibold">Collection History</h2>
+      <Card size="sm" className="!gap-0">
+        <CardHeader className="border-b">
+          <div>
+            <CardTitle>Collection History</CardTitle>
 
-          <p className="text-xs text-muted-foreground">
-            Recorded client payment batches.
-          </p>
-        </div>
+            <CardDescription>Recorded client payment batches.</CardDescription>
+          </div>
+        </CardHeader>
 
-        <div className="overflow-x-clip">
-          <table className="w-full text-sm">
-            <thead>
-              <tr>
-                {[
-                  "Date Received",
-                  "Date Covered",
-                  "SOA Number",
-                  "Method",
-                  "Reference",
-                  "Billing Type",
-                  "Trips",
-                  "Amount",
-                  "Actions",
-                ].map((label) => {
-                  const rightAligned = label === "Amount";
-                  const centered = ["Trips", "Actions"].includes(label);
+        <CardContent className="border-b py-4">
+          <div className="flex items-end gap-2">
+            <div className="min-w-[240px] flex-1 space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Search</Label>
 
-                  return (
-                    <th
-                      key={label}
-                      className={`bg-muted/60 border-b border-border px-2.5 py-3 text-xs font-semibold text-muted-foreground ${
-                        rightAligned
-                          ? "text-right"
-                          : centered
-                            ? "text-center"
-                            : "text-left"
-                      }`}
-                    >
-                      {label}
-                    </th>
-                  );
-                })}
-              </tr>
-            </thead>
+              <InputGroup>
+                <InputGroupAddon>
+                  <Search />
+                </InputGroupAddon>
 
-            <tbody>
-              {collections.length === 0 ? (
-                <tr>
-                  <td
+                <InputGroupInput
+                  value={historySearchQuery}
+                  onChange={(e) => setHistorySearchQuery(e.target.value)}
+                  placeholder="Search SOA number..."
+                />
+              </InputGroup>
+            </div>
+
+            <div className="w-[180px] space-y-1.5">
+              <Label className="text-xs text-muted-foreground">
+                Billing Type
+              </Label>
+
+              <Select
+                value={historyBillingType}
+                onValueChange={(value) =>
+                  setHistoryBillingType(
+                    value as "ALL" | "Rate Only" | "Rate + VAT",
+                  )
+                }
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+
+                <SelectContent>
+                  <SelectItem value="ALL">All</SelectItem>
+                  <SelectItem value="Rate Only">Rate Only</SelectItem>
+                  <SelectItem value="Rate + VAT">Rate + VAT</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+
+        <div className="[&>div]:max-h-[calc(100vh-360px)] [&>div]:overflow-auto">
+          <Table className="table-fixed">
+            <TableHeader>
+              <TableRow>
+                <TableHead className="sticky top-0 z-20 w-[11%] whitespace-nowrap bg-background text-xs">
+                  Date Received
+                </TableHead>
+
+                <TableHead className="sticky top-0 z-20 w-[11%] whitespace-nowrap bg-background text-xs">
+                  SOA Number
+                </TableHead>
+
+                <TableHead className="sticky top-0 z-20 w-[13%] whitespace-nowrap bg-background text-xs">
+                  Date Covered
+                </TableHead>
+
+                <TableHead className="sticky top-0 z-20 w-[10%] bg-background text-center text-xs">
+                  Trips
+                </TableHead>
+
+                <TableHead className="sticky top-0 z-20 w-[10%] whitespace-nowrap bg-background text-xs">
+                  Method
+                </TableHead>
+
+                <TableHead className="sticky top-0 z-20 w-[14%] whitespace-nowrap bg-background text-xs">
+                  Reference
+                </TableHead>
+
+                <TableHead className="sticky top-0 z-20 w-[11%] whitespace-nowrap bg-background text-xs">
+                  Billing Type
+                </TableHead>
+
+                <TableHead className="sticky top-0 z-20 w-[10%] whitespace-nowrap bg-background text-right text-xs">
+                  Amount
+                </TableHead>
+
+                <TableHead className="sticky top-0 z-20 w-[10%] bg-background text-center text-xs">
+                  Actions
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+
+            <TableBody>
+              {filteredCollections.length === 0 ? (
+                <TableRow>
+                  <TableCell
                     colSpan={9}
-                    className="px-4 py-8 text-center text-xs text-muted-foreground"
+                    className="h-24 text-center text-xs text-muted-foreground"
                   >
-                    No collection history yet.
-                  </td>
-                </tr>
+                    {historySearchQuery
+                      ? "No matching SOA number found."
+                      : "No collection history yet."}
+                  </TableCell>
+                </TableRow>
               ) : (
                 paginatedCollections.map((collection) => (
-                  <tr
-                    key={collection._id}
-                    className="hover:bg-muted/50 transition-colors"
-                  >
-                    <td className="px-2.5 py-2.5 text-xs border-b border-border whitespace-nowrap">
+                  <TableRow key={collection._id}>
+                    <TableCell className="whitespace-nowrap text-xs">
                       {new Date(collection.collectionDate).toLocaleDateString(
                         "en-US",
                         {
-                          month: "short",
+                          month: "long",
                           day: "numeric",
                           year: "numeric",
                         },
                       )}
-                    </td>
+                    </TableCell>
 
-                    <td className="px-2.5 py-2.5 text-xs border-b border-border whitespace-nowrap">
+                    <TableCell className="whitespace-nowrap text-xs font-medium">
+                      {collection.soaNumber || "—"}
+                    </TableCell>
+
+                    <TableCell className="whitespace-nowrap text-xs">
                       {collection.coverageStartDate &&
                       collection.coverageEndDate
-                        ? `${new Date(
+                        ? new Date(
                             collection.coverageStartDate,
-                          ).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                          })} – ${new Date(
-                            collection.coverageEndDate,
-                          ).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                          })}`
+                          ).toDateString() ===
+                          new Date(collection.coverageEndDate).toDateString()
+                          ? new Date(
+                              collection.coverageStartDate,
+                            ).toLocaleDateString("en-US", {
+                              month: "long",
+                              day: "numeric",
+                              year: "numeric",
+                            })
+                          : `${new Date(
+                              collection.coverageStartDate,
+                            ).toLocaleDateString("en-US", {
+                              month: "long",
+                              day: "numeric",
+                              year: "numeric",
+                            })} – ${new Date(
+                              collection.coverageEndDate,
+                            ).toLocaleDateString("en-US", {
+                              month: "long",
+                              day: "numeric",
+                              year: "numeric",
+                            })}`
                         : "—"}
-                    </td>
+                    </TableCell>
 
-                    <td className="px-2.5 py-2.5 text-xs font-medium border-b border-border whitespace-nowrap">
-                      {collection.soaNumber || "—"}
-                    </td>
-
-                    <td className="px-2.5 py-2.5 text-xs border-b border-border">
-                      {collection.method || "—"}
-                    </td>
-
-                    <td className="px-2.5 py-2.5 text-xs border-b border-border">
-                      {collection.reference || "—"}
-                    </td>
-
-                    <td className="px-2.5 py-2.5 text-xs border-b border-border">
-                      <span className="inline-flex items-center rounded-md border border-border bg-muted px-2.5 py-1 text-xs font-medium">
-                        {collection.billingType}
-                      </span>
-                    </td>
-
-                    <td className="px-2.5 py-2.5 text-xs text-center tabular-nums border-b border-border">
+                    <TableCell className="text-center text-xs tabular-nums">
                       {collection.trips.length}
-                    </td>
+                    </TableCell>
 
-                    <td className="px-2.5 py-2.5 text-xs text-right tabular-nums font-medium whitespace-nowrap border-b border-border">
+                    <TableCell className="text-xs">
+                      {collection.method || "—"}
+                    </TableCell>
+
+                    <TableCell className="text-xs">
+                      {collection.reference || "—"}
+                    </TableCell>
+
+                    <TableCell className="text-xs">
+                      <Badge variant="secondary">
+                        {collection.billingType}
+                      </Badge>
+                    </TableCell>
+
+                    <TableCell className="whitespace-nowrap text-right text-xs font-medium tabular-nums">
                       {peso(Number(collection.totalAmount || 0))}
-                    </td>
-                    <td className="px-2.5 py-2.5 text-center border-b border-border">
-                      <button
+                    </TableCell>
+
+                    <TableCell className="text-center">
+                      <Button
                         type="button"
+                        variant="outline"
+                        size="sm"
                         onClick={() => setViewCollection(collection)}
-                        className="h-8 px-3 rounded-md inline-flex items-center justify-center border border-border bg-background text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                       >
                         View
-                      </button>
-                    </td>
-                  </tr>
+                      </Button>
+                    </TableCell>
+                  </TableRow>
                 ))
               )}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
 
-        {collections.length > 0 && (
+        {filteredCollections.length > 0 && (
           <div className="border-t border-border flex items-center justify-center">
             <Pagination
               currentPage={historyPage}
               totalPages={totalHistoryPages}
-              totalItems={collections.length}
+              totalItems={filteredCollections.length}
               pageSize={historyPageSize}
               onPageChange={setHistoryPage}
               onPageSizeChange={(size) => {
@@ -1394,780 +1432,837 @@ export default function CollectionsPage() {
             />
           </div>
         )}
-      </div>
+      </Card>
 
-      <Modal
+      <Dialog
         open={showCollectModal}
-        onClose={() => {
+        onOpenChange={(open) => {
           if (!savingCollection) {
-            setShowCollectModal(false);
+            setShowCollectModal(open);
           }
         }}
-        title="Mark as Collected"
-        footer={
-          <>
-            <button
+      >
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Mark as Collected</DialogTitle>
+            <DialogDescription>
+              Record the payment details for the selected trips.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {/* DATE RECEIVED */}
+              <div className="space-y-1.5">
+                <Label className="text-xs">Date Received</Label>
+
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full justify-start font-normal"
+                    >
+                      <CalendarDays className="size-4 shrink-0 text-muted-foreground" />
+
+                      {collectionDate
+                        ? format(
+                            new Date(`${collectionDate}T00:00:00`),
+                            "MMMM d, yyyy",
+                          )
+                        : "Select date"}
+                    </Button>
+                  </PopoverTrigger>
+
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={
+                        collectionDate
+                          ? new Date(`${collectionDate}T00:00:00`)
+                          : undefined
+                      }
+                      onSelect={(date) => {
+                        if (!date) return;
+
+                        setCollectionDate(format(date, "yyyy-MM-dd"));
+                      }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* PAYMENT METHOD */}
+              <div className="space-y-1.5">
+                <Label className="text-xs">Payment Method</Label>
+
+                <Select
+                  value={collectionMethod}
+                  onValueChange={setCollectionMethod}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select payment method" />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    <SelectItem value="Check">Check</SelectItem>
+                    <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
+                    <SelectItem value="Cash">Cash</SelectItem>
+                    <SelectItem value="GCash">GCash</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {/* SOA NUMBER */}
+              <div className="space-y-1.5">
+                <Label className="text-xs">SOA Number</Label>
+
+                <Input
+                  value={collectionSoaNumber}
+                  onChange={(e) => setCollectionSoaNumber(e.target.value)}
+                  placeholder="e.g. 2026-003"
+                />
+              </div>
+
+              {/* CHECK NO. / REFERENCE */}
+              <div className="space-y-1.5">
+                <Label className="text-xs">
+                  {collectionMethod === "Check" ? "Check No." : "Reference"}
+                </Label>
+
+                <Input
+                  value={collectionReference}
+                  onChange={(e) => setCollectionReference(e.target.value)}
+                  placeholder={
+                    collectionMethod === "Check"
+                      ? "e.g. 0000130494"
+                      : "e.g. Reference Number"
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {/* DATE COVERED */}
+              <div className="space-y-1.5">
+                <Label className="text-xs">Date Covered</Label>
+
+                <div className="flex h-9 w-full items-center gap-2 rounded-md border bg-muted/50 px-3 text-sm">
+                  <CalendarDays className="size-4 shrink-0 text-muted-foreground" />
+
+                  <span className="truncate">
+                    {selectedCoverageRange.startDate &&
+                    selectedCoverageRange.endDate
+                      ? selectedCoverageRange.startDate ===
+                        selectedCoverageRange.endDate
+                        ? format(
+                            new Date(
+                              `${selectedCoverageRange.startDate}T00:00:00`,
+                            ),
+                            "MMM d, yyyy",
+                          )
+                        : `${format(
+                            new Date(
+                              `${selectedCoverageRange.startDate}T00:00:00`,
+                            ),
+                            "MMM d, yyyy",
+                          )} - ${format(
+                            new Date(
+                              `${selectedCoverageRange.endDate}T00:00:00`,
+                            ),
+                            "MMM d, yyyy",
+                          )}`
+                      : "No selected trips"}
+                  </span>
+                </div>
+              </div>
+
+              {/* BILLING TYPE */}
+              <div className="space-y-1.5">
+                <Label className="text-xs">Billing Type</Label>
+
+                <Select
+                  value={billingType}
+                  onValueChange={(value) =>
+                    setBillingType(value as "Rate Only" | "Rate + VAT")
+                  }
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select billing type" />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    <SelectItem value="Rate Only">Rate Only</SelectItem>
+                    <SelectItem value="Rate + VAT">Rate + VAT</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">Adjustments</Label>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() =>
+                    setCollectionAdjustments((current) => [
+                      ...current,
+                      {
+                        description: "",
+                        type: "Add",
+                        amount: 0,
+                      },
+                    ])
+                  }
+                >
+                  + Add Adjustment
+                </Button>
+              </div>
+
+              {collectionAdjustments.length > 0 ? (
+                <div className="space-y-2">
+                  {collectionAdjustments.map((adjustment, index) => (
+                    <div
+                      key={index}
+                      className="grid grid-cols-[1fr_100px_120px_36px] items-center gap-2"
+                    >
+                      <Input
+                        value={adjustment.description}
+                        onChange={(e) => {
+                          const value = e.target.value;
+
+                          setCollectionAdjustments((current) =>
+                            current.map((item, itemIndex) =>
+                              itemIndex === index
+                                ? { ...item, description: value }
+                                : item,
+                            ),
+                          );
+                        }}
+                        placeholder="Description"
+                      />
+
+                      <Select
+                        value={adjustment.type}
+                        onValueChange={(value) => {
+                          setCollectionAdjustments((current) =>
+                            current.map((item, itemIndex) =>
+                              itemIndex === index
+                                ? {
+                                    ...item,
+                                    type: value as "Add" | "Less",
+                                  }
+                                : item,
+                            ),
+                          );
+                        }}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+
+                        <SelectContent>
+                          <SelectItem value="Add">Add</SelectItem>
+                          <SelectItem value="Less">Less</SelectItem>
+                        </SelectContent>
+                      </Select>
+
+                      <Input
+                        type="text"
+                        min="0"
+                        step="0.01"
+                        value={adjustment.amount || ""}
+                        onChange={(e) => {
+                          const value = Number(e.target.value);
+
+                          setCollectionAdjustments((current) =>
+                            current.map((item, itemIndex) =>
+                              itemIndex === index
+                                ? { ...item, amount: value }
+                                : item,
+                            ),
+                          );
+                        }}
+                        placeholder="Amount"
+                        className="text-right tabular-nums"
+                      />
+
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() =>
+                          setCollectionAdjustments((current) =>
+                            current.filter(
+                              (_, itemIndex) => itemIndex !== index,
+                            ),
+                          )
+                        }
+                        aria-label="Remove adjustment"
+                      >
+                        ×
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-md border border-dashed px-3 py-3 text-center text-xs text-muted-foreground">
+                  No adjustments
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-md border border-border bg-muted/40 p-3 space-y-1.5 text-xs">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Selected Trips</span>
+                <span className="font-medium">{selectedTripIds.length}</span>
+              </div>
+
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Trips Subtotal</span>
+                <span className="font-medium tabular-nums">
+                  {peso(selectedCollectionTotal)}
+                </span>
+              </div>
+
+              {collectionAdjustments.map((adjustment, index) => (
+                <div
+                  key={index}
+                  className="flex items-center justify-between gap-4 text-xs"
+                >
+                  <span className="text-muted-foreground truncate">
+                    {adjustment.type === "Add" ? "Add:" : "Less:"}{" "}
+                    {adjustment.description || "Adjustment"}
+                  </span>
+
+                  <span className="font-medium tabular-nums whitespace-nowrap text-right">
+                    {adjustment.type === "Add" ? "+" : "−"}
+                    {peso(Number(adjustment.amount || 0))}
+                  </span>
+                </div>
+              ))}
+
+              <div className="flex items-center justify-between border-t border-border pt-2 text-xs">
+                <span className="font-medium">Collection Total</span>
+
+                <span className="font-semibold tabular-nums">
+                  {peso(finalCollectionTotal)}
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs">Note</Label>
+
+              <Textarea
+                value={collectionNote}
+                onChange={(e) => setCollectionNote(e.target.value)}
+                placeholder="e.g. May 1–15 billing"
+                rows={3}
+                className="resize-none"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
               type="button"
+              variant="outline"
               disabled={savingCollection}
               onClick={() => setShowCollectModal(false)}
-              className="h-9 px-4 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors disabled:opacity-50"
             >
               Cancel
-            </button>
+            </Button>
 
-            <button
+            <Button
               type="button"
               disabled={savingCollection}
               onClick={handleCreateCollection}
-              className="h-9 px-4 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition disabled:opacity-50"
             >
+              <CheckCheck />
               {savingCollection ? "Saving..." : "Mark as Collected"}
-            </button>
-          </>
-        }
-      >
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-medium text-foreground mb-1.5 block">
-                Date Received
-              </label>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-              <input
-                type="date"
-                value={collectionDate}
-                onChange={(e) => setCollectionDate(e.target.value)}
-                className="w-full h-10 rounded-md border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-medium text-foreground mb-1.5 block">
-                Payment Method
-              </label>
-
-              <select
-                value={collectionMethod}
-                onChange={(e) => setCollectionMethod(e.target.value)}
-                className="w-full h-10 rounded-md border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-              >
-                <option value="Check">Check</option>
-                <option value="Bank Transfer">Bank Transfer</option>
-                <option value="Cash">Cash</option>
-                <option value="GCash">GCash</option>
-                <option value="Other">Other</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-medium text-foreground mb-1.5 block">
-                SOA Number
-              </label>
-
-              <input
-                type="text"
-                value={collectionSoaNumber}
-                onChange={(e) => setCollectionSoaNumber(e.target.value)}
-                placeholder="e.g. 2026-003"
-                className="w-full h-10 rounded-md border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-medium text-foreground mb-1.5 block">
-                {collectionMethod === "Check" ? "Check No." : "Reference"}
-              </label>
-
-              <input
-                type="text"
-                value={collectionReference}
-                onChange={(e) => setCollectionReference(e.target.value)}
-                placeholder={
-                  collectionMethod === "Check"
-                    ? "e.g. 0000130494"
-                    : "e.g. Reference Number"
-                }
-                className="w-full h-10 rounded-md border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="text-xs font-medium text-foreground mb-1.5 block">
-              Date Covered
-            </label>
-
-            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-              <input
-                type="date"
-                value={coverageStartDate}
-                onChange={(e) => setCoverageStartDate(e.target.value)}
-                className="w-full h-10 rounded-md border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-              />
-
-              <span className="text-xs text-muted-foreground">to</span>
-
-              <input
-                type="date"
-                value={coverageEndDate}
-                onChange={(e) => setCoverageEndDate(e.target.value)}
-                className="w-full h-10 rounded-md border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="text-xs font-medium text-foreground mb-1.5 block">
-              Billing Type
-            </label>
-
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setBillingType("Rate Only")}
-                className={`h-10 rounded-md border text-sm font-medium transition-colors ${
-                  billingType === "Rate Only"
-                    ? "border-foreground bg-foreground text-background"
-                    : "border-border bg-background hover:bg-muted"
-                }`}
-              >
-                Rate Only
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setBillingType("Rate + VAT")}
-                className={`h-10 rounded-md border text-sm font-medium transition-colors ${
-                  billingType === "Rate + VAT"
-                    ? "border-foreground bg-foreground text-background"
-                    : "border-border bg-background hover:bg-muted"
-                }`}
-              >
-                Rate + VAT
-              </button>
-            </div>
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-medium text-foreground">
-                Adjustments
-              </label>
-
-              <button
-                type="button"
-                onClick={() =>
-                  setCollectionAdjustments((current) => [
-                    ...current,
-                    {
-                      description: "",
-                      type: "Add",
-                      amount: 0,
-                    },
-                  ])
-                }
-                className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
-              >
-                + Add Adjustment
-              </button>
-            </div>
-
-            {collectionAdjustments.length > 0 ? (
-              <div className="space-y-2">
-                {collectionAdjustments.map((adjustment, index) => (
-                  <div
-                    key={index}
-                    className="grid grid-cols-[1fr_90px_120px_32px] gap-2 items-center"
-                  >
-                    <input
-                      type="text"
-                      value={adjustment.description}
-                      onChange={(e) => {
-                        const value = e.target.value;
-
-                        setCollectionAdjustments((current) =>
-                          current.map((item, itemIndex) =>
-                            itemIndex === index
-                              ? { ...item, description: value }
-                              : item,
-                          ),
-                        );
-                      }}
-                      placeholder="Description"
-                      className="h-9 rounded-md border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-                    />
-
-                    <select
-                      value={adjustment.type}
-                      onChange={(e) => {
-                        const value = e.target.value as "Add" | "Less";
-
-                        setCollectionAdjustments((current) =>
-                          current.map((item, itemIndex) =>
-                            itemIndex === index
-                              ? { ...item, type: value }
-                              : item,
-                          ),
-                        );
-                      }}
-                      className="h-9 rounded-md border border-border bg-background px-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-                    >
-                      <option value="Add">Add</option>
-                      <option value="Less">Less</option>
-                    </select>
-
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={adjustment.amount || ""}
-                      onChange={(e) => {
-                        const value = Number(e.target.value);
-
-                        setCollectionAdjustments((current) =>
-                          current.map((item, itemIndex) =>
-                            itemIndex === index
-                              ? { ...item, amount: value }
-                              : item,
-                          ),
-                        );
-                      }}
-                      placeholder="Amount"
-                      className="h-9 rounded-md border border-border bg-background px-3 text-sm text-right tabular-nums outline-none focus:ring-2 focus:ring-ring [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                    />
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setCollectionAdjustments((current) =>
-                          current.filter((_, itemIndex) => itemIndex !== index),
-                        )
-                      }
-                      className="h-8 w-8 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                      aria-label="Remove adjustment"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="rounded-md border border-dashed border-border px-3 py-3 text-center text-xs text-muted-foreground">
-                No adjustments
-              </div>
-            )}
-          </div>
-
-          <div className="rounded-md border border-border bg-muted/40 p-3 space-y-1.5 text-xs">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">Selected Trips</span>
-              <span className="font-medium">{selectedTripIds.length}</span>
-            </div>
-
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">Trips Subtotal</span>
-              <span className="font-medium tabular-nums">
-                {peso(selectedCollectionTotal)}
-              </span>
-            </div>
-
-            {collectionAdjustments.map((adjustment, index) => (
-              <div
-                key={index}
-                className="flex items-center justify-between gap-4 text-xs"
-              >
-                <span className="text-muted-foreground truncate">
-                  {adjustment.type === "Add" ? "Add:" : "Less:"}{" "}
-                  {adjustment.description || "Adjustment"}
-                </span>
-
-                <span className="font-medium tabular-nums whitespace-nowrap text-right">
-                  {adjustment.type === "Add" ? "+" : "−"}
-                  {peso(Number(adjustment.amount || 0))}
-                </span>
-              </div>
-            ))}
-
-            <div className="flex items-center justify-between border-t border-border pt-2 text-xs">
-              <span className="font-medium">Collection Total</span>
-
-              <span className="font-semibold tabular-nums">
-                {peso(finalCollectionTotal)}
-              </span>
-            </div>
-          </div>
-
-          <div>
-            <label className="text-xs font-medium text-foreground mb-1.5 block">
-              Note
-            </label>
-
-            <textarea
-              value={collectionNote}
-              onChange={(e) => setCollectionNote(e.target.value)}
-              placeholder="e.g. May 1–15 billing"
-              rows={3}
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none resize-none focus:ring-2 focus:ring-ring"
-            />
-          </div>
-        </div>
-      </Modal>
-      <Modal
+      <Dialog
         open={!!viewCollection}
-        onClose={() => setViewCollection(null)}
-        title="Collection Details"
-        wide
-        footer={
-          <>
-            <button
-              type="button"
-              onClick={() => setViewCollection(null)}
-              className="h-9 px-4 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors"
-            >
-              Close
-            </button>
+        onOpenChange={(open) => {
+          if (!open) {
+            setViewCollection(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[700px]">
+          <DialogHeader>
+            <DialogTitle>Collection Details</DialogTitle>
+            <DialogDescription>
+              Review the recorded collection and its covered trips.
+            </DialogDescription>
+          </DialogHeader>
+          {viewCollection && (
+            <div className="space-y-4">
+              {/* COLLECTION INFO */}
+              <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+                {/* ROW 1 - LEFT */}
+                <div>
+                  <div className="text-xs text-muted-foreground">
+                    Date Received
+                  </div>
 
-            <button
+                  <div className="text-sm font-medium mt-0.5">
+                    {new Date(viewCollection.collectionDate).toLocaleDateString(
+                      "en-US",
+                      {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      },
+                    )}
+                  </div>
+                </div>
+
+                {/* ROW 1 - RIGHT */}
+                <div>
+                  <div className="text-xs text-muted-foreground">
+                    Payment Method
+                  </div>
+
+                  <div className="text-sm font-medium mt-0.5">
+                    {viewCollection.method || "—"}
+                  </div>
+                </div>
+
+                {/* ROW 2 - LEFT */}
+                <div>
+                  <div className="text-xs text-muted-foreground">
+                    SOA Number
+                  </div>
+
+                  <div className="text-sm font-medium mt-0.5">
+                    {viewCollection.soaNumber || "—"}
+                  </div>
+                </div>
+
+                {/* ROW 2 - RIGHT */}
+                <div>
+                  <div className="text-xs text-muted-foreground">
+                    {viewCollection.method === "Cheque" ||
+                    viewCollection.method === "Check"
+                      ? "Check No."
+                      : "Reference"}
+                  </div>
+
+                  <div className="text-sm font-medium mt-0.5">
+                    {viewCollection.reference || "—"}
+                  </div>
+                </div>
+
+                {/* ROW 3 - LEFT */}
+                <div>
+                  <div className="text-xs text-muted-foreground">
+                    Billing Type
+                  </div>
+
+                  <div className="text-sm font-medium mt-0.5">
+                    {viewCollection.billingType}
+                  </div>
+                </div>
+
+                {/* ROW 3 - RIGHT */}
+                <div>
+                  <div className="text-xs text-muted-foreground">
+                    Date Covered
+                  </div>
+
+                  <div className="text-sm font-medium mt-0.5">
+                    {viewCollection.coverageStartDate &&
+                    viewCollection.coverageEndDate
+                      ? `${new Date(
+                          viewCollection.coverageStartDate,
+                        ).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })} to ${new Date(
+                          viewCollection.coverageEndDate,
+                        ).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}`
+                      : "—"}
+                  </div>
+                </div>
+              </div>
+
+              {/* COLLECTION BREAKDOWN */}
+              <div className="rounded-md border border-border bg-muted/40 p-3">
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-4 text-xs">
+                    <span className="text-muted-foreground">
+                      Trips Subtotal
+                    </span>
+
+                    <span className="font-medium tabular-nums whitespace-nowrap">
+                      {peso(
+                        viewCollection.trips.reduce((sum, trip) => {
+                          const rate = Number(trip.rate || 0);
+                          const vat = Number(trip.vat || 0);
+
+                          return (
+                            sum +
+                            (viewCollection.billingType === "Rate + VAT"
+                              ? rate + vat
+                              : rate)
+                          );
+                        }, 0),
+                      )}
+                    </span>
+                  </div>
+
+                  {(viewCollection.adjustments || []).map(
+                    (adjustment, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between gap-4 text-xs"
+                      >
+                        <span className="text-muted-foreground">
+                          {adjustment.type === "Add" ? "Add:" : "Less:"}{" "}
+                          {adjustment.description || "Adjustment"}
+                        </span>
+
+                        <span className="font-medium tabular-nums whitespace-nowrap">
+                          {adjustment.type === "Add" ? "+" : "−"}
+                          {peso(Number(adjustment.amount || 0))}
+                        </span>
+                      </div>
+                    ),
+                  )}
+
+                  <div className="flex items-center justify-between gap-4 border-t border-border pt-2 mt-2 text-xs">
+                    <span className="font-medium">Collection Total</span>
+
+                    <span className="font-semibold tabular-nums whitespace-nowrap">
+                      {peso(Number(viewCollection.totalAmount || 0))}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* COVERED TRIPS */}
+              <div>
+                <div className="mb-2 flex items-center gap-2">
+                  <div className="text-xs font-medium text-foreground">
+                    Covered Trips
+                  </div>
+
+                  <span className="text-xs text-muted-foreground">
+                    {viewCollection.trips.length}{" "}
+                    {viewCollection.trips.length === 1 ? "trip" : "trips"}
+                  </span>
+                </div>
+
+                <div className="rounded-md border [&>div]:max-h-[260px] [&>div]:overflow-auto [&>div]:[clip-path:inset(1px_0_0_0)]">
+                  <Table className="text-xs">
+                    <TableHeader>
+                      <TableRow className="sticky top-0 z-20 bg-foreground hover:bg-muted">
+                        <TableHead className="whitespace-nowrap bg-background text-xs">
+                          Date
+                        </TableHead>
+
+                        <TableHead className="whitespace-nowrap bg-background text-xs">
+                          Shipment No.
+                        </TableHead>
+
+                        <TableHead className="whitespace-nowrap bg-background text-right text-xs">
+                          Rate
+                        </TableHead>
+
+                        <TableHead className="whitespace-nowrap bg-background text-right text-xs">
+                          VAT
+                        </TableHead>
+
+                        <TableHead className="whitespace-nowrap bg-background text-right text-xs">
+                          Total (VAT Incl.)
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+
+                    <TableBody>
+                      {viewCollection.trips.map((trip) => (
+                        <TableRow key={trip._id}>
+                          <TableCell className="whitespace-nowrap text-xs">
+                            {new Date(trip.date).toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            })}
+                          </TableCell>
+
+                          <TableCell className="text-xs">
+                            {trip.shipmentNumber || "—"}
+                          </TableCell>
+
+                          <TableCell className="whitespace-nowrap text-right text-xs tabular-nums">
+                            {peso(Number(trip.rate || 0))}
+                          </TableCell>
+
+                          <TableCell className="whitespace-nowrap text-right text-xs tabular-nums">
+                            {peso(Number(trip.vat || 0))}
+                          </TableCell>
+
+                          <TableCell className="whitespace-nowrap text-right text-xs font-medium tabular-nums">
+                            {peso(
+                              Number(trip.rate || 0) + Number(trip.vat || 0),
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+
+              {/* NOTE */}
+              {viewCollection.note && (
+                <div>
+                  <div className="text-xs text-muted-foreground">Note</div>
+
+                  <div className="text-sm mt-1">{viewCollection.note}</div>
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button
               type="button"
               onClick={() => {
                 if (viewCollection) {
                   openEditCollection(viewCollection);
                 }
               }}
-              className="h-9 px-4 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition"
             >
               Edit
-            </button>
+            </Button>
 
-            <button
+            <Button
               type="button"
+              variant="destructive"
               onClick={() => {
-                if (viewCollection) {
-                  setUndoCollection(viewCollection);
-                }
+                if (!viewCollection) return;
+
+                setUndoCollection(viewCollection);
+                setViewCollection(null);
               }}
-              className="h-9 px-4 rounded-md border border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-400 text-sm font-medium hover:bg-red-500/20 transition-colors"
             >
               Undo Collection
-            </button>
-          </>
-        }
-      >
-        {viewCollection && (
-          <div className="space-y-4">
-            {/* COLLECTION INFO */}
-            <div className="grid grid-cols-2 gap-x-6 gap-y-3">
-              {/* ROW 1 - LEFT */}
-              <div>
-                <div className="text-xs text-muted-foreground">
-                  Date Received
-                </div>
-
-                <div className="text-sm font-medium mt-0.5">
-                  {new Date(viewCollection.collectionDate).toLocaleDateString(
-                    "en-US",
-                    {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    },
-                  )}
-                </div>
-              </div>
-
-              {/* ROW 1 - RIGHT */}
-              <div>
-                <div className="text-xs text-muted-foreground">
-                  Payment Method
-                </div>
-
-                <div className="text-sm font-medium mt-0.5">
-                  {viewCollection.method || "—"}
-                </div>
-              </div>
-
-              {/* ROW 2 - LEFT */}
-              <div>
-                <div className="text-xs text-muted-foreground">SOA Number</div>
-
-                <div className="text-sm font-medium mt-0.5">
-                  {viewCollection.soaNumber || "—"}
-                </div>
-              </div>
-
-              {/* ROW 2 - RIGHT */}
-              <div>
-                <div className="text-xs text-muted-foreground">
-                  {viewCollection.method === "Cheque" ||
-                  viewCollection.method === "Check"
-                    ? "Check No."
-                    : "Reference"}
-                </div>
-
-                <div className="text-sm font-medium mt-0.5">
-                  {viewCollection.reference || "—"}
-                </div>
-              </div>
-
-              {/* ROW 3 - LEFT */}
-              <div>
-                <div className="text-xs text-muted-foreground">
-                  Billing Type
-                </div>
-
-                <div className="text-sm font-medium mt-0.5">
-                  {viewCollection.billingType}
-                </div>
-              </div>
-
-              {/* ROW 3 - RIGHT */}
-              <div>
-                <div className="text-xs text-muted-foreground">
-                  Date Covered
-                </div>
-
-                <div className="text-sm font-medium mt-0.5">
-                  {viewCollection.coverageStartDate &&
-                  viewCollection.coverageEndDate
-                    ? `${new Date(
-                        viewCollection.coverageStartDate,
-                      ).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      })} to ${new Date(
-                        viewCollection.coverageEndDate,
-                      ).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      })}`
-                    : "—"}
-                </div>
-              </div>
-            </div>
-
-            {/* COLLECTION BREAKDOWN */}
-            <div className="rounded-md border border-border bg-muted/40 p-3">
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between gap-4 text-xs">
-                  <span className="text-muted-foreground">Trips Subtotal</span>
-
-                  <span className="font-medium tabular-nums whitespace-nowrap">
-                    {peso(
-                      viewCollection.trips.reduce((sum, trip) => {
-                        const rate = Number(trip.rate || 0);
-                        const vat = Number(trip.vat || 0);
-
-                        return (
-                          sum +
-                          (viewCollection.billingType === "Rate + VAT"
-                            ? rate + vat
-                            : rate)
-                        );
-                      }, 0),
-                    )}
-                  </span>
-                </div>
-
-                {(viewCollection.adjustments || []).map((adjustment, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between gap-4 text-xs"
-                  >
-                    <span className="text-muted-foreground">
-                      {adjustment.type === "Add" ? "Add:" : "Less:"}{" "}
-                      {adjustment.description || "Adjustment"}
-                    </span>
-
-                    <span className="font-medium tabular-nums whitespace-nowrap">
-                      {adjustment.type === "Add" ? "+" : "−"}
-                      {peso(Number(adjustment.amount || 0))}
-                    </span>
-                  </div>
-                ))}
-
-                <div className="flex items-center justify-between gap-4 border-t border-border pt-2 mt-2 text-xs">
-                  <span className="font-medium">Collection Total</span>
-
-                  <span className="font-semibold tabular-nums whitespace-nowrap">
-                    {peso(Number(viewCollection.totalAmount || 0))}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* COVERED TRIPS */}
-            <div>
-              <div className="mb-2 flex items-center gap-2">
-                <div className="text-xs font-medium text-foreground">
-                  Covered Trips
-                </div>
-
-                <span className="text-xs text-muted-foreground">
-                  {viewCollection.trips.length}{" "}
-                  {viewCollection.trips.length === 1 ? "trip" : "trips"}
-                </span>
-              </div>
-
-              <div className="border border-border rounded-md overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr>
-                      <th className="bg-muted/60 border-b border-border text-left text-xs font-semibold text-muted-foreground px-2.5 py-2.5">
-                        Date
-                      </th>
-
-                      <th className="bg-muted/60 border-b border-border text-left text-xs font-semibold text-muted-foreground px-2.5 py-2.5">
-                        Shipment No.
-                      </th>
-
-                      <th className="bg-muted/60 border-b border-border text-right text-xs font-semibold text-muted-foreground px-2.5 py-2.5">
-                        Rate
-                      </th>
-
-                      <th className="bg-muted/60 border-b border-border text-right text-xs font-semibold text-muted-foreground px-2.5 py-2.5">
-                        VAT
-                      </th>
-
-                      <th className="bg-muted/60 border-b border-border text-right text-xs font-semibold text-muted-foreground px-2.5 py-2.5 whitespace-nowrap">
-                        Total (VAT Incl.)
-                      </th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {viewCollection.trips.map((trip) => (
-                      <tr key={trip._id}>
-                        <td className="px-2.5 py-2.5 text-xs border-b border-border whitespace-nowrap">
-                          {new Date(trip.date).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                          })}
-                        </td>
-
-                        <td className="px-2.5 py-2.5 text-xs border-b border-border">
-                          {trip.shipmentNumber || "—"}
-                        </td>
-
-                        <td className="px-2.5 py-2.5 text-xs text-right tabular-nums whitespace-nowrap border-b border-border">
-                          {peso(Number(trip.rate || 0))}
-                        </td>
-
-                        <td className="px-2.5 py-2.5 text-xs text-right tabular-nums whitespace-nowrap border-b border-border">
-                          {peso(Number(trip.vat || 0))}
-                        </td>
-
-                        <td className="px-2.5 py-2.5 text-xs text-right tabular-nums whitespace-nowrap font-medium border-b border-border">
-                          {peso(Number(trip.rate || 0) + Number(trip.vat || 0))}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* NOTE */}
-            {viewCollection.note && (
-              <div>
-                <div className="text-xs text-muted-foreground">Note</div>
-
-                <div className="text-sm mt-1">{viewCollection.note}</div>
-              </div>
-            )}
-          </div>
-        )}
-      </Modal>
-      <Modal
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog
         open={!!editCollection}
-        onClose={() => {
-          if (!savingEditCollection) {
+        onOpenChange={(open) => {
+          if (!open && !savingEditCollection && editCollection) {
+            setViewCollection(editCollection);
             setEditCollection(null);
           }
         }}
-        title="Edit Collection"
-        footer={
-          <>
-            <button
-              type="button"
-              disabled={savingEditCollection}
-              onClick={() => setEditCollection(null)}
-              className="h-9 px-4 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors disabled:opacity-50"
-            >
-              Cancel
-            </button>
-
-            <button
-              type="button"
-              disabled={savingEditCollection}
-              onClick={handleUpdateCollection}
-              className="h-9 px-4 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition disabled:opacity-50"
-            >
-              {savingEditCollection ? "Saving..." : "Save Changes"}
-            </button>
-          </>
-        }
       >
-        {editCollection && (
-          <div className="space-y-4">
-            {/* DATE + PAYMENT METHOD */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-medium text-foreground mb-1.5 block">
-                  Date Received
-                </label>
+        <DialogContent className="flex max-h-[90vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-[700px]">
+          <DialogHeader className="border-b px-6 py-4">
+            <DialogTitle>Edit Collection</DialogTitle>
 
-                <input
-                  type="date"
-                  value={editCollectionDate}
-                  onChange={(e) => setEditCollectionDate(e.target.value)}
-                  className="w-full h-10 rounded-md border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-                />
+            <DialogDescription>
+              Update the collection details and covered trips.
+            </DialogDescription>
+          </DialogHeader>
+          {editCollection && (
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-4">
+              {/* DATE + PAYMENT METHOD */}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {/* DATE RECEIVED */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Date Received</Label>
+
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full justify-start font-normal"
+                      >
+                        <CalendarDays className="size-4 shrink-0 text-muted-foreground" />
+
+                        {editCollectionDate
+                          ? format(
+                              new Date(`${editCollectionDate}T00:00:00`),
+                              "MMM d, yyyy",
+                            )
+                          : "Select date"}
+                      </Button>
+                    </PopoverTrigger>
+
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={
+                          editCollectionDate
+                            ? new Date(`${editCollectionDate}T00:00:00`)
+                            : undefined
+                        }
+                        onSelect={(date) => {
+                          if (!date) return;
+
+                          setEditCollectionDate(format(date, "yyyy-MM-dd"));
+                        }}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                {/* PAYMENT METHOD */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Payment Method</Label>
+
+                  <Select
+                    value={editCollectionMethod}
+                    onValueChange={setEditCollectionMethod}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select payment method" />
+                    </SelectTrigger>
+
+                    <SelectContent>
+                      <SelectItem value="Check">Check</SelectItem>
+                      <SelectItem value="Bank Transfer">
+                        Bank Transfer
+                      </SelectItem>
+                      <SelectItem value="Cash">Cash</SelectItem>
+                      <SelectItem value="GCash">GCash</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
-              <div>
-                <label className="text-xs font-medium text-foreground mb-1.5 block">
-                  Payment Method
-                </label>
+              {/* SOA + REFERENCE */}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">SOA Number</Label>
 
-                <select
-                  value={editCollectionMethod}
-                  onChange={(e) => setEditCollectionMethod(e.target.value)}
-                  className="w-full h-10 rounded-md border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-                >
-                  <option value="Check">Check</option>
-                  <option value="Bank Transfer">Bank Transfer</option>
-                  <option value="Cash">Cash</option>
-                  <option value="GCash">GCash</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-            </div>
+                  <Input
+                    value={editCollectionSoaNumber}
+                    onChange={(e) => setEditCollectionSoaNumber(e.target.value)}
+                    placeholder="e.g. 2026-003"
+                  />
+                </div>
 
-            {/* SOA + REFERENCE */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-medium text-foreground mb-1.5 block">
-                  SOA Number
-                </label>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">
+                    {editCollectionMethod === "Check"
+                      ? "Check No."
+                      : "Reference"}
+                  </Label>
 
-                <input
-                  type="text"
-                  value={editCollectionSoaNumber}
-                  onChange={(e) => setEditCollectionSoaNumber(e.target.value)}
-                  placeholder="e.g. 2026-003"
-                  className="w-full h-10 rounded-md border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-                />
+                  <Input
+                    value={editCollectionReference}
+                    onChange={(e) => setEditCollectionReference(e.target.value)}
+                    placeholder={
+                      editCollectionMethod === "Check"
+                        ? "e.g. 0000130494"
+                        : "e.g. Reference Number"
+                    }
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="text-xs font-medium text-foreground mb-1.5 block">
-                  {editCollectionMethod === "Check" ? "Check No." : "Reference"}
-                </label>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {/* DATE COVERED */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Date Covered</Label>
 
-                <input
-                  type="text"
-                  value={editCollectionReference}
-                  onChange={(e) => setEditCollectionReference(e.target.value)}
-                  placeholder={
-                    editCollectionMethod === "Check"
-                      ? "e.g. 0000130494"
-                      : "e.g. Reference Number"
-                  }
-                  className="w-full h-10 rounded-md border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-                />
-              </div>
-            </div>
+                  <div className="flex h-9 w-full items-center gap-2 rounded-md border bg-muted/50 px-3 text-sm">
+                    <CalendarDays className="size-4 shrink-0 text-muted-foreground" />
 
-            {/* DATE COVERED */}
-            <div>
-              <label className="text-xs font-medium text-foreground mb-1.5 block">
-                Date Covered
-              </label>
+                    <span className="truncate">
+                      {editCoverageRange.startDate && editCoverageRange.endDate
+                        ? editCoverageRange.startDate ===
+                          editCoverageRange.endDate
+                          ? format(
+                              new Date(
+                                `${editCoverageRange.startDate}T00:00:00`,
+                              ),
+                              "MMM d, yyyy",
+                            )
+                          : `${format(
+                              new Date(
+                                `${editCoverageRange.startDate}T00:00:00`,
+                              ),
+                              "MMM d, yyyy",
+                            )} - ${format(
+                              new Date(`${editCoverageRange.endDate}T00:00:00`),
+                              "MMM d, yyyy",
+                            )}`
+                        : "No selected trips"}
+                    </span>
+                  </div>
+                </div>
 
-              <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-                <input
-                  type="date"
-                  value={editCoverageStartDate}
-                  onChange={(e) => setEditCoverageStartDate(e.target.value)}
-                  className="w-full h-10 rounded-md border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-                />
+                {/* BILLING TYPE */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Billing Type</Label>
 
-                <span className="text-xs text-muted-foreground">to</span>
+                  <Select
+                    value={editBillingType}
+                    onValueChange={(value) =>
+                      setEditBillingType(value as "Rate Only" | "Rate + VAT")
+                    }
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select billing type" />
+                    </SelectTrigger>
 
-                <input
-                  type="date"
-                  value={editCoverageEndDate}
-                  onChange={(e) => setEditCoverageEndDate(e.target.value)}
-                  className="w-full h-10 rounded-md border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-                />
-              </div>
-            </div>
-
-            {/* BILLING TYPE */}
-            <div>
-              <label className="text-xs font-medium text-foreground mb-1.5 block">
-                Billing Type
-              </label>
-
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setEditBillingType("Rate Only")}
-                  className={`h-10 rounded-md border text-sm font-medium transition-colors ${
-                    editBillingType === "Rate Only"
-                      ? "border-foreground bg-foreground text-background"
-                      : "border-border bg-background hover:bg-muted"
-                  }`}
-                >
-                  Rate Only
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setEditBillingType("Rate + VAT")}
-                  className={`h-10 rounded-md border text-sm font-medium transition-colors ${
-                    editBillingType === "Rate + VAT"
-                      ? "border-foreground bg-foreground text-background"
-                      : "border-border bg-background hover:bg-muted"
-                  }`}
-                >
-                  Rate + VAT
-                </button>
-              </div>
-            </div>
-
-            {/* COVERED TRIPS */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-medium text-foreground">
-                  Covered Trips
-                </label>
-
-                <span className="text-xs text-muted-foreground">
-                  {editCollectionTripIds.length} of{" "}
-                  {editCollection.trips.length} selected
-                </span>
+                    <SelectContent>
+                      <SelectItem value="Rate Only">Rate Only</SelectItem>
+                      <SelectItem value="Rate + VAT">Rate + VAT</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
-              <div className="border border-border rounded-md overflow-hidden">
-                <div className="max-h-[220px] overflow-y-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr>
-                        <th className="w-[40px] bg-muted/60 border-b border-border px-2.5 py-2.5">
-                          <input
-                            type="checkbox"
+              {/* COVERED TRIPS */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs">Covered Trips</Label>
+
+                  <span className="text-xs text-muted-foreground">
+                    {editCollectionTripIds.length} of{" "}
+                    {editCollection.trips.length} selected
+                  </span>
+                </div>
+
+                <div className="rounded-md border [&>div]:max-h-[220px] [&>div]:overflow-auto [&>div]:[clip-path:inset(1px_0_0_0)]">
+                  <Table className="text-xs">
+                    <TableHeader>
+                      <TableRow className="sticky top-0 z-20 bg-background hover:bg-muted">
+                        <TableHead className="w-[40px] bg-background text-center">
+                          <Checkbox
                             checked={
                               editCollection.trips.length > 0 &&
                               editCollectionTripIds.length ===
                                 editCollection.trips.length
                             }
-                            onChange={() => {
+                            onCheckedChange={() => {
                               if (
                                 editCollectionTripIds.length ===
                                 editCollection.trips.length
@@ -2179,33 +2274,33 @@ export default function CollectionsPage() {
                                 );
                               }
                             }}
-                            className="w-4 h-4 rounded border-border cursor-pointer"
+                            aria-label="Select all covered trips"
                           />
-                        </th>
+                        </TableHead>
 
-                        <th className="bg-muted/60 border-b border-border text-left text-xs font-semibold text-muted-foreground px-2.5 py-2.5">
+                        <TableHead className="whitespace-nowrap bg-background text-xs">
                           Date
-                        </th>
+                        </TableHead>
 
-                        <th className="bg-muted/60 border-b border-border text-left text-xs font-semibold text-muted-foreground px-2.5 py-2.5">
+                        <TableHead className="whitespace-nowrap bg-background text-xs">
                           Shipment No.
-                        </th>
+                        </TableHead>
 
-                        <th className="bg-muted/60 border-b border-border text-right text-xs font-semibold text-muted-foreground px-2.5 py-2.5">
+                        <TableHead className="whitespace-nowrap bg-background text-right text-xs">
                           Rate
-                        </th>
+                        </TableHead>
 
-                        <th className="bg-muted/60 border-b border-border text-right text-xs font-semibold text-muted-foreground px-2.5 py-2.5">
+                        <TableHead className="whitespace-nowrap bg-background text-right text-xs">
                           VAT
-                        </th>
+                        </TableHead>
 
-                        <th className="bg-muted/60 border-b border-border text-right text-xs font-semibold text-muted-foreground px-2.5 py-2.5 whitespace-nowrap">
+                        <TableHead className="whitespace-nowrap bg-background text-right text-xs">
                           Total (VAT Incl.)
-                        </th>
-                      </tr>
-                    </thead>
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
 
-                    <tbody>
+                    <TableBody>
                       {[...editCollection.trips]
                         .sort(
                           (a, b) =>
@@ -2218,19 +2313,16 @@ export default function CollectionsPage() {
                           );
 
                           return (
-                            <tr
+                            <TableRow
                               key={trip._id}
                               className={
-                                checked
-                                  ? "hover:bg-muted/50"
-                                  : "bg-muted/30 opacity-60"
+                                !checked ? "bg-muted/30 opacity-60" : undefined
                               }
                             >
-                              <td className="text-center px-2.5 py-2.5 border-b border-border">
-                                <input
-                                  type="checkbox"
+                              <TableCell className="text-center">
+                                <Checkbox
                                   checked={checked}
-                                  onChange={() => {
+                                  onCheckedChange={() => {
                                     setEditCollectionTripIds((current) =>
                                       current.includes(trip._id)
                                         ? current.filter(
@@ -2239,11 +2331,13 @@ export default function CollectionsPage() {
                                         : [...current, trip._id],
                                     );
                                   }}
-                                  className="w-4 h-4 rounded border-border cursor-pointer"
+                                  aria-label={`Select trip ${
+                                    trip.shipmentNumber || trip._id
+                                  }`}
                                 />
-                              </td>
+                              </TableCell>
 
-                              <td className="px-2.5 py-2.5 text-xs border-b border-border whitespace-nowrap">
+                              <TableCell className="whitespace-nowrap text-xs">
                                 {new Date(trip.date).toLocaleDateString(
                                   "en-US",
                                   {
@@ -2252,322 +2346,345 @@ export default function CollectionsPage() {
                                     year: "numeric",
                                   },
                                 )}
-                              </td>
+                              </TableCell>
 
-                              <td className="px-2.5 py-2.5 text-xs border-b border-border">
+                              <TableCell className="text-xs">
                                 {trip.shipmentNumber || "—"}
-                              </td>
+                              </TableCell>
 
-                              <td className="px-2.5 py-2.5 text-xs text-right tabular-nums whitespace-nowrap border-b border-border">
+                              <TableCell className="whitespace-nowrap text-right text-xs tabular-nums">
                                 {peso(Number(trip.rate || 0))}
-                              </td>
+                              </TableCell>
 
-                              <td className="px-2.5 py-2.5 text-xs text-right tabular-nums whitespace-nowrap border-b border-border">
+                              <TableCell className="whitespace-nowrap text-right text-xs tabular-nums">
                                 {peso(Number(trip.vat || 0))}
-                              </td>
+                              </TableCell>
 
-                              <td className="px-2.5 py-2.5 text-xs text-right tabular-nums whitespace-nowrap font-medium border-b border-border">
+                              <TableCell className="whitespace-nowrap text-right text-xs font-medium tabular-nums">
                                 {peso(
                                   Number(trip.rate || 0) +
                                     Number(trip.vat || 0),
                                 )}
-                              </td>
-                            </tr>
+                              </TableCell>
+                            </TableRow>
                           );
                         })}
-                    </tbody>
-                  </table>
+                    </TableBody>
+                  </Table>
                 </div>
+
+                {editCollectionTripIds.length < editCollection.trips.length && (
+                  <p className="text-xs text-muted-foreground">
+                    Unchecked trips will become pending after saving.
+                  </p>
+                )}
               </div>
 
-              {editCollectionTripIds.length < editCollection.trips.length && (
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Unchecked trips will become pending after saving.
-                </p>
-              )}
-            </div>
+              {/* ADJUSTMENTS */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs">Adjustments</Label>
 
-            {/* ADJUSTMENTS */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-medium text-foreground">
-                  Adjustments
-                </label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      setEditCollectionAdjustments((current) => [
+                        ...current,
+                        {
+                          description: "",
+                          type: "Add",
+                          amount: 0,
+                        },
+                      ])
+                    }
+                  >
+                    + Add Adjustment
+                  </Button>
+                </div>
 
-                <button
-                  type="button"
-                  onClick={() =>
-                    setEditCollectionAdjustments((current) => [
-                      ...current,
-                      {
-                        description: "",
-                        type: "Add",
-                        amount: 0,
-                      },
-                    ])
-                  }
-                  className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  + Add Adjustment
-                </button>
-              </div>
-
-              {editCollectionAdjustments.length > 0 ? (
-                <div className="space-y-2">
-                  {editCollectionAdjustments.map((adjustment, index) => (
-                    <div
-                      key={index}
-                      className="grid grid-cols-[1fr_90px_120px_32px] gap-2 items-center"
-                    >
-                      <input
-                        type="text"
-                        value={adjustment.description}
-                        onChange={(e) => {
-                          const value = e.target.value;
-
-                          setEditCollectionAdjustments((current) =>
-                            current.map((item, itemIndex) =>
-                              itemIndex === index
-                                ? {
-                                    ...item,
-                                    description: value,
-                                  }
-                                : item,
-                            ),
-                          );
-                        }}
-                        placeholder="Description"
-                        className="h-9 rounded-md border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-                      />
-
-                      <select
-                        value={adjustment.type}
-                        onChange={(e) => {
-                          const value = e.target.value as "Add" | "Less";
-
-                          setEditCollectionAdjustments((current) =>
-                            current.map((item, itemIndex) =>
-                              itemIndex === index
-                                ? {
-                                    ...item,
-                                    type: value,
-                                  }
-                                : item,
-                            ),
-                          );
-                        }}
-                        className="h-9 rounded-md border border-border bg-background px-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                {editCollectionAdjustments.length > 0 ? (
+                  <div className="space-y-2">
+                    {editCollectionAdjustments.map((adjustment, index) => (
+                      <div
+                        key={index}
+                        className="grid grid-cols-[1fr_100px_120px_36px] items-center gap-2"
                       >
-                        <option value="Add">Add</option>
-                        <option value="Less">Less</option>
-                      </select>
+                        <Input
+                          value={adjustment.description}
+                          onChange={(e) => {
+                            const value = e.target.value;
 
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={adjustment.amount || ""}
-                        onChange={(e) => {
-                          const value = Number(e.target.value);
+                            setEditCollectionAdjustments((current) =>
+                              current.map((item, itemIndex) =>
+                                itemIndex === index
+                                  ? { ...item, description: value }
+                                  : item,
+                              ),
+                            );
+                          }}
+                          placeholder="Description"
+                        />
 
-                          setEditCollectionAdjustments((current) =>
-                            current.map((item, itemIndex) =>
-                              itemIndex === index
-                                ? {
-                                    ...item,
-                                    amount: value,
-                                  }
-                                : item,
-                            ),
-                          );
-                        }}
-                        placeholder="Amount"
-                        className="h-9 rounded-md border border-border bg-background px-3 text-sm text-right tabular-nums outline-none focus:ring-2 focus:ring-ring [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                      />
+                        <Select
+                          value={adjustment.type}
+                          onValueChange={(value) => {
+                            setEditCollectionAdjustments((current) =>
+                              current.map((item, itemIndex) =>
+                                itemIndex === index
+                                  ? {
+                                      ...item,
+                                      type: value as "Add" | "Less",
+                                    }
+                                  : item,
+                              ),
+                            );
+                          }}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue />
+                          </SelectTrigger>
 
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setEditCollectionAdjustments((current) =>
-                            current.filter(
-                              (_, itemIndex) => itemIndex !== index,
-                            ),
-                          )
-                        }
-                        className="h-8 w-8 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                        aria-label="Remove adjustment"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="rounded-md border border-dashed border-border px-3 py-3 text-center text-xs text-muted-foreground">
-                  No adjustments
-                </div>
-              )}
-            </div>
+                          <SelectContent>
+                            <SelectItem value="Add">Add</SelectItem>
+                            <SelectItem value="Less">Less</SelectItem>
+                          </SelectContent>
+                        </Select>
 
-            {/* LIVE BREAKDOWN */}
-            <div className="rounded-md border border-border bg-muted/40 p-3 space-y-1.5 text-xs">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Covered Trips</span>
+                        <Input
+                          type="text"
+                          min="0"
+                          step="0.01"
+                          value={adjustment.amount || ""}
+                          onChange={(e) => {
+                            const value = Number(e.target.value);
 
-                <span className="font-medium">
-                  {editCollectionTripIds.length}
-                </span>
+                            setEditCollectionAdjustments((current) =>
+                              current.map((item, itemIndex) =>
+                                itemIndex === index
+                                  ? { ...item, amount: value }
+                                  : item,
+                              ),
+                            );
+                          }}
+                          placeholder="Amount"
+                          className="text-right tabular-nums"
+                        />
+
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() =>
+                            setEditCollectionAdjustments((current) =>
+                              current.filter(
+                                (_, itemIndex) => itemIndex !== index,
+                              ),
+                            )
+                          }
+                          aria-label="Remove adjustment"
+                        >
+                          ×
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-md border border-dashed px-3 py-3 text-center text-xs text-muted-foreground">
+                    No adjustments
+                  </div>
+                )}
               </div>
 
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Trips Subtotal</span>
+              {/* LIVE BREAKDOWN */}
+              <div className="rounded-md border border-border bg-muted/40 p-3 space-y-1.5 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Covered Trips</span>
 
-                <span className="font-medium tabular-nums">
-                  {peso(
-                    editCollection.trips
-                      .filter((trip) =>
-                        editCollectionTripIds.includes(trip._id),
-                      )
-                      .reduce((sum, trip) => {
-                        const rate = Number(trip.rate || 0);
-                        const vat = Number(trip.vat || 0);
-
-                        return (
-                          sum +
-                          (editBillingType === "Rate + VAT" ? rate + vat : rate)
-                        );
-                      }, 0),
-                  )}
-                </span>
-              </div>
-
-              {editCollectionAdjustments.map((adjustment, index) => (
-                <div
-                  key={index}
-                  className="flex items-center justify-between gap-4"
-                >
-                  <span className="text-muted-foreground truncate">
-                    {adjustment.type === "Add" ? "Add:" : "Less:"}{" "}
-                    {adjustment.description || "Adjustment"}
-                  </span>
-
-                  <span className="font-medium tabular-nums whitespace-nowrap">
-                    {adjustment.type === "Add" ? "+" : "−"}
-                    {peso(Number(adjustment.amount || 0))}
+                  <span className="font-medium">
+                    {editCollectionTripIds.length}
                   </span>
                 </div>
-              ))}
 
-              <div className="flex items-center justify-between gap-4 border-t border-border pt-2 mt-2">
-                <span className="font-medium">Updated Collection Total</span>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Trips Subtotal</span>
 
-                <span className="font-semibold tabular-nums whitespace-nowrap">
-                  {peso(
-                    editCollection.trips
-                      .filter((trip) =>
-                        editCollectionTripIds.includes(trip._id),
-                      )
-                      .reduce((sum, trip) => {
-                        const rate = Number(trip.rate || 0);
-                        const vat = Number(trip.vat || 0);
+                  <span className="font-medium tabular-nums">
+                    {peso(
+                      editCollection.trips
+                        .filter((trip) =>
+                          editCollectionTripIds.includes(trip._id),
+                        )
+                        .reduce((sum, trip) => {
+                          const rate = Number(trip.rate || 0);
+                          const vat = Number(trip.vat || 0);
 
-                        return (
-                          sum +
-                          (editBillingType === "Rate + VAT" ? rate + vat : rate)
-                        );
-                      }, 0) +
-                      editCollectionAdjustments.reduce(
-                        (sum, adjustment) =>
-                          sum +
-                          (adjustment.type === "Add"
-                            ? Number(adjustment.amount || 0)
-                            : -Number(adjustment.amount || 0)),
-                        0,
-                      ),
-                  )}
-                </span>
+                          return (
+                            sum +
+                            (editBillingType === "Rate + VAT"
+                              ? rate + vat
+                              : rate)
+                          );
+                        }, 0),
+                    )}
+                  </span>
+                </div>
+
+                {editCollectionAdjustments.map((adjustment, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between gap-4"
+                  >
+                    <span className="text-muted-foreground truncate">
+                      {adjustment.type === "Add" ? "Add:" : "Less:"}{" "}
+                      {adjustment.description || "Adjustment"}
+                    </span>
+
+                    <span className="font-medium tabular-nums whitespace-nowrap">
+                      {adjustment.type === "Add" ? "+" : "−"}
+                      {peso(Number(adjustment.amount || 0))}
+                    </span>
+                  </div>
+                ))}
+
+                <div className="flex items-center justify-between gap-4 border-t border-border pt-2 mt-2">
+                  <span className="font-medium">Updated Collection Total</span>
+
+                  <span className="font-semibold tabular-nums whitespace-nowrap">
+                    {peso(
+                      editCollection.trips
+                        .filter((trip) =>
+                          editCollectionTripIds.includes(trip._id),
+                        )
+                        .reduce((sum, trip) => {
+                          const rate = Number(trip.rate || 0);
+                          const vat = Number(trip.vat || 0);
+
+                          return (
+                            sum +
+                            (editBillingType === "Rate + VAT"
+                              ? rate + vat
+                              : rate)
+                          );
+                        }, 0) +
+                        editCollectionAdjustments.reduce(
+                          (sum, adjustment) =>
+                            sum +
+                            (adjustment.type === "Add"
+                              ? Number(adjustment.amount || 0)
+                              : -Number(adjustment.amount || 0)),
+                          0,
+                        ),
+                    )}
+                  </span>
+                </div>
+              </div>
+
+              {/* NOTE */}
+              <div className="space-y-1.5">
+                <Label className="text-xs">Note</Label>
+
+                <Textarea
+                  value={editCollectionNote}
+                  onChange={(e) => setEditCollectionNote(e.target.value)}
+                  placeholder="e.g. May 1–15 billing"
+                  rows={3}
+                  className="resize-none"
+                />
               </div>
             </div>
+          )}
+          <DialogFooter className="border-t px-6 py-4">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={savingEditCollection}
+              onClick={() => {
+                setViewCollection(editCollection);
+                setEditCollection(null);
+              }}
+            >
+              Cancel
+            </Button>
 
-            {/* NOTE */}
-            <div>
-              <label className="text-xs font-medium text-foreground mb-1.5 block">
-                Note
-              </label>
-
-              <textarea
-                value={editCollectionNote}
-                onChange={(e) => setEditCollectionNote(e.target.value)}
-                placeholder="e.g. May 1–15 billing"
-                rows={3}
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none resize-none focus:ring-2 focus:ring-ring"
-              />
-            </div>
-          </div>
-        )}
-      </Modal>
-      <Modal
+            <Button
+              type="button"
+              disabled={savingEditCollection}
+              onClick={handleUpdateCollection}
+            >
+              {savingEditCollection ? "Saving..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog
         open={!!undoCollection}
-        onClose={() => {
-          if (!undoingCollection) {
+        onOpenChange={(open) => {
+          if (!open && !undoingCollection) {
             setUndoCollection(null);
           }
         }}
-        title="Undo Collection?"
-        footer={
-          <>
-            <button
-              type="button"
-              disabled={undoingCollection}
-              onClick={() => setUndoCollection(null)}
-              className="h-9 px-4 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors disabled:opacity-50"
-            >
-              Cancel
-            </button>
-
-            <button
-              type="button"
-              disabled={undoingCollection}
-              onClick={handleUndoCollection}
-              className="h-9 px-4 rounded-md bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
-            >
-              {undoingCollection ? "Undoing..." : "Undo Collection"}
-            </button>
-          </>
-        }
       >
-        {undoCollection && (
-          <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle>Undo Collection?</DialogTitle>
+
+            <DialogDescription>
               This will remove this collection batch and return its covered
               trips to Pending.
-            </p>
+            </DialogDescription>
+          </DialogHeader>
 
-            <div className="rounded-md border border-border bg-muted/40 p-3 space-y-1.5 text-xs">
-              <div className="flex justify-between gap-4 text-sm">
+          {undoCollection && (
+            <div className="space-y-1.5 rounded-md border bg-muted/40 p-3">
+              <div className="flex items-center justify-between gap-4 text-sm">
                 <span className="text-muted-foreground">Reference</span>
+
                 <span className="font-medium">
                   {undoCollection.reference || "—"}
                 </span>
               </div>
 
-              <div className="flex justify-between gap-4 text-sm">
+              <div className="flex items-center justify-between gap-4 text-sm">
                 <span className="text-muted-foreground">Covered Trips</span>
+
                 <span className="font-medium">
                   {undoCollection.trips.length}
                 </span>
               </div>
 
-              <div className="flex justify-between gap-4 text-sm">
+              <div className="flex items-center justify-between gap-4 text-sm">
                 <span className="text-muted-foreground">Collection Amount</span>
+
                 <span className="font-semibold tabular-nums">
                   {peso(Number(undoCollection.totalAmount || 0))}
                 </span>
               </div>
             </div>
-          </div>
-        )}
-      </Modal>
+          )}
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={undoingCollection}
+              onClick={() => setUndoCollection(null)}
+            >
+              Cancel
+            </Button>
+
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={undoingCollection}
+              onClick={handleUndoCollection}
+            >
+              {undoingCollection ? "Undoing..." : "Undo Collection"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <AnimatePresence>
         {selectedTripIds.length > 0 && (
           <motion.div
@@ -2586,22 +2703,25 @@ export default function CollectionsPage() {
               <div className="hidden h-6 w-px bg-border sm:block" />
 
               <div className="flex items-center gap-1.5">
-                <button
+                <Button
                   type="button"
+                  variant="outline"
+                  size="sm"
                   onClick={() => setShowCollectModal(true)}
-                  className="inline-flex h-8 items-center gap-1.5 rounded-md border border-green-500/20 bg-green-500/10 px-3 text-xs font-medium text-green-600 transition-colors hover:bg-green-500/20 dark:text-green-400"
+                  className="border-green-500/30 bg-green-500/10 text-green-600 hover:bg-green-500/20 hover:text-green-700 dark:text-green-400"
                 >
-                  <CheckCheck className="h-4 w-4" strokeWidth={2} />
+                  <CheckCheck data-icon="inline-start" />
                   Mark as Collected
-                </button>
+                </Button>
 
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="sm"
                   onClick={() => setSelectedTripIds([])}
-                  className="inline-flex h-8 items-center rounded-md px-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 >
                   Clear
-                </button>
+                </Button>
               </div>
             </div>
           </motion.div>

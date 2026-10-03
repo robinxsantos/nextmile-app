@@ -46,7 +46,7 @@ import {
   Receipt,
 } from "lucide-react";
 import EmptyState from "./EmptyState";
-import { Skeleton, SkeletonTableRow } from "./Skeleton";
+import { SkeletonTableRow } from "./Skeleton";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -56,10 +56,27 @@ import {
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import Pagination from "../shared/Pagination";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableFooter,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+} from "@/components/ui/card";
 
 type ColumnKey =
   | "truck"
@@ -278,211 +295,6 @@ function EditableCell({
 }
 
 // ---------------------------------------------------------------------------
-// TripCard (mobile)
-// ---------------------------------------------------------------------------
-
-function TripCard({
-  r,
-  showActions,
-  reportMode,
-  onEdit,
-  onDelete,
-  onDuplicate,
-  onExpenseClick,
-  selectedTruck,
-  selectable,
-  selected,
-  onSelectToggle,
-  showTruckColumn,
-  columnLabels,
-}: {
-  r: TripRow;
-  showActions: boolean;
-  reportMode: boolean;
-  onTogglePaid?: (id: string) => Promise<void>;
-  onEdit?: (row: TripRow) => void;
-  onDelete?: (row: TripRow) => void;
-  onDuplicate?: (row: TripRow) => void;
-  onExpenseClick?: (data: {
-    truckId: string;
-    dateIso: string;
-    dateText: string;
-  }) => void;
-  selectedTruck?: string;
-  selectable?: boolean;
-  selected?: boolean;
-  onSelectToggle?: (id: string) => void;
-  showTruckColumn?: boolean;
-  columnLabels: {
-    shipmentNumber: string;
-    cashAdvance: string;
-  };
-}) {
-  const netValue = reportMode
-    ? (r.reportNetIncome ?? r.netIncome)
-    : r.netIncome;
-  const payableValue = reportMode ? (r.reportPayable ?? r.payable) : r.payable;
-  const displayPayable = !reportMode && r.paid ? "₱0.00" : peso(payableValue);
-
-  return (
-    <div
-      className={cn(
-        "glass-card rounded-md border border-slate-200 dark:border-slate-700 p-4",
-        selectable && selected && "ring-2 ring-blue-500/30 border-blue-400",
-      )}
-    >
-      <div className="flex justify-between items-start mb-3">
-        <div className="flex items-start gap-2.5">
-          {selectable && onSelectToggle && (
-            <input
-              type="checkbox"
-              checked={selected}
-              onChange={() => onSelectToggle(r._id)}
-              className="w-4 h-4 mt-0.5 rounded border-border text-blue-600 focus:ring-blue-500/20 cursor-pointer"
-            />
-          )}
-          <div>
-            <div className="font-bold text-sm">{r.dateText}</div>
-            {showTruckColumn && r.truckName && (
-              <div className="text-xs font-semibold text-blue-600 dark:text-blue-400">
-                {r.truckName}
-              </div>
-            )}
-            <div className="text-xs text-slate-500">{r.week}</div>
-          </div>
-        </div>
-        <span
-          className={cn(
-            "inline-block px-2.5 py-1 rounded-full text-[10px] font-bold leading-none border whitespace-nowrap",
-            statusBadge(r.status),
-          )}
-        >
-          {r.status.toUpperCase()}
-        </span>
-      </div>
-
-      <div className="text-orange-500 font-semibold text-sm mb-3">
-        {r.shipmentNumber}
-      </div>
-
-      <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs mb-3">
-        <div>
-          <div className="text-slate-500">Gross</div>
-          <div className="font-semibold">{peso(r.grossIncome)}</div>
-        </div>
-        <div>
-          <div className="text-slate-500">Net</div>
-          <div
-            className={cn(
-              "font-semibold",
-              netValue < 0 ? "text-red-500" : "text-green-500",
-            )}
-          >
-            {peso(netValue)}
-          </div>
-        </div>
-        <div>
-          <div className="text-slate-500">Payable</div>
-          <div className="font-semibold text-red-500">{displayPayable}</div>
-        </div>
-        <div>
-          <div className="text-slate-500">Trips</div>
-          <div className="font-semibold">{r.trips}</div>
-        </div>
-        <div>
-          <div className="text-slate-500">Rate</div>
-          <div className="font-semibold">{peso(r.rate)}</div>
-        </div>
-        <div>
-          <div className="text-slate-500">Crew Salary</div>
-          <div className="font-semibold">{peso(r.crewSalary)}</div>
-        </div>
-        <div>
-          <div className="text-slate-500">{columnLabels.cashAdvance}</div>
-          <div className="font-semibold">{peso(r.cashAdvance)}</div>
-        </div>
-        <div>
-          <div className="text-slate-500">Reimb.</div>
-          <div className="font-semibold flex items-center gap-1">
-            {r.paid && <CheckCheck size={14} className="text-green-500" />}
-            {peso(r.reimbursements)}
-          </div>
-        </div>
-        {r.expenses > 0 && (
-          <div>
-            <div className="text-slate-500">Expenses</div>
-            <div className="font-semibold">{peso(Number(r.expenses || 0))}</div>
-          </div>
-        )}
-        {r.note && (
-          <div className="col-span-2">
-            <div className="text-slate-500">Note</div>
-            {onExpenseClick && (r.hasExpenses || r.expenses > 0) ? (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-
-                  const truckId =
-                    typeof r.truck === "string"
-                      ? r.truck
-                      : r.truck &&
-                          typeof r.truck === "object" &&
-                          "_id" in r.truck
-                        ? r.truck._id
-                        : selectedTruck || "";
-                  onExpenseClick({
-                    truckId,
-                    dateIso: r.dateIso,
-                    dateText: r.dateText,
-                  });
-                }}
-                className="font-semibold truncate text-blue-600 dark:text-blue-400 hover:underline cursor-pointer text-left"
-              >
-                {r.note}
-              </button>
-            ) : (
-              <div className="font-semibold truncate">{r.note}</div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {showActions && (
-        <div className="flex gap-2 pt-3 border-t border-slate-200 dark:border-slate-700">
-          {onDuplicate && (
-            <button
-              onClick={() => onDuplicate(r)}
-              className="h-9 w-9 rounded-md inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-background text-slate-600 hover:bg-purple-500/10 hover:text-purple-600 transition-all"
-              title="Duplicate"
-            >
-              <Copy size={14} />
-            </button>
-          )}
-          {onEdit && (
-            <button
-              onClick={() => onEdit(r)}
-              className="h-9 w-9 rounded-md inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-background text-slate-600 hover:bg-muted hover:text-blue-600 transition-all"
-              title="Edit"
-            >
-              <Pencil size={14} />
-            </button>
-          )}
-          {onDelete && (
-            <button
-              onClick={() => onDelete(r)}
-              className="h-9 w-9 rounded-md inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-background text-slate-600 hover:bg-red-500/10 hover:text-red-500 transition-all"
-              title="Delete"
-            >
-              <Trash2 size={14} />
-            </button>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // TripTable
 // ---------------------------------------------------------------------------
 
@@ -558,85 +370,24 @@ export default function TripTable({
     (t) => t._id === selectedTruck,
   )?.truckName;
 
-  const getExpensesForTrip = (trip: TripRow) => {
-    // 1. Expenses explicitly linked to this exact trip
-    const tripIdMatches = expenseRows.filter(
-      (expense) => expense.tripId === trip._id,
-    );
-
-    if (tripIdMatches.length > 0) {
-      return tripIdMatches;
-    }
-
-    const tripTruckId =
-      typeof trip.truck === "string" ? trip.truck : trip.truck?._id || "";
-
-    // 2. Older/date-level expenses without tripId
-    const dateExpenses = expenseRows.filter((expense) => {
-      if (expense.tripId) return false;
-
-      const expenseTruckId =
-        typeof expense.truck === "string"
-          ? expense.truck
-          : expense.truck?._id || "";
-
-      return expenseTruckId === tripTruckId && expense.dateIso === trip.dateIso;
-    });
-
-    if (dateExpenses.length === 0) {
-      return [];
-    }
-
-    // 3. Only the FIRST trip on that truck/date displays date-level expenses
-    const ownerTrip = rows.find((row) => {
-      const rowTruckId =
-        typeof row.truck === "string" ? row.truck : row.truck?._id || "";
-
-      return rowTruckId === tripTruckId && row.dateIso === trip.dateIso;
-    });
-
-    return ownerTrip?._id === trip._id ? dateExpenses : [];
-  };
-
   const getExpenseOwnerForTrip = (trip: TripRow) => {
     const tripTruckId =
       typeof trip.truck === "string" ? trip.truck : trip.truck?._id || "";
 
-    // Get all trips for the same truck + date.
-    const sameDateTrips = rows.filter((row) => {
-      const rowTruckId =
-        typeof row.truck === "string" ? row.truck : row.truck?._id || "";
+    return (
+      rows.find((row) => {
+        if (row._id === trip._id) return false;
 
-      return rowTruckId === tripTruckId && row.dateIso === trip.dateIso;
-    });
+        const rowTruckId =
+          typeof row.truck === "string" ? row.truck : row.truck?._id || "";
 
-    // 1. Find a same-date trip that has an explicitly linked expense.
-    const linkedOwner = sameDateTrips.find((row) =>
-      expenseRows.some((expense) => expense.tripId === row._id),
+        return (
+          rowTruckId === tripTruckId &&
+          row.dateIso === trip.dateIso &&
+          (row.expenseItems?.length || 0) > 0
+        );
+      }) ?? null
     );
-
-    if (linkedOwner) {
-      return linkedOwner;
-    }
-
-    // 2. Otherwise check for older date-level expenses without tripId.
-    const hasDateLevelExpenses = expenseRows.some((expense) => {
-      if (expense.tripId) return false;
-
-      const expenseTruckId =
-        typeof expense.truck === "string"
-          ? expense.truck
-          : expense.truck?._id || "";
-
-      return expenseTruckId === tripTruckId && expense.dateIso === trip.dateIso;
-    });
-
-    if (!hasDateLevelExpenses) {
-      return null;
-    }
-
-    // Old date-level expenses belong visually to the first trip of that date.
-    return sameDateTrips[0] ?? null;
   };
 
   const jumpToExpenseOwner = (ownerId: string) => {
@@ -752,6 +503,8 @@ export default function TripTable({
       cols.push({
         key: "shipmentNumber",
         label: columnLabels.shipmentNumber,
+        sortField: "shipmentNumber",
+        className: "w-0 whitespace-nowrap",
       });
     if (show("rate"))
       cols.push({
@@ -992,27 +745,25 @@ export default function TripTable({
             </button>
 
             {hasExpenses && (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="inline-flex items-center justify-center text-blue-500 cursor-help">
-                      <Receipt size={14} />
-                    </span>
-                  </TooltipTrigger>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex items-center justify-center text-blue-500 cursor-help">
+                    <Receipt size={14} />
+                  </span>
+                </TooltipTrigger>
 
-                  <TooltipContent>
-                    <div className="text-xs">
-                      <div className="font-semibold">Expenses recorded</div>
-                      <div className="opacity-80">
-                        {peso(Number(r.expenses || 0))} total
-                      </div>
-                      <div className="opacity-60 mt-0.5">
-                        Expand this trip to view details
-                      </div>
+                <TooltipContent>
+                  <div className="text-xs">
+                    <div className="font-semibold">Expenses recorded</div>
+                    <div className="opacity-80">
+                      {peso(Number(r.expenses || 0))} total
                     </div>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+                    <div className="opacity-60 mt-0.5">
+                      Expand this trip to view details
+                    </div>
+                  </div>
+                </TooltipContent>
+              </Tooltip>
             )}
           </div>
         ) : (
@@ -1038,94 +789,58 @@ export default function TripTable({
       case "shipmentNumber": {
         const status = r.verificationStatus || "For Confirmation";
 
-        const getIcon = () => {
-          if (status === "Verified")
-            return (
-              <CircleCheck
-                size={14}
-                className="text-blue-600 dark:text-blue-400"
-              />
-            );
-          if (status === "Pending")
-            return <AlertCircle size={14} className="text-orange-500" />;
-          return <HelpCircle size={14} className="text-gray-400" />;
-        };
+        const StatusIcon =
+          status === "Verified"
+            ? CircleCheck
+            : status === "Pending"
+              ? AlertCircle
+              : HelpCircle;
 
-        return (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <div
-                        className={cn(
-                          "flex items-center gap-1.5 w-full cursor-pointer rounded px-1 py-0.5 hover:brightness-50",
-                          status === "Verified" &&
-                            "text-blue-600 dark:text-blue-400",
-                          status === "Pending" && "text-orange-500",
-                          status === "For Confirmation" && "text-gray-500",
-                        )}
-                      >
-                        {r.shipmentNumber ? (
-                          <>
-                            {getIcon()}
-                            {r.shipmentNumber}
-                          </>
-                        ) : (
-                          "—"
-                        )}
-                      </div>
-                    </DropdownMenuTrigger>
+        return r.shipmentNumber ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  "-mx-2 h-8 justify-start gap-2 px-2 text-xs font-normal",
+                  status === "Verified" && "text-blue-600 dark:text-blue-400",
+                  status === "Pending" && "text-orange-500",
+                  status === "For Confirmation" && "text-muted-foreground",
+                )}
+              >
+                <StatusIcon className="size-3.5" />
+                {r.shipmentNumber}
+              </Button>
+            </DropdownMenuTrigger>
 
-                    <DropdownMenuContent
-                      align="center"
-                      className="min-w-[180px]"
-                    >
-                      <DropdownMenuItem
-                        onClick={() =>
-                          onVerificationChange?.(r._id, "Verified")
-                        }
-                      >
-                        <CircleCheck
-                          size={14}
-                          className="mr-2 text-blue-600 dark:text-blue-400"
-                        />
-                        Verified
-                      </DropdownMenuItem>
+            <DropdownMenuContent align="start" className="w-48">
+              <DropdownMenuItem
+                onClick={() => onVerificationChange?.(r._id, "Verified")}
+              >
+                <CircleCheck className="size-4" />
+                Verified
+              </DropdownMenuItem>
 
-                      <DropdownMenuItem
-                        onClick={() => onVerificationChange?.(r._id, "Pending")}
-                      >
-                        <AlertCircle
-                          size={14}
-                          className="mr-2 text-orange-500"
-                        />
-                        Pending
-                      </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => onVerificationChange?.(r._id, "Pending")}
+              >
+                <AlertCircle className="size-4" />
+                Pending
+              </DropdownMenuItem>
 
-                      <DropdownMenuItem
-                        onClick={() =>
-                          onVerificationChange?.(r._id, "For Confirmation")
-                        }
-                      >
-                        <HelpCircle size={14} className="mr-2 text-gray-500" />
-                        For Confirmation
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </TooltipTrigger>
-
-              <TooltipContent>
-                {status === "Verified"
-                  ? "Shipment Number is verified"
-                  : status === "Pending"
-                    ? "Shipment Number is pending"
-                    : "Shipment Number needs confirmation"}
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+              <DropdownMenuItem
+                onClick={() =>
+                  onVerificationChange?.(r._id, "For Confirmation")
+                }
+              >
+                <HelpCircle className="size-4" />
+                For Confirmation
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : (
+          <span className="text-muted-foreground">—</span>
         );
       }
 
@@ -1259,10 +974,13 @@ export default function TripTable({
         const effectivePaid = isLoading ? !r.paid : r.paid;
 
         return (
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             disabled={isLoading}
             onClick={async () => {
               if (isLoading) return;
+
               setLoadingId(r._id);
 
               try {
@@ -1272,49 +990,45 @@ export default function TripTable({
               }
             }}
             className={cn(
-              "group px-3 py-1.5 rounded-md inline-flex cursor-pointer items-center gap-1.5 text-xs border transition-all",
+              "group min-w-[136px] text-xs font-normal",
               effectivePaid
-                ? "bg-green-500/10 border-green-500/20 text-green-600 hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-500"
-                : "bg-muted border-border text-slate-400 hover:bg-green-500/10 hover:border-green-500/20 hover:text-green-500",
+                ? "border-green-500/30 bg-green-500/10 text-green-600 dark:border-green-500/40 dark:bg-green-500/10 dark:text-green-400 hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-500 dark:hover:border-red-500/30 dark:hover:bg-red-500/10 dark:hover:text-red-400"
+                : "text-muted-foreground hover:border-green-500/30 hover:bg-green-500/10 hover:text-green-600 dark:hover:border-green-500/40 dark:hover:bg-green-500/10 dark:hover:text-green-400",
             )}
           >
-            <span className="relative flex items-center justify-center min-w-[110px] min-h-[16px]">
-              <span className="absolute inset-0 flex items-center justify-center gap-1.5 group-hover:opacity-0 group-hover:invisible transition-all">
-                {isLoading ? (
-                  <Loader2 size={12} className="animate-spin" />
-                ) : effectivePaid ? (
-                  <>
-                    <Check size={12} />
-                    Settled
-                  </>
-                ) : (
-                  <>
-                    <X size={12} />
-                    Unsettled
-                  </>
-                )}
-              </span>
+            {isLoading ? (
+              <>
+                <Loader2 className="size-3.5 animate-spin" />
+                Saving
+              </>
+            ) : (
+              <>
+                <span className="flex items-center gap-1.5 group-hover:hidden">
+                  {effectivePaid ? (
+                    <Check className="size-3.5" />
+                  ) : (
+                    <X className="size-3.5" />
+                  )}
 
-              <span
-                className={cn(
-                  "absolute inset-0 flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 group-hover:visible transition-all",
-                  effectivePaid ? "text-red-500" : "text-green-500",
-                )}
-              >
-                {effectivePaid ? (
-                  <>
-                    <X size={12} />
-                    Unsettled
-                  </>
-                ) : (
-                  <>
-                    <Check size={12} />
-                    Mark as Settled
-                  </>
-                )}
-              </span>
-            </span>
-          </button>
+                  {effectivePaid ? "Settled" : "Unsettled"}
+                </span>
+
+                <span className="hidden items-center gap-1.5 group-hover:flex">
+                  {effectivePaid ? (
+                    <>
+                      <X className="size-3.5" />
+                      Set as Unsettled
+                    </>
+                  ) : (
+                    <>
+                      <Check className="size-3.5" />
+                      Set as Settled
+                    </>
+                  )}
+                </span>
+              </>
+            )}
+          </Button>
         );
       }
 
@@ -1354,43 +1068,37 @@ export default function TripTable({
     (selectable ? 1 : 0) + columns.length + (showActions ? 1 : 0);
 
   return (
-    <div className="border rounded-lg bg-background overflow-x-auto">
+    <div className="[&>div]:max-h-[calc(100vh-280px)] [&>div]:overflow-auto">
       {/* Desktop table */}
-      <table
+      <Table
         className={cn(
-          "w-full text-sm hidden md:table transition-opacity duration-150",
+          "text-sm transition-opacity duration-150",
           !showActions && "report-table",
           isRefreshing && "opacity-70",
         )}
       >
-        <thead>
-          <tr>
+        <TableHeader>
+          <TableRow className="sticky top-0 z-20 bg-background hover:bg-background">
             {selectable && (
-              <th className="sticky top-0 z-10 bg-muted/60 backdrop-blur border-b border-slate-200 dark:border-slate-700 text-left text-xs font-semibold text-muted-foreground px-2.5 py-3 whitespace-nowrap">
-                <input
-                  type="checkbox"
-                  checked={allSelected}
-                  ref={(el) => {
-                    if (el) el.indeterminate = someSelected && !allSelected;
-                  }}
-                  onChange={handleSelectAll}
-                  className="w-4 h-4 rounded border-border text-blue-600 focus:ring-blue-500/20 cursor-pointer"
+              <TableHead className="w-12 pl-4 pr-2 whitespace-nowrap">
+                <Checkbox
+                  checked={
+                    allSelected ? true : someSelected ? "indeterminate" : false
+                  }
+                  onCheckedChange={handleSelectAll}
+                  aria-label="Select all trips"
                 />
-              </th>
+              </TableHead>
             )}
             {columns.map((col, idx) => {
               const column = table.getColumn(col.key);
               const sortState = column?.getIsSorted(); // false | "asc" | "desc"
 
               return (
-                <th
+                <TableHead
                   key={col.key}
-                  onClick={() =>
-                    (col.sortField || col.key === "paid") &&
-                    column?.toggleSorting()
-                  }
                   className={cn(
-                    "group sticky top-0 z-10 bg-muted/60 backdrop-blur border-b border-slate-200 dark:border-slate-700 text-xs font-semibold text-muted-foreground px-2.5 py-3 cursor-pointer select-none transition-colors hover:bg-muted hover:text-foreground",
+                    "h-10 whitespace-nowrap text-sm font-medium",
                     col.key === "paid"
                       ? "text-center"
                       : isNumericColumn(col.key)
@@ -1400,7 +1108,7 @@ export default function TripTable({
                 >
                   <div
                     className={cn(
-                      "flex w-full items-center gap-1 transition-colors group-hover:text-foreground",
+                      "flex w-full items-center",
                       col.key === "paid"
                         ? "justify-center"
                         : isNumericColumn(col.key)
@@ -1453,45 +1161,47 @@ export default function TripTable({
                         }}
                         className="text-xs px-1 border rounded bg-background text-left"
                       />
+                    ) : col.sortField || col.key === "paid" ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="-mx-2 h-8 gap-1.5 px-2 text-xs font-medium"
+                        onClick={() => column?.toggleSorting()}
+                      >
+                        {col.label}
+
+                        {sortState === "asc" ? (
+                          <ArrowUp className="size-3.5" />
+                        ) : sortState === "desc" ? (
+                          <ArrowDown className="size-3.5" />
+                        ) : (
+                          <ArrowUpDown className="size-3.5 text-muted-foreground" />
+                        )}
+                      </Button>
                     ) : (
-                      col.label
-                    )}
-
-                    {!sortState && (
-                      <ArrowUpDown
-                        size={12}
-                        className="text-muted-foreground"
-                      />
-                    )}
-
-                    {sortState === "asc" && (
-                      <ArrowUp size={12} className="text-foreground" />
-                    )}
-
-                    {sortState === "desc" && (
-                      <ArrowDown size={12} className="text-foreground" />
+                      <span>{col.label}</span>
                     )}
                   </div>
-                </th>
+                </TableHead>
               );
             })}
             {showActions && (
-              <th className="sticky top-0 z-10 bg-muted/60 backdrop-blur border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-muted-foreground px-2.5 py-3 whitespace-nowrap">
+              <TableHead className="w-16 pl-2 pr-4 text-center text-xs font-medium">
                 Actions
-              </th>
+              </TableHead>
             )}
-            {!showActions && <th className="w-[1px] p-0" />}
-          </tr>
-        </thead>
+            {!showActions && <TableHead className="w-px p-0" />}
+          </TableRow>
+        </TableHeader>
 
-        <tbody>
+        <TableBody>
           {loading ? (
             Array.from({ length: 5 }).map((_, i) => (
               <SkeletonTableRow key={`skel-${i}`} columns={colCount} />
             ))
           ) : rows.length === 0 ? (
-            <tr>
-              <td colSpan={colCount}>
+            <TableRow>
+              <TableCell colSpan={colCount}>
                 {emptyState || (
                   <EmptyState
                     icon={Route}
@@ -1499,12 +1209,12 @@ export default function TripTable({
                     description={`No trips recorded for ${selectedTruckName} on the selected date range.`}
                   />
                 )}
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           ) : (
             table.getRowModel().rows.map((row, rowIndex) => {
               const r = row.original;
-              const tripExpenses = getExpensesForTrip(r);
+              const tripExpenses = r.expenseItems || [];
 
               const expenseOwner = getExpenseOwnerForTrip(r);
 
@@ -1513,7 +1223,7 @@ export default function TripTable({
 
               return (
                 <Fragment key={row.id}>
-                  <tr
+                  <TableRow
                     onClick={(e) => {
                       if (!expandableDetails) return;
 
@@ -1530,34 +1240,29 @@ export default function TripTable({
                       toggleExpandedRow(r._id);
                     }}
                     className={cn(
-                      rowIndex % 2 === 1 && "bg-muted/50",
-                      expandedRows.has(r._id)
-                        ? "bg-blue-50/70 dark:bg-blue-950/20"
-                        : "hover:bg-blue-50/70 dark:hover:bg-blue-950/20",
                       expandableDetails && "cursor-pointer",
                       expandedRows.has(r._id) &&
-                        "relative z-[1] shadow-[0_5px_8px_-6px_rgba(0,0,0,0.35)]",
+                        "relative z-[1] bg-muted/50 shadow-md dark:shadow-[0_4px_10px_-4px_rgba(255,255,255,0.08)]",
                       r.status === "Holiday" && "bg-muted/30",
-                      r.status === "Day Off" &&
-                        "bg-slate-50/80 dark:bg-slate-800/30 text-slate-400",
+                      r.status === "Day Off" && "text-muted-foreground",
                       selectable && selectedIds.includes(r._id) && "bg-muted",
                     )}
                   >
                     {selectable && (
-                      <td className="sticky left-0 z-[5] bg-background text-left px-2.5 py-2.5 border-b border-border w-[40px] min-w-[40px] max-w-[40px]">
-                        <input
-                          type="checkbox"
+                      <TableCell className="w-12 pl-4 pr-2">
+                        <Checkbox
                           checked={selectedIds.includes(r._id)}
-                          onChange={() => handleSelectRow(r._id)}
-                          className="w-4 h-4 rounded border-border text-blue-600 focus:ring-blue-500/20 cursor-pointer"
+                          onCheckedChange={() => handleSelectRow(r._id)}
+                          onClick={(event) => event.stopPropagation()}
+                          aria-label={`Select trip ${r.dateText}`}
                         />
-                      </td>
+                      </TableCell>
                     )}
                     {columns.map((col, idx) => (
-                      <td
+                      <TableCell
                         key={col.key}
                         className={cn(
-                          "text-xs px-2.5 py-2.5 border-b border-border",
+                          "text-xs",
                           col.key === "paid"
                             ? "text-center"
                             : isNumericColumn(col.key)
@@ -1567,16 +1272,20 @@ export default function TripTable({
                         )}
                       >
                         {renderCell(col.key, r)}
-                      </td>
+                      </TableCell>
                     ))}
                     {showActions && (
-                      <td className="text-center text-xs px-2.5 py-2.5 border-b border-border">
+                      <TableCell className="w-16 pl-2 pr-4 text-center">
                         <div className="flex items-center justify-center w-full">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <button className="w-[34px] h-[34px] rounded-md inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-background text-slate-600 hover:bg-muted transition-all">
-                                <MoreVertical size={16} />
-                              </button>
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label="Open trip actions"
+                              >
+                                <MoreVertical className="size-4" />
+                              </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent
                               align="end"
@@ -1606,151 +1315,151 @@ export default function TripTable({
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
-                      </td>
+                      </TableCell>
                     )}
-                    {!showActions && <td className="w-[1px] p-0" />}
-                  </tr>
+                    {!showActions && <TableCell className="w-px p-0" />}
+                  </TableRow>
                   {expandableDetails && expandedRows.has(r._id) && (
-                    <tr>
-                      <td
+                    <TableRow className="hover:bg-transparent">
+                      <TableCell
                         colSpan={colCount}
-                        className="border-b border-border bg-muted/60 px-4 py-3"
+                        className="bg-muted/30 px-4 py-2"
                       >
                         <div
                           id={`trip-details-${r._id}`}
                           className={cn(
-                            "relative ml-4 pl-4 rounded-md transition-all duration-300",
+                            "relative ml-2 pl-4 transition-all duration-300",
                             highlightedExpenseRow === r._id &&
-                              "bg-blue-500/15 ring-2 ring-blue-500/40 shadow-sm",
+                              "rounded-lg bg-blue-500/10 ring-2 ring-blue-500/30",
                           )}
                         >
-                          <span className="absolute left-0 top-0 bottom-0 w-[2px] rounded-full bg-red-500/70" />
-                          {/* Parent trip reference */}
-                          <div className="flex flex-wrap items-center gap-2 mb-3">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                              Trip Details
-                            </span>
+                          {/* EXPANDED INDICATOR — KEEP */}
+                          <span className="absolute inset-y-0 left-0 w-[2px] rounded-full bg-red-500/70" />
 
-                            <span className="text-muted-foreground/40">•</span>
+                          {/* HEADER */}
+                          <div className="mb-2.5 flex flex-wrap items-center gap-2">
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-xs text-muted-foreground">
+                                  {new Date(
+                                    `${r.dateIso}T00:00:00`,
+                                  ).toLocaleDateString("en-US", {
+                                    weekday: "short",
+                                    month: "short",
+                                    day: "numeric",
+                                    year: "numeric",
+                                  })}
+                                </span>
 
-                            <span className="text-xs font-semibold">
-                              {new Date(
-                                `${r.dateIso}T00:00:00`,
-                              ).toLocaleDateString("en-US", {
-                                weekday: "short",
-                                month: "short",
-                                day: "numeric",
-                                year: "numeric",
-                              })}
-                            </span>
+                                <span className="text-muted-foreground/50">
+                                  ·
+                                </span>
 
-                            <span className="text-muted-foreground/40">•</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {columnLabels.shipmentNumber}:{" "}
+                                  <span className="font-medium text-foreground">
+                                    {r.shipmentNumber || "N/A"}
+                                  </span>
+                                </span>
 
-                            <span className="text-xs text-muted-foreground">
-                              {columnLabels.shipmentNumber}:{" "}
-                              {r.shipmentNumber || "N/A"}
-                            </span>
-
-                            <span className="text-muted-foreground/40">•</span>
-
-                            <span
-                              className={cn(
-                                "inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border whitespace-nowrap",
-                                statusBadge(r.status),
-                              )}
-                            >
-                              {r.status || "N/A"}
-                            </span>
+                                <Badge
+                                  variant="outline"
+                                  className={cn(
+                                    "shrink-0 text-xs font-normal",
+                                    r.status === "Working Day" &&
+                                      "border-green-500/30 bg-green-500/10 text-green-600 dark:text-green-400",
+                                    r.status === "Holiday" &&
+                                      "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400",
+                                    r.status !== "Working Day" &&
+                                      r.status !== "Holiday" &&
+                                      "text-muted-foreground",
+                                  )}
+                                >
+                                  {r.status || "N/A"}
+                                </Badge>
+                              </div>
+                            </div>
                           </div>
 
-                          {/* Detail values */}
-                          <div className="grid grid-cols-[180px_180px_180px_minmax(280px,1fr)] gap-x-8 gap-y-3">
-                            {/* ROW 1 */}
-                            <div className="col-start-1 row-start-1">
-                              <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
-                                Original Rate
+                          {/* DETAILS */}
+                          <div className="grid gap-x-8 gap-y-2.5 lg:grid-cols-[160px_160px_160px_minmax(260px,1fr)]">
+                            {/* COLUMN 1 */}
+                            <div className="space-y-2.5">
+                              <div className="space-y-1">
+                                <p className="text-xs text-muted-foreground">
+                                  Original Rate
+                                </p>
+                                <p className="text-xs font-medium tabular-nums">
+                                  {peso(Number(r.originalRate || r.rate || 0))}
+                                </p>
                               </div>
-                              <div className="text-xs font-normal">
-                                {peso(Number(r.originalRate || r.rate || 0))}
+
+                              <div className="space-y-1">
+                                <p className="text-xs text-muted-foreground">
+                                  Rate Adjustment
+                                </p>
+                                <p className="text-xs font-medium tabular-nums">
+                                  {r.rateAdjustmentType === "amount" &&
+                                  Number(r.rateAdjustment || 0) > 0
+                                    ? peso(Number(r.rateAdjustment))
+                                    : r.rateAdjustmentType === "percentage" &&
+                                        Number(r.rateAdjustment || 0) > 0
+                                      ? `${Number(
+                                          r.rateAdjustment,
+                                        ).toLocaleString("en-PH", {
+                                          maximumFractionDigits: 2,
+                                        })}%`
+                                      : "—"}
+                                </p>
+                              </div>
+
+                              <div className="space-y-1">
+                                <p className="text-xs text-muted-foreground">
+                                  Adjusted Rate
+                                </p>
+                                <p className="text-xs font-medium tabular-nums">
+                                  {peso(Number(r.rate || 0))}
+                                </p>
+                              </div>
+
+                              <div className="space-y-1">
+                                <p className="text-xs text-muted-foreground">
+                                  VAT
+                                </p>
+                                <p className="text-xs font-medium tabular-nums">
+                                  {peso(Number(r.vat || 0))}
+                                </p>
                               </div>
                             </div>
 
-                            <div className="col-start-2 row-start-1">
-                              <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
-                                Crew Salary
+                            {/* COLUMN 2 */}
+                            <div className="space-y-2.5">
+                              <div className="space-y-1">
+                                <p className="text-xs text-muted-foreground">
+                                  Crew Salary
+                                </p>
+                                <p className="text-xs font-medium tabular-nums">
+                                  {peso(Number(r.crewSalary || 0))}
+                                </p>
                               </div>
-                              <div className="text-xs font-normal">
-                                {peso(Number(r.crewSalary || 0))}
-                              </div>
-                            </div>
 
-                            <div className="col-start-3 row-start-1">
-                              <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
-                                Expense Amount
-                              </div>
-                              <div
-                                className={cn(
-                                  "text-xs font-normal",
-                                  Number(r.expenses || 0) > 0 &&
-                                    "text-blue-600 dark:text-blue-400",
-                                )}
-                              >
-                                {peso(Number(r.expenses || 0))}
-                              </div>
-                            </div>
-
-                            {/* ROW 2 */}
-                            <div className="col-start-1 row-start-2">
-                              <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
-                                Rate Adjustment
-                              </div>
-                              <div className="text-xs font-normal">
-                                {r.rateAdjustmentType === "amount" &&
-                                Number(r.rateAdjustment || 0) > 0
-                                  ? peso(Number(r.rateAdjustment))
-                                  : r.rateAdjustmentType === "percentage" &&
-                                      Number(r.rateAdjustment || 0) > 0
-                                    ? `${Number(
-                                        r.rateAdjustment,
-                                      ).toLocaleString("en-PH", {
-                                        maximumFractionDigits: 2,
-                                      })}%`
-                                    : "—"}
-                              </div>
-                            </div>
-
-                            <div className="col-start-2 row-start-2">
-                              <div
-                                onDoubleClick={() => {
-                                  setEditingLabel("cashAdvance");
-                                  setLabelDraft(columnLabels.cashAdvance);
-                                }}
-                                className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1 cursor-pointer hover:text-foreground transition-colors"
-                                title="Double-click to rename"
-                              >
-                                {editingLabel === "cashAdvance" ? (
-                                  <input
-                                    value={labelDraft}
-                                    autoFocus
-                                    onChange={(e) =>
-                                      setLabelDraft(e.target.value)
-                                    }
-                                    onBlur={() => {
-                                      const updated = {
-                                        ...columnLabels,
-                                        cashAdvance:
-                                          labelDraft.trim() || "Allowance",
-                                      };
-
-                                      localStorage.setItem(
-                                        "column-labels",
-                                        JSON.stringify(updated),
-                                      );
-                                      setColumnLabels(updated);
-                                      setEditingLabel(null);
-                                    }}
-                                    onKeyDown={(e) => {
-                                      if (e.key === "Enter") {
+                              <div className="space-y-1">
+                                <div
+                                  onDoubleClick={() => {
+                                    setEditingLabel("cashAdvance");
+                                    setLabelDraft(columnLabels.cashAdvance);
+                                  }}
+                                  className="text-xs text-muted-foreground"
+                                  title="Double-click to rename"
+                                >
+                                  {editingLabel === "cashAdvance" ? (
+                                    <input
+                                      value={labelDraft}
+                                      autoFocus
+                                      onChange={(e) =>
+                                        setLabelDraft(e.target.value)
+                                      }
+                                      onBlur={() => {
                                         const updated = {
                                           ...columnLabels,
                                           cashAdvance:
@@ -1761,78 +1470,92 @@ export default function TripTable({
                                           "column-labels",
                                           JSON.stringify(updated),
                                         );
+
                                         setColumnLabels(updated);
                                         setEditingLabel(null);
-                                      }
+                                      }}
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter") {
+                                          const updated = {
+                                            ...columnLabels,
+                                            cashAdvance:
+                                              labelDraft.trim() || "Allowance",
+                                          };
 
-                                      if (e.key === "Escape") {
-                                        setEditingLabel(null);
-                                      }
-                                    }}
-                                    onDoubleClick={(e) => e.stopPropagation()}
-                                    className="w-[120px] text-xs px-1.5 py-1 border rounded bg-background text-foreground normal-case"
-                                  />
-                                ) : (
-                                  columnLabels.cashAdvance
-                                )}
-                              </div>
+                                          localStorage.setItem(
+                                            "column-labels",
+                                            JSON.stringify(updated),
+                                          );
 
-                              <div className="text-xs font-normal">
-                                {peso(Number(r.cashAdvance || 0))}
-                              </div>
-                            </div>
+                                          setColumnLabels(updated);
+                                          setEditingLabel(null);
+                                        }
 
-                            {/* ROW 3 */}
-                            <div className="col-start-1 row-start-3">
-                              <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
-                                Adjusted Rate
-                              </div>
-                              <div className="text-xs font-normal">
-                                {peso(Number(r.rate || 0))}
-                              </div>
-                            </div>
-
-                            <div className="col-start-2 row-start-3">
-                              <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
-                                Crew Reimbursement
-                              </div>
-
-                              <div className="text-xs font-normal flex items-center gap-1.5">
-                                {r.paid &&
-                                  Number(r.reimbursements || 0) > 0 && (
-                                    <CheckCheck
-                                      size={14}
-                                      className="text-green-500"
+                                        if (e.key === "Escape") {
+                                          setEditingLabel(null);
+                                        }
+                                      }}
+                                      onDoubleClick={(e) => e.stopPropagation()}
+                                      className="h-7 w-[120px] rounded-md border bg-background px-2 text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                     />
+                                  ) : (
+                                    <span className="cursor-pointer hover:text-foreground">
+                                      {columnLabels.cashAdvance}
+                                    </span>
                                   )}
+                                </div>
 
-                                <span
-                                  className={cn(
-                                    r.paid &&
-                                      Number(r.reimbursements || 0) > 0 &&
-                                      "text-muted-foreground line-through",
-                                  )}
-                                >
-                                  {peso(Number(r.reimbursements || 0))}
-                                </span>
+                                <p className="text-xs font-medium tabular-nums">
+                                  {peso(Number(r.cashAdvance || 0))}
+                                </p>
+                              </div>
+
+                              <div className="space-y-1">
+                                <p className="text-xs text-muted-foreground">
+                                  Crew Reimbursement
+                                </p>
+
+                                <div className="flex items-center gap-1.5 text-xs font-medium tabular-nums">
+                                  {r.paid &&
+                                    Number(r.reimbursements || 0) > 0 && (
+                                      <CheckCheck className="size-3.5 text-green-500" />
+                                    )}
+
+                                  <span
+                                    className={cn(
+                                      r.paid &&
+                                        Number(r.reimbursements || 0) > 0 &&
+                                        "text-muted-foreground line-through",
+                                    )}
+                                  >
+                                    {peso(Number(r.reimbursements || 0))}
+                                  </span>
+                                </div>
                               </div>
                             </div>
 
-                            {/* ROW 4 */}
-                            <div className="col-start-1 row-start-4">
-                              <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
-                                VAT
-                              </div>
-                              <div className="text-xs font-normal">
-                                {peso(Number(r.vat || 0))}
-                              </div>
+                            {/* COLUMN 3 */}
+                            <div className="space-y-1">
+                              <p className="text-xs text-muted-foreground">
+                                Expense Amount
+                              </p>
+
+                              <p
+                                className={cn(
+                                  "text-xs font-medium tabular-nums",
+                                  Number(r.expenses || 0) > 0 &&
+                                    "text-blue-600 dark:text-blue-400",
+                                )}
+                              >
+                                {peso(Number(r.expenses || 0))}
+                              </p>
                             </div>
 
-                            {/* EXPENSE BREAKDOWN */}
-                            <div className="col-start-4 row-start-1 row-span-4">
-                              <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+                            {/* COLUMN 4 — EXPENSE BREAKDOWN */}
+                            <div className="min-w-0 space-y-2">
+                              <p className="text-xs text-muted-foreground">
                                 Expense Breakdown
-                              </div>
+                              </p>
 
                               {tripExpenses.length > 0 ? (
                                 <button
@@ -1849,71 +1572,92 @@ export default function TripTable({
                                       dateText: r.dateText,
                                     });
                                   }}
-                                  className="flex flex-col gap-1.5 w-full max-w-[360px] text-left group"
+                                  className="group flex w-full max-w-[380px] flex-col gap-1.5 text-left"
                                 >
                                   {tripExpenses.map((expense) => (
                                     <div
                                       key={expense._id}
-                                      className="grid grid-cols-[220px_auto] items-start gap-4 text-xs"
+                                      className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 text-xs"
                                     >
-                                      <span className="text-blue-500 group-hover:underline">
-                                        {expense.category}
-                                        {expense.description
+                                      <span
+                                        className={cn(
+                                          "truncate group-hover:underline",
+                                          expense.reimbursed
+                                            ? "text-green-600 dark:text-green-400"
+                                            : "text-blue-600 dark:text-blue-400",
+                                        )}
+                                      >
+                                        {expense.category
+                                          .trim()
+                                          .toUpperCase() === "REIMBURSEMENT"
+                                          ? "REIMB."
+                                          : expense.category}
+
+                                        {expense.description &&
+                                        !(
+                                          expense.category
+                                            .trim()
+                                            .toUpperCase() ===
+                                            "REIMBURSEMENT" &&
+                                          expense.reimbursed
+                                        )
                                           ? `: ${expense.description}`
+                                          : ""}
+
+                                        {expense.reimbursed
+                                          ? " (Reimbursed by Client)"
                                           : ""}
                                       </span>
 
-                                      <span className="text-foreground tabular-nums whitespace-nowrap">
+                                      <span className="whitespace-nowrap font-medium tabular-nums text-foreground">
                                         {peso(Number(expense.amount || 0))}
                                       </span>
                                     </div>
                                   ))}
                                 </button>
                               ) : hasExpenseElsewhere && expenseOwner ? (
-                                <button
+                                <Button
                                   type="button"
+                                  variant="link"
+                                  size="sm"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     jumpToExpenseOwner(expenseOwner._id);
                                   }}
-                                  className="inline-flex items-center text-xs text-blue-500 hover:underline"
+                                  className="h-auto p-0 text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
                                 >
                                   View this date&apos;s expense breakdown →
-                                </button>
+                                </Button>
                               ) : (
-                                <div className="text-xs text-muted-foreground">
+                                <span className="text-sm text-muted-foreground">
                                   —
-                                </div>
+                                </span>
                               )}
                             </div>
                           </div>
                         </div>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   )}
                 </Fragment>
               );
             })
           )}
-        </tbody>
+        </TableBody>
 
-        <tfoot>
-          <tr>
-            {selectable && (
-              <td className="sticky bottom-0 z-30 bg-muted border-t-2 border-border px-2.5 py-3" />
-            )}
+        <TableFooter>
+          <TableRow>
+            {selectable && <TableCell />}
             {columns.map((col, idx) => {
               const isFirst = idx === 0;
               const totalVal = getTotalForColumn(col.key);
               const displayVal =
                 totalVal !== null ? totalVal : isFirst ? "TOTALS" : "";
               return (
-                <td
+                <TableCell
                   key={`total-${col.key}`}
                   className={cn(
-                    "sticky bottom-0 z-30 bg-muted border-t-2 border-border text-xs px-2.5 py-3 font-bold",
-                    isFirst && !selectable && "left-0 z-[31]",
-                    isFirst && selectable && "left-[40px] z-[31]",
+                    "text-xs font-medium",
                     col.key === "paid"
                       ? "text-center"
                       : isNumericColumn(col.key)
@@ -1922,22 +1666,20 @@ export default function TripTable({
                     col.key === "netIncome" &&
                       (totals.netIncome < 0
                         ? "text-red-600 dark:text-red-400"
-                        : "text-green-700 dark:text-green-300"),
+                        : "text-green-700 dark:text-green-400"),
                     col.key === "payable" && "text-red-600 dark:text-red-400",
                   )}
                 >
                   {displayVal}
-                </td>
+                </TableCell>
               );
             })}
-            {showActions && (
-              <td className="sticky bottom-0 z-30 bg-muted border-t-2 border-border px-2.5 py-3" />
-            )}
-          </tr>
-        </tfoot>
-      </table>
+            {showActions && <TableCell />}
+          </TableRow>
+        </TableFooter>
+      </Table>
 
-      <div className="mt-3 border-t border-border flex items-center justify-center">
+      <div className="border-t border-border">
         <Pagination
           currentPage={table.getState().pagination.pageIndex + 1}
           totalPages={table.getPageCount()}
@@ -1946,81 +1688,6 @@ export default function TripTable({
           onPageChange={(page) => table.setPageIndex(page - 1)}
           onPageSizeChange={(size) => table.setPageSize(size)}
         />
-      </div>
-
-      {/* Mobile cards */}
-      <div className="flex flex-col gap-3 md:hidden p-3">
-        {selectable && rows.length > 0 && !loading && (
-          <div className="flex items-center gap-2 px-1 pb-1">
-            <input
-              type="checkbox"
-              checked={allSelected}
-              ref={(el) => {
-                if (el) el.indeterminate = someSelected && !allSelected;
-              }}
-              onChange={handleSelectAll}
-              className="w-4 h-4 rounded border-border text-blue-600 focus:ring-blue-500/20 cursor-pointer"
-            />
-            <span className="text-xs font-semibold text-muted-foreground">
-              {allSelected ? "Deselect All" : "Select All"}
-            </span>
-          </div>
-        )}
-        {loading ? (
-          Array.from({ length: 3 }).map((_, i) => (
-            <div
-              key={`skel-card-${i}`}
-              className="glass-card rounded-md border border-slate-200 dark:border-slate-700 p-4 animate-pulse"
-            >
-              <div className="flex justify-between items-start mb-3">
-                <div>
-                  <Skeleton className="h-4 w-24 mb-1.5" />
-                  <Skeleton className="h-3 w-16" />
-                </div>
-                <Skeleton className="h-7 w-20 rounded-full" />
-              </div>
-              <Skeleton className="h-3.5 w-28 mb-3" />
-              <div className="grid grid-cols-2 gap-x-4 gap-y-3 mb-3">
-                {Array.from({ length: 6 }).map((_, j) => (
-                  <div key={j}>
-                    <Skeleton className="h-3 w-14 mb-1" />
-                    <Skeleton className="h-4 w-20" />
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))
-        ) : rows.length === 0 ? (
-          <div>
-            {emptyState || (
-              <EmptyState
-                icon={Route}
-                title="No trips found"
-                description="No trip records match your current filters."
-              />
-            )}
-          </div>
-        ) : (
-          rows.map((r) => (
-            <TripCard
-              key={r._id}
-              r={r}
-              showActions={showActions}
-              reportMode={reportMode}
-              onTogglePaid={onTogglePaid}
-              onEdit={onEdit}
-              onDelete={onDelete}
-              onDuplicate={onDuplicate}
-              onExpenseClick={onExpenseClick}
-              selectedTruck={selectedTruck}
-              selectable={selectable}
-              selected={selectedIds.includes(r._id)}
-              onSelectToggle={handleSelectRow}
-              showTruckColumn={truckVisible}
-              columnLabels={columnLabels}
-            />
-          ))
-        )}
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import { Router, Response } from "express";
 import { Trip } from "../models/Trip.js";
 import { Truck } from "../models/Truck.js";
+import { Expense } from "../models/Expense.js";
 import {
   prepareTripData,
   syncTripsForDate,
@@ -135,16 +136,54 @@ router.patch(
         }
       }
 
+      const affectedDates = new Map<string, { truckId: any; date: Date }>();
+
       for (const trip of trips) {
+        const dateKey = `${String(trip.truck)}|${trip.date
+          .toISOString()
+          .slice(0, 10)}`;
+
+        affectedDates.set(dateKey, {
+          truckId: trip.truck,
+          date: trip.date,
+        });
         const totalPayable =
           Number(trip.crewSalary || 0) -
           Number(trip.cashAdvance || 0) +
           Number(trip.reimbursements || 0);
 
+        // Always remove old linked reimbursement expenses first.
+        // This also cleans up duplicates created by the old bulk flow.
+        await Expense.deleteMany({
+          tripId: trip._id,
+        });
+
+        // Bulk Settled = create exactly one linked reimbursement expense.
+        if (
+          Boolean(paid) &&
+          Number(trip.reimbursements || 0) > 0 &&
+          trip.reimbursementCategory
+        ) {
+          await Expense.create({
+            truck: trip.truck,
+            createdBy: req.user?._id || null,
+            date: trip.date,
+            category: trip.reimbursementCategory,
+            amount: Number(trip.reimbursements || 0),
+            description: "Crew Reimb.",
+            tripId: trip._id,
+            reimbursed: false,
+          });
+        }
+
         await Trip.findByIdAndUpdate(trip._id, {
           paid: Boolean(paid),
           payable: paid ? 0 : totalPayable,
         });
+      }
+
+      for (const { truckId, date } of affectedDates.values()) {
+        await syncTripsForDate(truckId as any, date);
       }
 
       res.json({
@@ -400,6 +439,19 @@ router.post(
           row["Crew Salary"] || row["CREW SALARY"] || 0,
         );
 
+        const reimbursements = Number(
+          row["Reimbursements"] || row["REIMBURSEMENTS"] || 0,
+        );
+
+        const reimbursementCategory = String(
+          row["Reimbursement Category"] || row["REIMBURSEMENT CATEGORY"] || "",
+        )
+          .trim()
+          .toUpperCase();
+
+        const invalidReimbursement =
+          reimbursements < 0 || (reimbursements > 0 && !reimbursementCategory);
+
         const invalidAdjustment =
           rateAdjustmentType === "invalid" ||
           rateAdjustment < 0 ||
@@ -413,7 +465,8 @@ router.post(
           originalRate <= 0 ||
           crewSalary <= 0 ||
           !validAutoComputeVat ||
-          invalidAdjustment
+          invalidAdjustment ||
+          invalidReimbursement
         ) {
           invalid++;
           continue;
@@ -549,6 +602,17 @@ router.post(
           row["Reimbursements"] || row["REIMBURSEMENTS"] || 0,
         );
 
+        const reimbursementCategory =
+          reimbursements > 0
+            ? String(
+                row["Reimbursement Category"] ||
+                  row["REIMBURSEMENT CATEGORY"] ||
+                  "",
+              )
+                .trim()
+                .toUpperCase()
+            : "";
+
         const validAutoComputeVat =
           rawAutoComputeVat === "yes" || rawAutoComputeVat === "no";
 
@@ -558,6 +622,9 @@ router.post(
           (rateAdjustmentType === "percentage" && rateAdjustment >= 100) ||
           (rateAdjustmentType === "none" && rateAdjustment > 0);
 
+        const invalidReimbursement =
+          reimbursements < 0 || (reimbursements > 0 && !reimbursementCategory);
+
         if (
           !tripDate ||
           !shipmentNumber ||
@@ -565,7 +632,8 @@ router.post(
           crewSalary <= 0 ||
           !validAdjustmentType ||
           !validAutoComputeVat ||
-          invalidAdjustment
+          invalidAdjustment ||
+          invalidReimbursement
         ) {
           continue;
         }
@@ -611,14 +679,17 @@ router.post(
             vat: 0,
             trips: 1,
             crewSalary,
-            cashAdvance: existingTrip.cashAdvance,
-            reimbursements: existingTrip.reimbursements,
+            cashAdvance,
+            reimbursements,
             expenses: existingTrip.expenses,
             paid: existingTrip.paid,
             note: existingTrip.note,
           });
 
-          await Trip.findByIdAndUpdate(existingTrip._id, tripData);
+          await Trip.findByIdAndUpdate(existingTrip._id, {
+            ...tripData,
+            reimbursementCategory,
+          });
 
           affectedDates.add(parsedDate.toISOString().slice(0, 10));
 
@@ -653,6 +724,7 @@ router.post(
           truck: truck._id,
           createdBy: req.user?._id,
           ...tripData,
+          reimbursementCategory,
         });
 
         affectedDates.add(parsedDate.toISOString().slice(0, 10));
@@ -699,6 +771,7 @@ router.post(
         crewSalary,
         cashAdvance,
         reimbursements,
+        reimbursementCategory,
         note,
       } = req.body;
       const canManageTripFinancials =
@@ -821,6 +894,12 @@ router.post(
         truck: truck._id,
         createdBy: req.user?._id || null,
         ...tripData,
+        reimbursementCategory:
+          finalReimbursement > 0
+            ? String(reimbursementCategory || "")
+                .trim()
+                .toUpperCase()
+            : "",
       });
 
       // Re-sync all trips for this date if there are multiple
@@ -860,6 +939,7 @@ router.put(
         crewSalary,
         cashAdvance,
         reimbursements,
+        reimbursementCategory,
         note,
       } = req.body;
 
@@ -956,7 +1036,15 @@ router.put(
         expenses: existingTrip.expenses,
       });
 
-      await Trip.findByIdAndUpdate(req.params.id, tripData);
+      await Trip.findByIdAndUpdate(req.params.id, {
+        ...tripData,
+        reimbursementCategory:
+          finalReimbursement > 0
+            ? String(reimbursementCategory || "")
+                .trim()
+                .toUpperCase()
+            : "",
+      });
 
       const updated = await Trip.findById(req.params.id).populate(
         "truck",
@@ -1004,10 +1092,14 @@ router.delete("/:id", requireAuth, async (req: AuthRequest, res: Response) => {
     const truckId = trip.truck;
     const tripDate = trip.date;
 
+    // Delete expenses linked specifically to this trip.
+    await Expense.deleteMany({
+      tripId: trip._id,
+    });
+
     await Trip.findByIdAndDelete(req.params.id);
 
-    // Re-sync remaining trips for this date
-    // await syncTripsForDate(truckId as any, tripDate);
+    await syncTripsForDate(truckId as any, tripDate);
 
     res.json({ ok: true });
   } catch (err: any) {
@@ -1201,13 +1293,14 @@ router.patch(
   },
 );
 
-// PATCH /api/trips/:id/toggle-paid (admin only)
+// PATCH /api/trips/:id/toggle-paid
 router.patch(
   "/:id/toggle-paid",
   requireManagerOrAdmin,
   async (req: AuthRequest, res: Response) => {
     try {
       const trip = await Trip.findById(req.params.id);
+
       if (!trip) {
         res.status(404).json({ error: "Trip not found." });
         return;
@@ -1223,21 +1316,58 @@ router.patch(
       }
 
       const newPaid = !trip.paid;
-      const totalPayable =
-        trip.crewSalary - trip.cashAdvance + trip.reimbursements;
 
-      await Trip.findByIdAndUpdate(req.params.id, {
+      const totalPayable =
+        Number(trip.crewSalary || 0) -
+        Number(trip.cashAdvance || 0) +
+        Number(trip.reimbursements || 0);
+
+      if (newPaid) {
+        // Remove any previously generated reimbursement expense for this trip.
+        await Expense.deleteMany({
+          tripId: trip._id,
+        });
+
+        // Create exactly one crew reimbursement expense.
+        if (
+          Number(trip.reimbursements || 0) > 0 &&
+          trip.reimbursementCategory
+        ) {
+          await Expense.create({
+            truck: trip.truck,
+            createdBy: req.user?._id || null,
+            date: trip.date,
+            category: trip.reimbursementCategory,
+            amount: Number(trip.reimbursements || 0),
+            description: "Crew Reimb.",
+            tripId: trip._id,
+            reimbursed: false,
+          });
+        }
+      } else {
+        await Expense.deleteMany({
+          tripId: trip._id,
+        });
+      }
+
+      await Trip.findByIdAndUpdate(trip._id, {
         paid: newPaid,
         payable: newPaid ? 0 : totalPayable,
       });
 
-      const updated = await Trip.findById(req.params.id).populate(
+      // Recompute expense amount + NET for this date.
+      await syncTripsForDate(trip.truck as any, trip.date);
+
+      const updated = await Trip.findById(trip._id).populate(
         "truck",
         "truckName",
       );
+
       res.json(formatTripResponse(updated as any));
     } catch (err: any) {
-      res.status(500).json({ error: err.message });
+      res.status(500).json({
+        error: err.message,
+      });
     }
   },
 );

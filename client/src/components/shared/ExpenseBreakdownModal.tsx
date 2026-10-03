@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { peso } from "../../lib/utils";
+import { cn } from "../../lib/utils";
 import api from "../../api/client";
-import { Receipt } from "lucide-react";
+import { ReceiptText } from "lucide-react";
 
 import {
   Dialog,
@@ -15,6 +15,7 @@ interface ExpenseItem {
   category: string;
   description: string;
   amount: number;
+  reimbursed: boolean;
   label: string;
 }
 
@@ -34,7 +35,6 @@ export default function ExpenseBreakdownModal({
   dateText,
 }: ExpenseBreakdownModalProps) {
   const [items, setItems] = useState<ExpenseItem[]>([]);
-  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -51,12 +51,10 @@ export default function ExpenseBreakdownModal({
 
         if (!cancelled) {
           setItems(data.items || []);
-          setTotal(data.total || 0);
         }
       } catch {
         if (!cancelled) {
           setItems([]);
-          setTotal(0);
         }
       } finally {
         if (!cancelled) {
@@ -72,6 +70,11 @@ export default function ExpenseBreakdownModal({
     };
   }, [open, truckId, dateIso]);
 
+  const effectiveTotal = items.reduce(
+    (sum, item) => sum + (item.reimbursed ? 0 : Number(item.amount || 0)),
+    0,
+  );
+
   return (
     <Dialog
       open={open}
@@ -80,7 +83,7 @@ export default function ExpenseBreakdownModal({
       }}
     >
       <DialogContent
-        className="sm:max-w-[500px]"
+        className="sm:max-w-[500px] gap-2"
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         <DialogHeader>
@@ -88,68 +91,79 @@ export default function ExpenseBreakdownModal({
         </DialogHeader>
 
         {loading ? (
-          <div className="text-center py-8 text-muted-foreground animate-pulse">
+          <div className="py-8 text-center text-sm text-muted-foreground">
             Loading...
           </div>
         ) : items.length === 0 ? (
-          <div className="text-center py-8">
-            <div className="mx-auto mb-3 w-12 h-12 rounded-full bg-muted grid place-items-center text-muted-foreground">
-              <Receipt size={24} />
+          <div className="py-8 text-center">
+            <div className="mx-auto mb-3 flex size-10 items-center justify-center rounded-md bg-muted">
+              <ReceiptText className="size-4 text-muted-foreground" />
             </div>
-            <p className="text-sm text-muted-foreground">
-              No expenses recorded for this date
+
+            <p className="text-sm font-medium">No expenses found</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              No expenses recorded for this date.
             </p>
           </div>
         ) : (
           <div>
-            {/* Items */}
-            <div className="space-y-0">
-              {items.map((item, i) => (
+            <div className="divide-y">
+              {items.map((item) => (
                 <div
                   key={item._id}
-                  className="flex items-center justify-between py-3.5 px-3 rounded-xl hover:bg-muted/50 transition-colors"
+                  className="flex items-center justify-between gap-4 py-2"
                 >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 grid place-items-center flex-shrink-0 text-xs font-bold">
-                      {i + 1}
-                    </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">
+                      {item.category}
+                    </p>
 
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium truncate">
-                        {item.category}
-                      </div>
-
-                      {item.description && (
-                        <div className="text-xs text-muted-foreground truncate">
-                          {item.description}
-                        </div>
-                      )}
-                    </div>
+                    {(item.description || item.reimbursed) && (
+                      <p className="truncate text-xs text-muted-foreground">
+                        {item.description}
+                        {item.reimbursed && (
+                          <span className="text-green-600 dark:text-green-400">
+                            {item.description ? " · " : ""}
+                            Reimbursed by Client
+                          </span>
+                        )}
+                      </p>
+                    )}
                   </div>
 
-                  <div className="text-sm font-bold text-red-500 ml-4 whitespace-nowrap">
-                    {peso(item.amount)}
-                  </div>
+                  <span
+                    className={cn(
+                      "shrink-0 text-sm font-medium tabular-nums",
+                      item.reimbursed
+                        ? "text-green-600 line-through dark:text-green-400"
+                        : "text-destructive",
+                    )}
+                  >
+                    <span className="inline-flex items-center">
+                      {Number(item.amount || 0).toLocaleString("en-PH", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </span>
+                  </span>
                 </div>
               ))}
             </div>
 
-            {/* Divider */}
-            <div className="my-2 border-t-2 border-dashed border-border" />
-
-            {/* Total */}
-            <div className="flex items-center justify-between py-3 px-3">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-muted grid place-items-center">
-                  <Receipt size={16} className="text-muted-foreground" />
-                </div>
-
-                <span className="text-sm font-bold">
-                  Total ({items.length} {items.length === 1 ? "item" : "items"})
+            <div className="flex items-center justify-between border-t pt-2">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">
+                  Effective Total ({items.length}{" "}
+                  {items.length === 1 ? "item" : "items"})
                 </span>
               </div>
 
-              <span className="text-base font-extrabold">{peso(total)}</span>
+              <span className="inline-flex items-center text-sm font-semibold tabular-nums">
+                {Number(effectiveTotal || 0).toLocaleString("en-PH", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+              </span>
             </div>
           </div>
         )}

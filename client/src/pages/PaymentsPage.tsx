@@ -9,14 +9,12 @@ import {
   Image as ImageIcon,
   Trash2,
   Eye,
-  AlertTriangle,
   Pencil,
   Check,
   ChevronsUpDown,
   RotateCcw,
   Search,
 } from "lucide-react";
-import Modal from "../components/shared/Modal";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
@@ -35,6 +33,58 @@ import {
 import type { DateRange } from "react-day-picker";
 import Pagination from "../components/shared/Pagination";
 import EmptyState from "../components/shared/EmptyState";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
+
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Tooltip, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
+import { Progress } from "@/components/ui/progress";
 
 type Option = {
   value: string;
@@ -73,11 +123,12 @@ const METHOD_OPTIONS: Option[] = [
 ];
 
 export default function PaymentsPage() {
-  const { truckOptions, selectedTruck, setSelectedTruck, initApp } =
-    useAppStore();
+  const { truckOptions, selectedTruck, initApp } = useAppStore();
 
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [deleting, setDeleting] = useState(false);
   const [convertingFile, setConvertingFile] = useState(false);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -91,13 +142,7 @@ export default function PaymentsPage() {
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [deleteModal, setDeleteModal] = useState<PaymentRow | null>(null);
-  const [showTruckWarning, setShowTruckWarning] = useState(false);
   const [openDate, setOpenDate] = useState(false);
-  const [openCategory, setOpenCategory] = useState(false);
-  const [openMethod, setOpenMethod] = useState(false);
-  const [createTruck, setCreateTruck] = useState(selectedTruck || "");
-  const [openCreateTruck, setOpenCreateTruck] = useState(false);
-
   const [editPayment, setEditPayment] = useState<PaymentRow | null>(null);
   const [editFile, setEditFile] = useState<File | null>(null);
   const [isDraggingEditFile, setIsDraggingEditFile] = useState(false);
@@ -109,14 +154,12 @@ export default function PaymentsPage() {
   const [editDate, setEditDate] = useState(toInputDate(new Date()));
   const [editNote, setEditNote] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
-  const [openEditCategory, setOpenEditCategory] = useState(false);
-  const [openEditMethod, setOpenEditMethod] = useState(false);
   const [openEditDate, setOpenEditDate] = useState(false);
   const [editTruck, setEditTruck] = useState("");
-  const [openEditTruck, setOpenEditTruck] = useState(false);
+
   const [paymentSearch, setPaymentSearch] = useState("");
   const [paymentCategoryFilter, setPaymentCategoryFilter] = useState("ALL");
-  const [openPaymentCategory, setOpenPaymentCategory] = useState(false);
+
   const [openPaymentPeriod, setOpenPaymentPeriod] = useState(false);
 
   const [paymentDateRange, setPaymentDateRange] = useState<
@@ -152,14 +195,6 @@ export default function PaymentsPage() {
   useEffect(() => {
     fetchPayments();
   }, [fetchPayments]);
-
-  useEffect(() => {
-    setCreateTruck(selectedTruck || "");
-  }, [selectedTruck]);
-
-  const selectedTruckName = truckOptions.find(
-    (t) => t._id === selectedTruck,
-  )?.truckName;
 
   const filePreviewLabel = useMemo(() => {
     if (!file) return "";
@@ -397,8 +432,8 @@ export default function PaymentsPage() {
   };
 
   const handleUpload = async () => {
-    if (!createTruck) {
-      toast.error("Please select a truck");
+    if (!selectedTruck) {
+      toast.error("Please select a truck from the topbar");
       return;
     }
     if (!file) {
@@ -415,10 +450,12 @@ export default function PaymentsPage() {
     }
 
     setUploading(true);
+    setUploadProgress(0);
+
     try {
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("truckId", createTruck);
+      formData.append("truckId", selectedTruck);
       formData.append("category", category);
       formData.append("recipient", recipient.trim());
       formData.append("amount", amount);
@@ -428,9 +465,19 @@ export default function PaymentsPage() {
 
       await api.post("/payments/upload", formData, {
         headers: { "Content-Type": "multipart/form-data" },
+
+        onUploadProgress: (progressEvent) => {
+          if (!progressEvent.total) return;
+
+          const percent = Math.round(
+            (progressEvent.loaded * 100) / progressEvent.total,
+          );
+
+          setUploadProgress(percent);
+        },
       });
 
-      toast.success("Payment proof uploaded!");
+      toast.success("Payment attachment uploaded!");
       resetCreateForm();
       fetchPayments();
     } catch (err: unknown) {
@@ -440,6 +487,7 @@ export default function PaymentsPage() {
       toast.error(msg);
     } finally {
       setUploading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -510,7 +558,7 @@ export default function PaymentsPage() {
       const objectUrl = URL.createObjectURL(response.data);
       setPreviewImageUrl(objectUrl);
     } catch {
-      toast.error("Failed to load payment proof");
+      toast.error("Failed to load attachment");
       setPreviewPayment(null);
     } finally {
       setPreviewLoading(false);
@@ -518,695 +566,569 @@ export default function PaymentsPage() {
   };
 
   const confirmDelete = async () => {
-    if (!deleteModal) return;
+    if (!deleteModal || deleting) return;
+
+    setDeleting(true);
+
     try {
       await api.delete(`/payments/${deleteModal._id}`);
+
       toast.success("Payment deleted");
       setDeleteModal(null);
-      fetchPayments();
+
+      await fetchPayments();
     } catch {
       toast.error("Failed to delete");
+    } finally {
+      setDeleting(false);
     }
   };
-
-  const inputClass =
-    "w-full h-11 rounded-md border border-border bg-background px-3 text-xs focus:ring-2 focus:ring-ring focus:border-ring outline-none transition-colors";
 
   return (
     <div className="space-y-3.5">
       <div className="grid grid-cols-1 lg:grid-cols-[420px_minmax(0,1fr)] gap-3.5 items-start">
-        <div className="border rounded-lg bg-background p-4">
-          <div className="mb-4">
-            <h2 className="text-sm font-semibold">Upload Payment Proof</h2>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            {/* TRUCK */}
+        <Card size="sm" className="!gap-0">
+          <CardHeader className="border-b">
             <div>
-              <label className="text-xs font-medium text-foreground mb-1.5 block">
-                Truck
-              </label>
-
-              <Popover open={openCreateTruck} onOpenChange={setOpenCreateTruck}>
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    role="combobox"
-                    className="w-full h-11 rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between outline-none focus:ring-2 focus:ring-ring"
-                  >
-                    <span className="truncate">
-                      {truckOptions.find((truck) => truck._id === createTruck)
-                        ?.truckName || "Select truck"}
-                    </span>
-
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </button>
-                </PopoverTrigger>
-
-                <PopoverContent
-                  className="w-[var(--radix-popover-trigger-width)] p-0"
-                  align="start"
-                >
-                  <Command>
-                    <CommandInput
-                      placeholder="Search truck..."
-                      className="text-xs"
-                    />
-
-                    <CommandEmpty className="text-xs">
-                      No truck found.
-                    </CommandEmpty>
-
-                    <CommandGroup>
-                      {truckOptions.map((truck) => (
-                        <CommandItem
-                          key={truck._id}
-                          value={truck.truckName}
-                          className="text-xs"
-                          onSelect={() => {
-                            setCreateTruck(truck._id);
-                            setOpenCreateTruck(false);
-                          }}
-                        >
-                          <Check
-                            className={`mr-2 h-4 w-4 ${
-                              createTruck === truck._id
-                                ? "opacity-100"
-                                : "opacity-0"
-                            }`}
-                          />
-
-                          {truck.truckName}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </Command>
-                </PopoverContent>
-              </Popover>
+              <CardTitle>Upload Payment Attachment</CardTitle>
+              <CardDescription>
+                Record a payment and attach a supporting image.
+              </CardDescription>
             </div>
+          </CardHeader>
 
-            {/* DATE */}
-            <div>
-              <label className="text-xs font-medium text-foreground mb-1.5 block">
-                Date
-              </label>
+          <CardContent className="py-4">
+            <div className="grid grid-cols-2 gap-4">
+              {/* TRUCK */}
+              <div className="space-y-1.5">
+                <Label className="text-xs">Truck</Label>
 
-              <Popover open={openDate} onOpenChange={setOpenDate}>
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    className="w-full h-11 px-3 flex items-center justify-between rounded-md border border-border bg-background text-xs"
-                  >
-                    {date
-                      ? format(new Date(`${date}T00:00:00`), "MMM d, yyyy")
-                      : "Select date"}
-
-                    <CalendarDays className="h-4 w-4 opacity-50" />
-                  </button>
-                </PopoverTrigger>
-
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={date ? new Date(`${date}T00:00:00`) : undefined}
-                    onSelect={(d) => {
-                      if (!d) return;
-
-                      setDate(toInputDate(d));
-                      setOpenDate(false);
-                    }}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            <div>
-              <label className="text-xs font-medium text-foreground mb-1.5 block">
-                Category
-              </label>
-
-              <Popover open={openCategory} onOpenChange={setOpenCategory}>
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    role="combobox"
-                    className="w-full h-11 rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between outline-none focus:ring-2 focus:ring-ring"
-                  >
-                    <span className="truncate">
-                      {CATEGORY_OPTIONS.find((opt) => opt.value === category)
-                        ?.label || "Select category"}
-                    </span>
-
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </button>
-                </PopoverTrigger>
-
-                <PopoverContent
-                  className="w-[var(--radix-popover-trigger-width)] p-0"
-                  align="start"
-                >
-                  <Command>
-                    <CommandGroup>
-                      {CATEGORY_OPTIONS.map((opt) => (
-                        <CommandItem
-                          key={opt.value}
-                          value={opt.label}
-                          className="text-xs"
-                          onSelect={() => {
-                            setCategory(opt.value);
-                            setOpenCategory(false);
-                          }}
-                        >
-                          <Check
-                            className={`mr-2 h-4 w-4 ${
-                              category === opt.value
-                                ? "opacity-100"
-                                : "opacity-0"
-                            }`}
-                          />
-
-                          {opt.label}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            <div>
-              <label className="text-xs font-medium text-foreground mb-1.5 block">
-                Payment Method
-              </label>
-
-              <Popover open={openMethod} onOpenChange={setOpenMethod}>
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    role="combobox"
-                    className="w-full h-11 rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between outline-none focus:ring-2 focus:ring-ring"
-                  >
-                    <span className="truncate">
-                      {METHOD_OPTIONS.find((opt) => opt.value === method)
-                        ?.label || "Select method"}
-                    </span>
-
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </button>
-                </PopoverTrigger>
-
-                <PopoverContent
-                  className="w-[var(--radix-popover-trigger-width)] p-0"
-                  align="start"
-                >
-                  <Command>
-                    <CommandGroup>
-                      {METHOD_OPTIONS.map((opt) => (
-                        <CommandItem
-                          key={opt.value}
-                          value={opt.label}
-                          className="text-xs"
-                          onSelect={() => {
-                            setMethod(opt.value);
-                            setOpenMethod(false);
-                          }}
-                        >
-                          <Check
-                            className={`mr-2 h-4 w-4 ${
-                              method === opt.value ? "opacity-100" : "opacity-0"
-                            }`}
-                          />
-
-                          {opt.label}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            <div>
-              <label className="text-xs font-medium text-foreground mb-1.5 block">
-                Recipient
-              </label>
-              <input
-                type="text"
-                value={recipient}
-                onChange={(e) => setRecipient(e.target.value)}
-                placeholder="Driver / Crew.."
-                className={`${inputClass} text-xs`}
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-medium text-foreground mb-1.5 block">
-                Amount
-              </label>
-              <input
-                type="number"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="0.00"
-                className={`${inputClass} text-xs`}
-              />
-            </div>
-
-            <div className="col-span-2">
-              <label className="text-xs font-medium text-foreground mb-1.5 block">
-                Note
-              </label>
-              <input
-                type="text"
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder="Add a note..."
-                className={`${inputClass} text-xs`}
-              />
-            </div>
-
-            <div className="col-span-2">
-              <label className="text-xs font-medium text-foreground mb-1.5 block">
-                Upload Image
-              </label>
-              <label
-                onDragEnter={(e) => {
-                  e.preventDefault();
-                  setIsDraggingFile(true);
-                }}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setIsDraggingFile(true);
-                }}
-                onDragLeave={(e) => {
-                  e.preventDefault();
-
-                  if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-                    setIsDraggingFile(false);
+                <Input
+                  value={
+                    truckOptions.find((truck) => truck._id === selectedTruck)
+                      ?.truckName || "Select truck from topbar"
                   }
-                }}
-                onDrop={handleCreateFileDrop}
-                className={`group flex cursor-pointer flex-col items-center justify-center rounded-md border border-dashed px-4 py-6 text-center transition-colors ${
-                  isDraggingFile
-                    ? "border-foreground bg-muted"
-                    : "border-border bg-background hover:bg-muted/50"
-                }`}
-              >
-                <input
-                  type="file"
-                  accept="image/*,.heic,.heif"
-                  className="hidden"
-                  onChange={handleCreateFileChange}
+                  disabled
                 />
-                <Upload
-                  size={24}
-                  className="mb-2 text-muted-foreground group-hover:text-foreground transition-colors"
-                />
-                {convertingFile ? (
-                  <div className="space-y-1">
-                    <div className="text-sm font-medium text-foreground">
-                      Converting HEIC to JPEG...
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      Please wait
-                    </div>
-                  </div>
-                ) : file ? (
-                  <div className="space-y-1">
-                    <div className="text-sm font-medium text-foreground">
-                      {file.name}
-                    </div>
+              </div>
 
-                    <div className="text-xs text-muted-foreground">
-                      {(file.size / 1024).toFixed(1)} KB
+              {/* DATE */}
+              <div className="space-y-1.5">
+                <Label className="text-xs">Date</Label>
+
+                <Popover open={openDate} onOpenChange={setOpenDate}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full justify-between font-normal"
+                    >
+                      {date
+                        ? format(new Date(`${date}T00:00:00`), "MMM d, yyyy")
+                        : "Select date"}
+
+                      <CalendarDays className="size-4 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={date ? new Date(`${date}T00:00:00`) : undefined}
+                      onSelect={(d) => {
+                        if (!d) return;
+
+                        setDate(toInputDate(d));
+                        setOpenDate(false);
+                      }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* CATEGORY */}
+              <div className="space-y-1.5">
+                <Label className="text-xs">Category</Label>
+
+                <Select value={category} onValueChange={setCategory}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    {CATEGORY_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* PAYMENT METHOD */}
+              <div className="space-y-1.5">
+                <Label className="text-xs">Payment Method</Label>
+
+                <Select value={method} onValueChange={setMethod}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select method" />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    {METHOD_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* RECIPIENT */}
+              <div className="space-y-1.5">
+                <Label className="text-xs">Recipient</Label>
+
+                <Input
+                  type="text"
+                  value={recipient}
+                  onChange={(e) => setRecipient(e.target.value)}
+                  placeholder="Driver / Crew.."
+                />
+              </div>
+
+              {/* AMOUNT */}
+              <div className="space-y-1.5">
+                <Label className="text-xs">Amount</Label>
+
+                <Input
+                  type="number"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  placeholder="0.00"
+                />
+              </div>
+
+              {/* NOTE */}
+              <div className="col-span-2 space-y-1.5">
+                <Label className="text-xs">Note</Label>
+
+                <Input
+                  type="text"
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="Add a note..."
+                />
+              </div>
+
+              {/* UPLOAD IMAGE */}
+              <div className="col-span-2 space-y-1.5">
+                <Label className="text-xs">Upload Image</Label>
+
+                <label
+                  onDragEnter={(e) => {
+                    e.preventDefault();
+                    setIsDraggingFile(true);
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setIsDraggingFile(true);
+                  }}
+                  onDragLeave={(e) => {
+                    e.preventDefault();
+
+                    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                      setIsDraggingFile(false);
+                    }
+                  }}
+                  onDrop={handleCreateFileDrop}
+                  className={`group flex cursor-pointer flex-col items-center justify-center rounded-md border border-dashed px-4 py-6 text-center transition-colors ${
+                    isDraggingFile
+                      ? "border-blue-500 bg-blue-500/10"
+                      : "border-blue-500/40 bg-blue-500/5 hover:border-blue-500 hover:bg-blue-500/10"
+                  }`}
+                >
+                  <input
+                    type="file"
+                    accept="image/*,.heic,.heif"
+                    className="hidden"
+                    onChange={handleCreateFileChange}
+                  />
+
+                  <Upload className="mb-2 size-6 text-blue-500 transition-colors group-hover:text-blue-600" />
+
+                  {convertingFile ? (
+                    <div className="space-y-1">
+                      <div className="text-sm font-medium">
+                        Converting HEIC to JPEG...
+                      </div>
+
+                      <div className="text-xs text-muted-foreground">
+                        Please wait
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  <div className="space-y-1">
-                    <div className="text-sm font-medium text-foreground">
-                      {isDraggingFile
-                        ? "Drop image here"
-                        : "Drop or choose an image"}
+                  ) : file ? (
+                    <div className="space-y-1">
+                      <div className="text-sm font-medium">{file.name}</div>
+
+                      <div className="text-xs text-muted-foreground">
+                        {(file.size / 1024).toFixed(1)} KB
+                      </div>
                     </div>
-                    <div className="text-xs text-muted-foreground">
-                      JPG, PNG, WEBP, GIF, or HEIC
+                  ) : (
+                    <div className="space-y-1">
+                      <div className="text-sm font-medium">
+                        {isDraggingFile
+                          ? "Drop image here"
+                          : "Drop or choose an image"}
+                      </div>
+
+                      <div className="text-xs text-muted-foreground">
+                        JPG, PNG, WEBP, GIF, or HEIC
+                      </div>
                     </div>
+                  )}
+                </label>
+
+                {file && (
+                  <div className="rounded-md border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                    Filename preview:{" "}
+                    <span className="font-medium text-foreground">
+                      {filePreviewLabel}
+                    </span>
                   </div>
                 )}
-              </label>
-
-              {file && (
-                <div className="mt-3 rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-                  Filename preview:{" "}
-                  <span className="font-medium text-foreground">
-                    {filePreviewLabel}
-                  </span>
-                </div>
-              )}
+              </div>
             </div>
-          </div>
+          </CardContent>
 
-          <div className="flex items-center justify-end gap-2.5 mt-5">
-            <button
+          {uploading && (
+            <div className="space-y-1.5 border-t px-4 py-3">
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>Uploading payment attachment...</span>
+
+                <span className="tabular-nums">{uploadProgress}%</span>
+              </div>
+
+              <Progress value={uploadProgress} />
+            </div>
+          )}
+
+          <CardFooter className="justify-end gap-2 border-t pt-4">
+            <Button
+              type="button"
+              variant="outline"
               onClick={resetCreateForm}
-              className="h-9 px-4 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors"
+              disabled={uploading || convertingFile}
             >
               Reset
-            </button>
-            <button
+            </Button>
+
+            <Button
+              type="button"
               onClick={handleUpload}
               disabled={uploading || convertingFile}
-              className="px-6 py-2.5 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition flex items-center gap-2"
             >
-              <Upload size={16} />
+              <Upload data-icon="inline-start" />
+
               {convertingFile
                 ? "Converting..."
                 : uploading
                   ? "Uploading..."
                   : "Upload"}
-            </button>
-          </div>
-        </div>
+            </Button>
+          </CardFooter>
+        </Card>
 
-        <div className="border rounded-lg bg-background overflow-hidden min-w-0">
-          <div className="p-3.5 border-b border-border flex items-center justify-between gap-4">
-            <div>
-              <h2 className="text-sm font-semibold">Uploaded Payments</h2>
-              <p className="text-xs text-muted-foreground">
-                Click View to open the image in a preview window.
-              </p>
-            </div>
+        <Card size="sm" className="!gap-0 min-w-0 overflow-hidden">
+          <CardHeader className="border-b">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <CardTitle>Uploaded Payments</CardTitle>
 
-            <div className="text-right shrink-0">
-              <div className="text-xs font-bold uppercase text-muted-foreground">
-                Records
+                <CardDescription>
+                  View and manage uploaded payment attachments.
+                </CardDescription>
               </div>
-              <div className="font-bold text-xs">
-                {paymentStats.count} item{paymentStats.count === 1 ? "" : "s"}
-              </div>
-            </div>
-          </div>
 
-          {/* FILTERS */}
-          <div className="flex flex-wrap items-end gap-2 border-b border-border bg-background px-3.5 py-3">
-            {/* SEARCH */}
-            <div className="min-w-[180px] flex-1">
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                Search
-              </label>
+              <div className="shrink-0 text-right">
+                <div className="text-sm font-medium text-muted-foreground">
+                  Records
+                </div>
 
-              <div className="relative">
-                <Search
-                  size={14}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
-                />
-
-                <input
-                  type="text"
-                  value={paymentSearch}
-                  onChange={(e) => setPaymentSearch(e.target.value)}
-                  placeholder="Search payments..."
-                  className="w-full h-9 rounded-md border border-border bg-background pl-9 pr-3 text-xs outline-none focus:ring-2 focus:ring-ring"
-                />
+                <div className="text-sm font-medium">
+                  {paymentStats.count} item{paymentStats.count === 1 ? "" : "s"}
+                </div>
               </div>
             </div>
+          </CardHeader>
 
-            {/* CATEGORY */}
-            <div className="min-w-[150px]">
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                Category
-              </label>
+          <CardContent className="border-b py-4">
+            <div className="flex flex-wrap items-end gap-2">
+              {/* SEARCH */}
+              <div className="min-w-[180px] flex-1">
+                <Label className="mb-1.5 block text-xs text-muted-foreground">
+                  Search
+                </Label>
 
-              <Popover
-                open={openPaymentCategory}
-                onOpenChange={setOpenPaymentCategory}
-              >
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    role="combobox"
-                    className="h-9 w-full rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between outline-none focus:ring-2 focus:ring-ring"
-                  >
-                    <span className="truncate">
-                      {paymentCategoryFilter === "ALL"
-                        ? "All Categories"
-                        : paymentCategoryFilter}
-                    </span>
+                <InputGroup>
+                  <InputGroupAddon>
+                    <Search />
+                  </InputGroupAddon>
 
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </button>
-                </PopoverTrigger>
-
-                <PopoverContent className="w-[180px] p-0" align="start">
-                  <Command>
-                    <CommandGroup>
-                      <CommandItem
-                        value="All Categories"
-                        className="text-xs"
-                        onSelect={() => {
-                          setPaymentCategoryFilter("ALL");
-                          setOpenPaymentCategory(false);
-                        }}
-                      >
-                        <Check
-                          className={`mr-2 h-4 w-4 ${
-                            paymentCategoryFilter === "ALL"
-                              ? "opacity-100"
-                              : "opacity-0"
-                          }`}
-                        />
-                        All Categories
-                      </CommandItem>
-
-                      {CATEGORY_OPTIONS.map((option) => (
-                        <CommandItem
-                          key={option.value}
-                          value={option.label}
-                          className="text-xs"
-                          onSelect={() => {
-                            setPaymentCategoryFilter(option.value);
-                            setOpenPaymentCategory(false);
-                          }}
-                        >
-                          <Check
-                            className={`mr-2 h-4 w-4 ${
-                              paymentCategoryFilter === option.value
-                                ? "opacity-100"
-                                : "opacity-0"
-                            }`}
-                          />
-
-                          {option.label}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            {/* PERIOD */}
-            <div className="min-w-[220px]">
-              <label className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1">
-                <CalendarDays size={12} />
-                Period
-              </label>
-
-              <Popover
-                open={openPaymentPeriod}
-                onOpenChange={setOpenPaymentPeriod}
-              >
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    className="h-9 w-full rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between"
-                  >
-                    <span
-                      className={
-                        !paymentDateRange?.from ? "text-muted-foreground" : ""
-                      }
-                    >
-                      {paymentDateRange?.from && paymentDateRange?.to
-                        ? `${format(paymentDateRange.from, "MMM d, yyyy")} - ${format(
-                            paymentDateRange.to,
-                            "MMM d, yyyy",
-                          )}`
-                        : "Select date range"}
-                    </span>
-
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </button>
-                </PopoverTrigger>
-
-                <PopoverContent className="w-auto p-0" align="end">
-                  <Calendar
-                    mode="range"
-                    selected={paymentDateRange}
-                    onSelect={(range) => {
-                      setPaymentDateRange(range);
-
-                      if (
-                        range?.from &&
-                        range?.to &&
-                        range.from.getTime() !== range.to.getTime()
-                      ) {
-                        setOpenPaymentPeriod(false);
-                      }
-                    }}
-                    numberOfMonths={2}
-                    defaultMonth={paymentDateRange?.from}
-                    showOutsideDays
+                  <InputGroupInput
+                    value={paymentSearch}
+                    onChange={(e) => setPaymentSearch(e.target.value)}
+                    placeholder="Search payments..."
                   />
-                </PopoverContent>
-              </Popover>
+                </InputGroup>
+              </div>
+
+              {/* CATEGORY */}
+              <div className="w-[160px] shrink-0">
+                <Label className="mb-1.5 block text-xs text-muted-foreground">
+                  Category
+                </Label>
+
+                <Select
+                  value={paymentCategoryFilter}
+                  onValueChange={setPaymentCategoryFilter}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    <SelectItem value="ALL">All Categories</SelectItem>
+
+                    {CATEGORY_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* PERIOD */}
+              <div className="w-[250px] shrink-0">
+                <Label className="mb-1.5 block text-xs text-muted-foreground">
+                  Period
+                </Label>
+
+                <Popover
+                  open={openPaymentPeriod}
+                  onOpenChange={setOpenPaymentPeriod}
+                >
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full justify-between font-normal"
+                    >
+                      <span
+                        className={
+                          !paymentDateRange?.from ? "text-muted-foreground" : ""
+                        }
+                      >
+                        {paymentDateRange?.from && paymentDateRange?.to
+                          ? `${format(paymentDateRange.from, "MMM d, yyyy")} - ${format(
+                              paymentDateRange.to,
+                              "MMM d, yyyy",
+                            )}`
+                          : "Select date range"}
+                      </span>
+
+                      <CalendarDays className="size-4 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+
+                  <PopoverContent className="w-auto p-0" align="end">
+                    <Calendar
+                      mode="range"
+                      selected={paymentDateRange}
+                      onSelect={(range) => {
+                        setPaymentDateRange(range);
+
+                        if (
+                          range?.from &&
+                          range?.to &&
+                          range.from.getTime() !== range.to.getTime()
+                        ) {
+                          setOpenPaymentPeriod(false);
+                        }
+                      }}
+                      numberOfMonths={2}
+                      defaultMonth={paymentDateRange?.from}
+                      showOutsideDays
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* RESET */}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label="Reset payment filters"
+                onClick={() => {
+                  setPaymentSearch("");
+                  setPaymentCategoryFilter("ALL");
+                  setPaymentDateRange(undefined);
+                }}
+                disabled={
+                  !paymentSearch &&
+                  paymentCategoryFilter === "ALL" &&
+                  !paymentDateRange?.from
+                }
+              >
+                <RotateCcw />
+              </Button>
             </div>
+          </CardContent>
 
-            {/* CLEAR */}
-            <button
-              type="button"
-              onClick={() => {
-                setPaymentSearch("");
-                setPaymentCategoryFilter("ALL");
-                setPaymentDateRange(undefined);
-              }}
-              disabled={
-                !paymentSearch &&
-                paymentCategoryFilter === "ALL" &&
-                !paymentDateRange?.from
-              }
-              className="h-9 px-3 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:pointer-events-none flex items-center gap-1.5"
-            >
-              <RotateCcw className="h-3.5 w-3.5" />
-              Reset
-            </button>
-          </div>
-
-          <div className="overflow-auto bg-background hidden md:block">
-            <table className="w-full text-sm">
-              <thead>
-                <tr>
-                  <th className="sticky top-0 z-10 bg-muted/60 backdrop-blur border-b border-border text-left text-xs font-semibold text-muted-foreground px-3 py-3 whitespace-nowrap">
+          <div className="[&>div]:max-h-[calc(100vh-280px)] [&>div]:overflow-auto">
+            <Table className="text-sm">
+              <TableHeader>
+                <TableRow className="sticky top-0 z-20 bg-background hover:bg-background">
+                  <TableHead className="whitespace-nowrap text-xs font-medium">
                     Date
-                  </th>
+                  </TableHead>
 
                   {!selectedTruck && (
-                    <th className="sticky top-0 z-10 bg-muted/60 backdrop-blur border-b border-border text-left text-xs font-semibold text-muted-foreground px-3 py-3 whitespace-nowrap">
+                    <TableHead className="whitespace-nowrap text-xs font-medium">
                       Truck
-                    </th>
+                    </TableHead>
                   )}
 
-                  <th className="sticky top-0 z-10 bg-muted/60 backdrop-blur border-b border-border text-left text-xs font-semibold text-muted-foreground px-3 py-3 whitespace-nowrap">
+                  <TableHead className="whitespace-nowrap text-xs font-medium">
                     Category
-                  </th>
+                  </TableHead>
 
-                  <th className="sticky top-0 z-10 bg-muted/60 backdrop-blur border-b border-border text-right text-xs font-semibold text-muted-foreground px-3 py-3 whitespace-nowrap pr-8">
+                  <TableHead className="whitespace-nowrap pr-8 text-right text-xs font-medium">
                     Amount
-                  </th>
+                  </TableHead>
 
-                  <th className="sticky top-0 z-10 bg-muted/60 backdrop-blur border-b border-border text-left text-xs font-semibold text-muted-foreground px-3 py-3 whitespace-nowrap">
+                  <TableHead className="whitespace-nowrap text-xs font-medium">
                     Recipient
-                  </th>
+                  </TableHead>
 
-                  <th className="sticky top-0 z-10 bg-muted/60 backdrop-blur border-b border-border text-left text-xs font-semibold text-muted-foreground px-3 py-3 whitespace-nowrap">
+                  <TableHead className="whitespace-nowrap text-xs font-medium">
                     Payment Method
-                  </th>
+                  </TableHead>
 
-                  <th className="sticky top-0 z-10 bg-muted/60 backdrop-blur border-b border-border text-center text-xs font-semibold text-muted-foreground px-3 py-3 whitespace-nowrap">
-                    Proof
-                  </th>
+                  <TableHead className="whitespace-nowrap text-center text-xs font-medium">
+                    Attachment
+                  </TableHead>
 
-                  <th className="sticky top-0 z-10 bg-muted/60 backdrop-blur border-b border-border text-center text-xs font-semibold text-muted-foreground px-3 py-3 whitespace-nowrap">
+                  <TableHead className="whitespace-nowrap text-center text-xs font-medium">
                     Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+
+              <TableBody>
                 {filteredPayments.length === 0 ? (
-                  <tr>
-                    <td colSpan={selectedTruck ? 7 : 8}>
+                  <TableRow className="hover:bg-transparent">
+                    <TableCell colSpan={selectedTruck ? 7 : 8} className="p-0">
                       <EmptyState
                         icon={ImageIcon}
-                        title="No payment proofs yet"
-                        description="Upload your first screenshot to start tracking payments."
+                        title="No payment attachments yet"
+                        description="Upload your first payment attachment to start tracking payments."
                       />
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ) : (
                   paginatedPayments.map((p) => (
-                    <tr
-                      key={p._id}
-                      className="hover:bg-muted/50 transition-colors"
-                    >
-                      <td className="text-left text-xs px-3 py-2.5 border-b border-border whitespace-nowrap">
+                    <TableRow key={p._id}>
+                      <TableCell className="whitespace-nowrap text-xs">
                         {p.dateText}
-                      </td>
+                      </TableCell>
 
                       {!selectedTruck && (
-                        <td className="text-left text-xs px-3 py-2.5 border-b border-border whitespace-nowrap">
+                        <TableCell className="whitespace-nowrap text-xs">
                           {p.truckName ||
                             (typeof p.truck === "object"
                               ? p.truck.truckName
                               : "—")}
-                        </td>
+                        </TableCell>
                       )}
 
-                      <td className="text-left text-xs px-3 py-2.5 border-b border-border">
-                        <span className="inline-flex rounded-md px-2.5 py-1 text-[0.7rem] font-bold bg-muted text-foreground">
-                          {p.category}
-                        </span>
-                      </td>
-
-                      <td className="text-right text-xs px-3 py-2.5 border-b border-border tabular-nums font-medium pr-8">
-                        {peso(Number(p.amount || 0))}
-                      </td>
-
-                      <td className="text-left text-xs px-3 py-2.5 border-b border-border">
-                        {p.recipient || "—"}
-                      </td>
-
-                      <td className="text-left text-xs px-3 py-2.5 border-b border-border">
-                        {p.method || "—"}
-                      </td>
-
-                      <td className="text-center text-xs px-2.5 py-2.5 border-b border-border">
-                        <button
-                          onClick={() => openPreview(p)}
-                          className="h-8 px-3 rounded-md inline-flex items-center justify-center gap-1.5 border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground transition-colors text-xs font-medium"
+                      <TableCell className="text-xs">
+                        <Badge
+                          variant="secondary"
+                          className="text-xs font-medium"
                         >
-                          <Eye size={14} />
+                          {p.category}
+                        </Badge>
+                      </TableCell>
+
+                      <TableCell className="whitespace-nowrap pr-8 text-right text-xs font-medium tabular-nums">
+                        {peso(Number(p.amount || 0))}
+                      </TableCell>
+
+                      <TableCell className="text-xs">
+                        {p.recipient || "—"}
+                      </TableCell>
+
+                      <TableCell className="text-xs">
+                        {p.method || "—"}
+                      </TableCell>
+
+                      <TableCell className="text-center">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openPreview(p)}
+                        >
+                          <Eye />
                           View
-                        </button>
-                      </td>
+                        </Button>
+                      </TableCell>
 
-                      <td className="text-center text-xs px-2.5 py-2.5 border-b border-border">
-                        <div className="flex items-center justify-center gap-1.5">
-                          <button
-                            onClick={() => openEdit(p)}
-                            className="w-8 h-8 rounded-md inline-flex items-center justify-center border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                            title="Edit"
-                          >
-                            <Pencil size={14} />
-                          </button>
+                      <TableCell className="text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon-sm"
+                                onClick={() => openEdit(p)}
+                              >
+                                <Pencil />
+                                <span className="sr-only">Edit payment</span>
+                              </Button>
+                            </TooltipTrigger>
+                          </Tooltip>
 
-                          <button
-                            onClick={() => setDeleteModal(p)}
-                            className="w-8 h-8 rounded-md inline-flex items-center justify-center border border-border bg-background text-muted-foreground hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-500 transition-colors"
-                            title="Delete"
-                          >
-                            <Trash2 size={14} />
-                          </button>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon-sm"
+                                onClick={() => setDeleteModal(p)}
+                                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                              >
+                                <Trash2 />
+                                <span className="sr-only">Delete payment</span>
+                              </Button>
+                            </TooltipTrigger>
+                          </Tooltip>
                         </div>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))
                 )}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
 
           {filteredPayments.length > 0 && (
-            <div className="border-t border-border flex items-center justify-center">
+            <div className="flex items-center justify-center border-t">
               <Pagination
                 currentPage={paymentPage}
                 totalPages={totalPaymentPages}
@@ -1220,587 +1142,451 @@ export default function PaymentsPage() {
               />
             </div>
           )}
-
-          <div className="flex flex-col gap-3 md:hidden p-3 border-t border-slate-200/60 dark:border-slate-700/60">
-            {filteredPayments.length === 0 ? (
-              <EmptyState
-                icon={ImageIcon}
-                title="No payment proofs yet"
-                description="Upload your first screenshot to start tracking payments."
-              />
-            ) : (
-              paginatedPayments.map((p) => (
-                <div
-                  key={p._id}
-                  className="border rounded-md bg-background p-4"
-                >
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <div className="font-bold text-sm">{p.dateText}</div>
-                      <div className="mt-1">
-                        <span className="inline-block px-2.5 py-1 rounded-full text-[0.72rem] font-bold bg-muted text-foreground">
-                          {p.category}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="font-bold text-lg text-slate-900 dark:text-slate-100">
-                      {peso(Number(p.amount || 0))}
-                    </div>
-                  </div>
-
-                  <div className="text-xs text-slate-500 space-y-1.5">
-                    <div>
-                      <span className="font-semibold text-slate-700 dark:text-slate-200">
-                        Recipient:
-                      </span>{" "}
-                      {p.recipient || "—"}
-                    </div>
-                    <div>
-                      <span className="font-semibold text-slate-700 dark:text-slate-200">
-                        Method:
-                      </span>{" "}
-                      {p.method || "—"}
-                    </div>
-                    {p.note && (
-                      <div>
-                        <span className="font-semibold text-slate-700 dark:text-slate-200">
-                          Note:
-                        </span>{" "}
-                        {p.note}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex gap-2 pt-3 mt-3 border-t border-slate-200 dark:border-slate-700">
-                    <button
-                      onClick={() => openPreview(p)}
-                      className="flex-1 h-9 rounded-xl inline-flex items-center justify-center gap-1.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-muted hover:text-blue-600 transition-all text-xs font-semibold"
-                    >
-                      <Eye size={14} /> View
-                    </button>
-                    <button
-                      onClick={() => openEdit(p)}
-                      className="h-9 w-9 rounded-xl inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-muted hover:text-blue-600 transition-all"
-                    >
-                      <Pencil size={14} />
-                    </button>
-                    <button
-                      onClick={() => setDeleteModal(p)}
-                      className="h-9 w-9 rounded-xl inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-red-500/10 hover:text-red-500 transition-all"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
+        </Card>
       </div>
 
-      <Modal
+      <Dialog
         open={!!editPayment}
-        onClose={() => {
-          setEditPayment(null);
-          setEditFile(null);
-          setIsDraggingEditFile(false);
-          setConvertingEditFile(false);
+        onOpenChange={(open) => {
+          if (!open) {
+            setEditPayment(null);
+            setEditFile(null);
+            setIsDraggingEditFile(false);
+            setConvertingEditFile(false);
+          }
         }}
-        title={
-          editPayment
-            ? `Edit Payment - ${editPayment.dateText}`
-            : "Edit Payment"
-        }
-        wide
-        footer={
-          <>
-            <button
+      >
+        <DialogContent className="sm:max-w-[700px] !gap-3">
+          <DialogHeader>
+            <DialogTitle>
+              {editPayment
+                ? `Edit Payment - ${editPayment.dateText}`
+                : "Edit Payment"}
+            </DialogTitle>
+
+            <DialogDescription className="sr-only">
+              Update the payment details or replace the attachment.
+            </DialogDescription>
+          </DialogHeader>
+
+          {editPayment && (
+            <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+              {/* TRUCK */}
+              <div className="space-y-1.5">
+                <Label className="text-xs">Truck</Label>
+
+                <div className="flex h-9 w-full items-center rounded-md border bg-muted/40 px-3 text-sm">
+                  <span className="truncate">
+                    {truckOptions.find((truck) => truck._id === editTruck)
+                      ?.truckName || "Select truck"}
+                  </span>
+                </div>
+              </div>
+
+              {/* DATE */}
+              <div className="space-y-1.5">
+                <Label className="text-xs">Date</Label>
+
+                <Popover open={openEditDate} onOpenChange={setOpenEditDate}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full justify-between font-normal"
+                    >
+                      {editDate
+                        ? format(
+                            new Date(`${editDate}T00:00:00`),
+                            "MMM d, yyyy",
+                          )
+                        : "Select date"}
+
+                      <CalendarDays className="size-4 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={
+                        editDate ? new Date(`${editDate}T00:00:00`) : undefined
+                      }
+                      onSelect={(d) => {
+                        if (!d) return;
+
+                        setEditDate(toInputDate(d));
+                        setOpenEditDate(false);
+                      }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* CATEGORY */}
+              <div className="space-y-1.5">
+                <Label className="text-xs">Category</Label>
+
+                <Select value={editCategory} onValueChange={setEditCategory}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    {CATEGORY_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* METHOD */}
+              <div className="space-y-1.5">
+                <Label className="text-xs">Payment Method</Label>
+
+                <Select value={editMethod} onValueChange={setEditMethod}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select method" />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    {METHOD_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* RECIPIENT */}
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-payment-recipient" className="text-xs">
+                  Recipient
+                </Label>
+
+                <Input
+                  id="edit-payment-recipient"
+                  value={editRecipient}
+                  onChange={(e) => setEditRecipient(e.target.value)}
+                />
+              </div>
+
+              {/* AMOUNT */}
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-payment-amount" className="text-xs">
+                  Amount
+                </Label>
+
+                <Input
+                  id="edit-payment-amount"
+                  type="number"
+                  value={editAmount}
+                  onChange={(e) => setEditAmount(e.target.value)}
+                />
+              </div>
+
+              {/* NOTE */}
+              <div className="col-span-2 space-y-1.5">
+                <Label htmlFor="edit-payment-note" className="text-xs">
+                  Note
+                </Label>
+
+                <Input
+                  id="edit-payment-note"
+                  value={editNote}
+                  onChange={(e) => setEditNote(e.target.value)}
+                />
+              </div>
+
+              {/* REPLACE PROOF */}
+              <div className="col-span-2 space-y-1.5">
+                <Label className="text-xs">Replace Attachment (optional)</Label>
+
+                <Button
+                  variant="outline"
+                  asChild
+                  className={`h-[96px] w-full border-dashed ${
+                    isDraggingEditFile
+                      ? "border-blue-500 bg-blue-500/10"
+                      : "border-blue-500/40 bg-blue-500/5 hover:border-blue-500 hover:bg-blue-500/10"
+                  }`}
+                >
+                  <label
+                    className="group flex cursor-pointer flex-col items-center justify-center"
+                    onDragEnter={(e) => {
+                      e.preventDefault();
+                      setIsDraggingEditFile(true);
+                    }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setIsDraggingEditFile(true);
+                    }}
+                    onDragLeave={(e) => {
+                      e.preventDefault();
+
+                      if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                        setIsDraggingEditFile(false);
+                      }
+                    }}
+                    onDrop={handleEditFileDrop}
+                  >
+                    <input
+                      type="file"
+                      accept="image/*,.heic,.heif"
+                      className="hidden"
+                      onChange={handleEditFileChange}
+                    />
+
+                    <Upload className="mb-1 size-5 text-blue-500 transition-colors group-hover:text-blue-600" />
+
+                    {convertingEditFile ? (
+                      <>
+                        <span>Converting HEIC to JPEG...</span>
+                        <span className="text-xs font-normal text-muted-foreground">
+                          Please wait
+                        </span>
+                      </>
+                    ) : editFile ? (
+                      <>
+                        <span className="max-w-full truncate">
+                          {editFile.name}
+                        </span>
+
+                        <span className="text-xs font-normal text-muted-foreground">
+                          {(editFile.size / 1024).toFixed(1)} KB
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <span>
+                          {isDraggingEditFile
+                            ? "Drop image here"
+                            : "Drop or choose a replacement image"}
+                        </span>
+
+                        <span className="text-xs font-normal text-muted-foreground">
+                          JPG, PNG, WEBP, GIF, or HEIC
+                        </span>
+                      </>
+                    )}
+                  </label>
+                </Button>
+
+                {editFile && (
+                  <div className="rounded-md border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                    Filename preview:{" "}
+                    <span className="font-medium text-foreground">
+                      {editFilePreviewLabel}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={savingEdit || convertingEditFile}
               onClick={() => {
                 setEditPayment(null);
                 setEditFile(null);
                 setIsDraggingEditFile(false);
                 setConvertingEditFile(false);
               }}
-              className="h-9 px-4 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors"
             >
               Cancel
-            </button>
-            <button
+            </Button>
+
+            <Button
+              type="button"
               onClick={handleUpdate}
               disabled={savingEdit || convertingEditFile}
-              className="h-9 px-4 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {convertingEditFile
                 ? "Converting..."
                 : savingEdit
                   ? "Saving..."
                   : "Update"}
-            </button>
-          </>
-        }
-      >
-        {editPayment && (
-          <div className="grid grid-cols-2 gap-4">
-            {/* TRUCK */}
-            <div>
-              <label className="text-xs font-medium text-foreground mb-1.5 block">
-                Truck
-              </label>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-              <div className="w-full h-11 rounded-md border border-border bg-muted/40 px-3 text-xs flex items-center">
-                <span className="truncate">
-                  {truckOptions.find((truck) => truck._id === createTruck)
-                    ?.truckName || "Select truck from topbar"}
-                </span>
-              </div>
-            </div>
-            <div>
-              <label className="text-xs font-medium text-foreground mb-1.5 block">
-                Date
-              </label>
-              <Popover open={openEditDate} onOpenChange={setOpenEditDate}>
-                <PopoverTrigger asChild>
-                  <button
-                    className={
-                      inputClass + " flex items-center justify-between"
-                    }
-                  >
-                    {editDate
-                      ? format(new Date(`${editDate}T00:00:00`), "MMM d, yyyy")
-                      : "Select date"}
-                    <CalendarDays className="h-4 w-4 opacity-50" />
-                  </button>
-                </PopoverTrigger>
-
-                <PopoverContent className="w-auto p-0 z-[9999]">
-                  <Calendar
-                    mode="single"
-                    selected={
-                      editDate ? new Date(`${editDate}T00:00:00`) : undefined
-                    }
-                    onSelect={(d) => {
-                      if (!d) return;
-
-                      setEditDate(toInputDate(d));
-                      setOpenEditDate(false);
-                    }}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            <div>
-              <label className="text-xs font-medium text-foreground mb-1.5 block">
-                Category
-              </label>
-
-              <Popover
-                open={openEditCategory}
-                onOpenChange={setOpenEditCategory}
-              >
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    role="combobox"
-                    className="w-full h-11 rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between outline-none focus:ring-2 focus:ring-ring"
-                  >
-                    <span className="truncate">
-                      {CATEGORY_OPTIONS.find(
-                        (opt) => opt.value === editCategory,
-                      )?.label || "Select category"}
-                    </span>
-
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </button>
-                </PopoverTrigger>
-
-                <PopoverContent
-                  className="w-[var(--radix-popover-trigger-width)] p-0 z-[9999]"
-                  align="start"
-                >
-                  <Command>
-                    <CommandGroup>
-                      {CATEGORY_OPTIONS.map((opt) => (
-                        <CommandItem
-                          key={opt.value}
-                          value={opt.label}
-                          className="text-xs"
-                          onSelect={() => {
-                            setEditCategory(opt.value);
-                            setOpenEditCategory(false);
-                          }}
-                        >
-                          <Check
-                            className={`mr-2 h-4 w-4 ${
-                              editCategory === opt.value
-                                ? "opacity-100"
-                                : "opacity-0"
-                            }`}
-                          />
-
-                          {opt.label}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            <div>
-              <label className="text-xs font-medium text-foreground mb-1.5 block">
-                Method
-              </label>
-
-              <Popover open={openEditMethod} onOpenChange={setOpenEditMethod}>
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    role="combobox"
-                    className="w-full h-11 rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between outline-none focus:ring-2 focus:ring-ring"
-                  >
-                    <span className="truncate">
-                      {METHOD_OPTIONS.find((opt) => opt.value === editMethod)
-                        ?.label || "Select method"}
-                    </span>
-
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </button>
-                </PopoverTrigger>
-
-                <PopoverContent
-                  className="w-[var(--radix-popover-trigger-width)] p-0 z-[9999]"
-                  align="start"
-                >
-                  <Command>
-                    <CommandGroup>
-                      {METHOD_OPTIONS.map((opt) => (
-                        <CommandItem
-                          key={opt.value}
-                          value={opt.label}
-                          className="text-xs"
-                          onSelect={() => {
-                            setEditMethod(opt.value);
-                            setOpenEditMethod(false);
-                          }}
-                        >
-                          <Check
-                            className={`mr-2 h-4 w-4 ${
-                              editMethod === opt.value
-                                ? "opacity-100"
-                                : "opacity-0"
-                            }`}
-                          />
-
-                          {opt.label}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            <div>
-              <label className="text-xs font-medium text-foreground mb-1.5 block">
-                Recipient
-              </label>
-              <input
-                type="text"
-                value={editRecipient}
-                onChange={(e) => setEditRecipient(e.target.value)}
-                className={inputClass}
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-medium text-foreground mb-1.5 block">
-                Amount
-              </label>
-              <input
-                type="number"
-                value={editAmount}
-                onChange={(e) => setEditAmount(e.target.value)}
-                className={inputClass}
-              />
-            </div>
-
-            <div className="col-span-2">
-              <label className="text-xs font-medium text-foreground mb-1.5 block">
-                Note
-              </label>
-              <input
-                type="text"
-                value={editNote}
-                onChange={(e) => setEditNote(e.target.value)}
-                className={inputClass}
-              />
-            </div>
-
-            <div className="col-span-2">
-              <label className="text-xs font-medium text-foreground mb-1.5 block">
-                Replace Proof Image (optional)
-              </label>
-
-              <label
-                onDragEnter={(e) => {
-                  e.preventDefault();
-                  setIsDraggingEditFile(true);
-                }}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setIsDraggingEditFile(true);
-                }}
-                onDragLeave={(e) => {
-                  e.preventDefault();
-
-                  if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-                    setIsDraggingEditFile(false);
-                  }
-                }}
-                onDrop={handleEditFileDrop}
-                className={`group flex cursor-pointer flex-col items-center justify-center rounded-md border border-dashed px-4 py-5 text-center transition-colors ${
-                  isDraggingEditFile
-                    ? "border-foreground bg-muted"
-                    : "border-border bg-background hover:bg-muted/50"
-                }`}
-              >
-                <input
-                  type="file"
-                  accept="image/*,.heic,.heif"
-                  className="hidden"
-                  onChange={handleEditFileChange}
-                />
-                <Upload
-                  size={22}
-                  className="mb-2 text-muted-foreground group-hover:text-foreground transition-colors"
-                />
-                {convertingEditFile ? (
-                  <div className="space-y-1">
-                    <div className="text-sm font-medium text-foreground">
-                      Converting HEIC to JPEG...
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      Please wait
-                    </div>
-                  </div>
-                ) : editFile ? (
-                  <div className="space-y-1">
-                    <div className="text-sm font-medium text-foreground">
-                      {editFile.name}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {(editFile.size / 1024).toFixed(1)} KB
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-1">
-                    <div className="text-sm font-medium text-foreground">
-                      {isDraggingEditFile
-                        ? "Drop image here"
-                        : "Drop or choose a replacement image"}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      JPG, PNG, WEBP, GIF, or HEIC
-                    </div>
-                  </div>
-                )}
-              </label>
-
-              {editFile && (
-                <div className="mt-3 rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-                  Filename preview:{" "}
-                  <span className="font-medium text-foreground">
-                    {editFilePreviewLabel}
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </Modal>
-
-      <Modal
+      <Drawer
         open={!!previewPayment}
-        onClose={() => {
-          setPreviewPayment(null);
+        onOpenChange={(open) => {
+          if (!open) {
+            setPreviewPayment(null);
 
-          if (previewImageUrl) {
-            URL.revokeObjectURL(previewImageUrl);
-            setPreviewImageUrl(null);
+            if (previewImageUrl) {
+              URL.revokeObjectURL(previewImageUrl);
+              setPreviewImageUrl(null);
+            }
           }
         }}
-        title={previewPayment ? `${previewPayment.category} Proof` : "Preview"}
-        wide
-        footer={
-          <>
-            <button
-              onClick={() => {
-                setPreviewPayment(null);
-
-                if (previewImageUrl) {
-                  URL.revokeObjectURL(previewImageUrl);
-                  setPreviewImageUrl(null);
-                }
-              }}
-              className="h-9 px-4 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors"
-            >
-              Close
-            </button>
-            {previewPayment && (
-              <button
-                onClick={() => {
-                  if (previewImageUrl) {
-                    window.open(previewImageUrl, "_blank");
-                  }
-                }}
-                disabled={!previewImageUrl}
-                className="h-9 px-4 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Open in New Tab
-              </button>
-            )}
-          </>
-        }
+        direction="right"
       >
-        {previewPayment && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
-                  Date
-                </label>
-                <div className="text-xs text-foreground">
-                  {previewPayment.dateText}
+        <DrawerContent className="data-[vaul-drawer-direction=right]:!w-[460px] data-[vaul-drawer-direction=right]:!max-w-[90vw]">
+          <DrawerHeader>
+            <DrawerTitle>
+              {previewPayment
+                ? `${previewPayment.category} Attachment`
+                : "Payment Attachment"}
+            </DrawerTitle>
+
+            <DrawerDescription className="sr-only">
+              View payment details and the uploaded attachment.
+            </DrawerDescription>
+          </DrawerHeader>
+
+          {previewPayment && (
+            <div className="flex-1 overflow-y-auto p-4">
+              <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Date</Label>
+                  <p className="text-sm font-medium">
+                    {previewPayment.dateText}
+                  </p>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">
+                    Category
+                  </Label>
+                  <p className="text-sm font-medium">
+                    {previewPayment.category}
+                  </p>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">
+                    Recipient
+                  </Label>
+                  <p className="text-sm font-medium">
+                    {previewPayment.recipient || "—"}
+                  </p>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">
+                    Amount
+                  </Label>
+                  <p className="text-sm font-medium tabular-nums">
+                    {peso(Number(previewPayment.amount || 0))}
+                  </p>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">
+                    Payment Method
+                  </Label>
+                  <p className="text-sm font-medium">
+                    {previewPayment.method || "—"}
+                  </p>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">
+                    Filename
+                  </Label>
+                  <p className="break-all text-sm font-medium">
+                    {previewPayment.filename}
+                  </p>
                 </div>
               </div>
 
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
-                  Category
-                </label>
-                <div className="text-xs text-foreground">
-                  {previewPayment.category}
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
-                  Recipient
-                </label>
-                <div className="text-xs text-foreground">
-                  {previewPayment.recipient || "—"}
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
-                  Amount
-                </label>
-                <div className="text-xs text-foreground tabular-nums">
-                  {peso(Number(previewPayment.amount || 0))}
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
-                  Method
-                </label>
-                <div className="text-xs text-foreground">
-                  {previewPayment.method || "—"}
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
-                  Filename
-                </label>
-                <div className="text-xs text-foreground break-all">
-                  {previewPayment.filename}
-                </div>
-              </div>
-            </div>
-
-            {previewPayment.note && (
-              <div className="rounded-md border border-border bg-muted/30 p-3 text-sm">
-                <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
-                  Note
-                </div>
-                <div>{previewPayment.note}</div>
-              </div>
-            )}
-
-            <div className="rounded-md border border-border bg-muted/20 p-3 flex items-center justify-center">
-              {previewLoading ? (
-                <div className="h-[320px] flex items-center justify-center text-sm text-muted-foreground">
-                  Loading payment proof...
-                </div>
-              ) : previewImageUrl ? (
-                <img
-                  src={previewImageUrl}
-                  alt={previewPayment.filename}
-                  className="max-w-full max-h-[58vh] w-auto h-auto object-contain rounded-md bg-background"
-                />
-              ) : (
-                <div className="h-[320px] flex items-center justify-center text-sm text-muted-foreground">
-                  Preview unavailable
+              {previewPayment.note && (
+                <div className="mt-4 space-y-1 rounded-md border bg-muted/30 p-3">
+                  <Label className="text-xs text-muted-foreground">Note</Label>
+                  <p className="text-sm">{previewPayment.note}</p>
                 </div>
               )}
-            </div>
-          </div>
-        )}
-      </Modal>
 
-      <Modal
+              <div className="mt-4 flex min-h-[320px] items-center justify-center rounded-md bg-muted p-3">
+                {previewLoading ? (
+                  <p className="text-sm text-muted-foreground">
+                    Loading image...
+                  </p>
+                ) : previewImageUrl ? (
+                  <img
+                    src={previewImageUrl}
+                    alt={previewPayment.filename}
+                    className="max-h-[60vh] max-w-full rounded-md object-contain"
+                  />
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Preview unavailable
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          <DrawerFooter>
+            <Button
+              disabled={!previewImageUrl}
+              onClick={() => {
+                if (previewImageUrl) {
+                  window.open(previewImageUrl, "_blank");
+                }
+              }}
+            >
+              Open in New Tab
+            </Button>
+
+            <DrawerClose render={<Button variant="outline">Close</Button>} />
+          </DrawerFooter>
+        </DrawerContent>
+      </Drawer>
+
+      <Dialog
         open={!!deleteModal}
-        onClose={() => setDeleteModal(null)}
-        title="Delete payment?"
-        footer={
-          <>
-            <button
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteModal(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Delete payment?</DialogTitle>
+
+            <DialogDescription>
+              Are you sure you want to delete this payment attachment?
+            </DialogDescription>
+          </DialogHeader>
+
+          <p className="text-sm font-medium">
+            {deleteModal?.dateText} / {deleteModal?.category}
+          </p>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
               onClick={() => setDeleteModal(null)}
-              className="px-4 py-2.5 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors"
+              disabled={deleting}
             >
               Cancel
-            </button>
+            </Button>
 
-            <button
+            <Button
+              type="button"
+              variant="destructive"
               onClick={confirmDelete}
-              className="px-6 py-2.5 rounded-md bg-red-500/10 text-red-500 text-sm font-medium hover:bg-red-500/20 transition"
+              disabled={deleting}
             >
-              Delete
-            </button>
-          </>
-        }
-      >
-        <p className="text-sm text-slate-600 dark:text-slate-300">
-          Are you sure you want to delete this payment proof?
-          <br />
-          <strong>
-            {deleteModal?.dateText} / {deleteModal?.category}
-          </strong>
-        </p>
-      </Modal>
-
-      <Modal
-        open={showTruckWarning}
-        onClose={() => setShowTruckWarning(false)}
-        title=""
-      >
-        <div className="text-center py-4">
-          <div className="mx-auto mb-4 w-14 h-14 rounded-full bg-amber-500/10 grid place-items-center text-amber-500">
-            <AlertTriangle size={28} />
-          </div>
-          <div className="font-bold text-lg mb-1">
-            Please select a truck first!
-          </div>
-          <p className="text-sm text-slate-500">
-            Choose a truck from the Dashboard filter bar before uploading a
-            payment proof.
-          </p>
-        </div>
-      </Modal>
+              <Trash2 />
+              {deleting ? "Deleting..." : "Delete Payment"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

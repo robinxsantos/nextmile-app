@@ -1,4 +1,6 @@
 type NoteTrip = {
+  _id: any;
+  truck?: any;
   dateIso: string;
   note?: string;
   expenseBreakdown?: string;
@@ -6,7 +8,10 @@ type NoteTrip = {
 };
 
 type NoteExpense = {
+  _id?: any;
   date: Date;
+  truck?: any;
+  tripId?: any;
   category?: string;
   description?: string;
   amount?: number;
@@ -26,47 +31,83 @@ function formatPeso(amount: number): string {
 }
 
 export function attachExpenseNotes(trips: NoteTrip[], expenses: NoteExpense[]) {
-  const expenseNoteMap: Record<string, string> = {};
-  const expenseBreakdownMap: Record<string, BreakdownItem[]> = {};
+  const getTruckId = (value: any) =>
+    value && typeof value === "object"
+      ? String(value._id || "")
+      : String(value || "");
 
-  expenses.forEach((e) => {
-    const dateKey = e.date.toISOString().slice(0, 10);
+  const getTripId = (value: any) =>
+    value && typeof value === "object"
+      ? String(value._id || "")
+      : String(value || "");
 
-    if (e.reimbursed) return;
+  const buildLabel = (expense: NoteExpense) => {
+    const baseLabel = [expense.category, expense.description]
+      .filter(Boolean)
+      .join(": ")
+      .trim();
 
-    const label = [e.category, e.description].filter(Boolean).join(": ").trim();
-    const amountText = formatPeso(e.amount || 0);
+    return expense.reimbursed
+      ? `${baseLabel || "Expense"} (Reimbursed)`
+      : baseLabel || "Expense";
+  };
 
-    if (!expenseNoteMap[dateKey]) {
-      expenseNoteMap[dateKey] = label;
-    } else if (label) {
-      expenseNoteMap[dateKey] += " | " + label;
-    }
+  return trips.map((trip) => {
+    const tripId = String(trip._id);
+    const tripTruckId = getTruckId(trip.truck);
 
-    if (!expenseBreakdownMap[dateKey]) {
-      expenseBreakdownMap[dateKey] = [];
-    }
+    // Expenses explicitly linked to this exact trip.
+    const linkedExpenses = expenses.filter(
+      (expense) => getTripId(expense.tripId) === tripId,
+    );
 
-    expenseBreakdownMap[dateKey].push({
-      label: label || "Expense",
-      amountText,
+    // Legacy/manual expenses without tripId for the same truck + date.
+    const dateLevelExpenses = expenses.filter((expense) => {
+      if (expense.tripId) return false;
+
+      const expenseTruckId = getTruckId(expense.truck);
+      const expenseDate = expense.date.toISOString().slice(0, 10);
+
+      return expenseTruckId === tripTruckId && expenseDate === trip.dateIso;
     });
-  });
 
-  return trips.map((t) => {
-    const expNote = expenseNoteMap[t.dateIso] || "";
-    const items = expenseBreakdownMap[t.dateIso] || [];
+    // First trip owns legacy/manual date-level expenses.
+    const ownerTrip = trips.find(
+      (row) =>
+        getTruckId(row.truck) === tripTruckId && row.dateIso === trip.dateIso,
+    );
 
-    const expBreakdown = items
-      .map((item) =>
-        items.length > 1 ? `${item.label} - ${item.amountText}` : item.label,
-      )
+    const ownedDateExpenses =
+      String(ownerTrip?._id || "") === tripId ? dateLevelExpenses : [];
+
+    const tripExpenses = [...linkedExpenses, ...ownedDateExpenses];
+
+    const expNote = tripExpenses
+      .map((expense) => buildLabel(expense))
+      .join(" | ");
+
+    const expBreakdown = tripExpenses
+      .map((expense) => {
+        const label = buildLabel(expense);
+
+        return tripExpenses.length > 1
+          ? `${label} - ${formatPeso(expense.amount || 0)}`
+          : label;
+      })
       .join("\n");
 
     return {
-      ...t,
-      note: t.note || expNote,
-      expenseBreakdown: t.expenseBreakdown || expBreakdown,
+      ...trip,
+      note: expNote || trip.note || "",
+      expenseBreakdown: expBreakdown,
+
+      expenseItems: tripExpenses.map((expense) => ({
+        _id: String(expense._id || ""),
+        category: expense.category || "",
+        description: expense.description || "",
+        amount: Number(expense.amount || 0),
+        reimbursed: Boolean(expense.reimbursed),
+      })),
     };
   });
 }

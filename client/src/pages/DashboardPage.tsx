@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useEffect, useState, useMemo } from "react";
 import api from "../api/client";
 import { useAppStore, type TripRow } from "../store/useAppStore";
 import { useAuthStore } from "../store/useAuthStore";
@@ -7,7 +7,6 @@ import TripModal from "../components/shared/TripModal";
 import TripTable from "../components/shared/TripTable";
 import EmptyState from "../components/shared/EmptyState";
 import ErrorState from "../components/shared/ErrorState";
-import { exportTripsCsv, exportPayslip } from "../lib/exportHelpers";
 import {
   PhilippinePeso,
   CheckCircle2,
@@ -18,7 +17,6 @@ import {
   Clock3,
   Info,
   Search,
-  AlertTriangle,
   CheckCheck,
   XCircle,
   Trash2,
@@ -26,148 +24,95 @@ import {
   TrendingUp,
   TrendingDown,
   Receipt,
-  Check,
-  ChevronsUpDown,
+  ListFilter,
+  CircleCheck,
+  CircleHelp,
 } from "lucide-react";
 import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
   Area,
   AreaChart,
   Bar,
   BarChart,
-  Legend,
 } from "recharts";
+import {
+  ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
 import ExpenseBreakdownModal from "../components/shared/ExpenseBreakdownModal";
 import { AnimatePresence, motion } from "framer-motion";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
+  DialogDescription,
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
   Tooltip as UiTooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Button } from "@/components/ui/button";
 
-import { Command, CommandGroup, CommandItem } from "@/components/ui/command";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
-function Sparkline({
-  data,
-  labels,
-  invert = false,
-  current,
-  previous,
-}: {
-  data: number[];
-  labels: string[];
-  invert?: boolean;
-  current: number;
-  previous: number;
-}) {
-  const min = Math.min(...data);
-  const max = Math.max(...data);
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 
-  const normalized = data.map((v, i) => ({
-    value: max === min ? 50 : ((v - min) / (max - min)) * 100,
-    raw: v,
-    label: labels[i],
-  }));
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import Sparkline from "../components/shared/Sparkline";
 
-  const isGood = invert ? current <= previous : current >= previous;
+const grossNetChartConfig = {
+  gross: {
+    label: "Gross Income",
+    color: "#f97316",
+  },
+  net: {
+    label: "Net Income",
+    color: "#14b8a6",
+  },
+} satisfies ChartConfig;
 
-  const gradientId = isGood ? "sparkUp" : "sparkDown";
+const tripsChartConfig = {
+  trips: {
+    label: "Trips",
+    color: "#f97316",
+  },
+} satisfies ChartConfig;
 
-  return (
-    <AreaChart
-      key={JSON.stringify(data)} // ✅ force re-animation
-      width={90}
-      height={32}
-      data={normalized}
-    >
-      <defs>
-        <linearGradient id="sparkUp">
-          <stop offset="0%" stopColor="#22c55e" stopOpacity={0.1} />
-          <stop offset="70%" stopColor="#22c55e" stopOpacity={0.25} />
-          <stop offset="100%" stopColor="#22c55e" stopOpacity={0.4} />
-        </linearGradient>
-
-        <linearGradient id="sparkDown" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#ef4444" stopOpacity={0.1} />
-          <stop offset="70%" stopColor="#ef4444" stopOpacity={0.25} />
-          <stop offset="100%" stopColor="#ef4444" stopOpacity={0.4} />
-        </linearGradient>
-      </defs>
-
-      <Area
-        type="monotone"
-        dataKey="value"
-        stroke={isGood ? "#22c55e" : "#ef4444"}
-        strokeWidth={1.5}
-        isAnimationActive
-        animationDuration={800}
-        animationEasing="ease-in-out"
-        animationBegin={100}
-        style={{
-          filter: isGood
-            ? "drop-shadow(0 0 2px rgba(34,197,94,0.4))"
-            : "drop-shadow(0 0 2px rgba(239,68,68,0.4))",
-        }}
-        fill={`url(#${gradientId})`}
-        dot={(props: any) => {
-          const isLast = props.index === data.length - 1;
-          return isLast ? (
-            <circle cx={props.cx} cy={props.cy} r={2} fill={props.stroke}>
-              <animate
-                attributeName="r"
-                values="2.5;3.5;2.5"
-                dur="2s"
-                repeatCount="indefinite"
-              />
-            </circle>
-          ) : null;
-        }}
-      />
-
-      <Tooltip
-        formatter={(_, __, props: any) => [
-          `₱${props.payload.raw.toLocaleString()}`,
-        ]}
-        labelFormatter={(_, payload) => payload?.[0]?.payload?.label || ""}
-        contentStyle={{
-          fontSize: "11px",
-          padding: "6px 8px",
-          borderRadius: "6px",
-
-          // ✅ WHITE STYLE
-          backgroundColor: "#ffffff",
-          color: "#111827", // dark text
-
-          border: "1px solid #e5e7eb", // light border
-          boxShadow: "0 4px 10px rgba(0,0,0,0.08)",
-        }}
-        labelStyle={{
-          color: "#111827",
-          fontWeight: 600,
-        }}
-      />
-    </AreaChart>
-  );
-}
 const COLUMN_OPTIONS = [
   ["truck", "Truck"],
   ["week", "Week"],
@@ -206,19 +151,17 @@ export default function DashboardPage() {
     truckRows,
     initApp,
     fetchDashboard,
+    fetchExpenses,
     deleteTrip,
     toggleTripPaid,
     searchQuery,
     setSearchQuery,
-    startDate,
-    endDate,
     rangePreset,
     selectedTripIds,
     setSelectedTripIds,
     bulkTogglePaid,
     bulkDeleteTrips,
     quickEditTrip,
-    addExpense,
     deleteExpense,
   } = useAppStore();
   const { user } = useAuthStore();
@@ -229,19 +172,18 @@ export default function DashboardPage() {
   const [editRow, setEditRow] = useState<TripRow | null>(null);
   const [duplicateFrom, setDuplicateFrom] = useState<TripRow | null>(null);
   const [deleteModal, setDeleteModal] = useState<TripRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [bulkDeleteModal, setBulkDeleteModal] = useState(false);
-  const [showTruckWarning, setShowTruckWarning] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const [expenseBreakdown, setExpenseBreakdown] = useState<{
     truckId: string;
     dateIso: string;
     dateText: string;
   } | null>(null);
-  const [showColumnsMenu, setShowColumnsMenu] = useState(false);
   const COLUMN_STORAGE_KEY = "dashboard-columns";
   const [verificationFilter, setVerificationFilter] = useState<
     "ALL" | "Verified" | "Pending" | "For Confirmation"
   >("ALL");
-  const [openVerification, setOpenVerification] = useState(false);
   const [dashboardCollections, setDashboardCollections] = useState<
     DashboardCollection[]
   >([]);
@@ -278,15 +220,18 @@ export default function DashboardPage() {
     }
   });
 
-  const searchInputRef = useRef<HTMLInputElement>(null);
-
   useEffect(() => {
-    initApp();
-  }, [initApp]);
+    const load = async () => {
+      await initApp();
 
-  useEffect(() => {
-    fetchDashboard();
-  }, [selectedTruck, fetchDashboard]);
+      const state = useAppStore.getState();
+
+      await fetchExpenses(state.startDate, state.endDate);
+      await fetchDashboard();
+    };
+
+    load();
+  }, [initApp, fetchExpenses, fetchDashboard, selectedTruck]);
 
   useEffect(() => {
     let cancelled = false;
@@ -339,22 +284,6 @@ export default function DashboardPage() {
   useEffect(() => {
     localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(visibleColumns));
   }, [visibleColumns]);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setShowColumnsMenu(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
 
   const selectedTruckName = truckOptions.find(
     (t) => t._id === selectedTruck,
@@ -426,71 +355,15 @@ export default function DashboardPage() {
     };
   }, [collectionTrips, dashboardCollections, isDirectTruck]);
 
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  const handleAddTrip = () => {
-    if (!selectedTruck) {
-      setShowTruckWarning(true);
-      return;
-    }
-    setEditRow(null);
-    setDuplicateFrom(null);
-    setTripModal(true);
-  };
-
   const handleDuplicate = (row: TripRow) => {
     setEditRow(null);
     setDuplicateFrom(row);
     setTripModal(true);
   };
 
-  const handleExportCsv = () => exportTripsCsv(tripRows);
-
-  const handleExportPayslip = () => {
-    const truckLabel = selectedTruckName || "All Trucks";
-    exportPayslip(tripRows, truckLabel, startDate, endDate);
-  };
-
   const handleTogglePaid = async (id: string) => {
-    const trip = tripRows.find((r) => r._id === id);
-    if (!trip) return;
-
-    const willBePaid = !trip.paid;
-
     try {
-      const latestExpenses = useAppStore.getState().expenseRows;
-
-      const existing = latestExpenses.find((e) => e.tripId === trip._id);
-
-      // 🔴 UNPAID FIRST → delete expense
-      if (!willBePaid) {
-        if (existing) {
-          await deleteExpense(existing._id);
-        }
-      }
-
-      // 🔥 ALWAYS TOGGLE FIRST (SOURCE OF TRUTH)
       await toggleTripPaid(id);
-
-      // 🟢 AFTER TOGGLE → create expense if needed
-      if (willBePaid && !existing && trip.reimbursements > 0) {
-        await addExpense({
-          truckId:
-            typeof trip.truck === "string"
-              ? trip.truck
-              : trip.truck && typeof trip.truck === "object"
-                ? trip.truck._id
-                : selectedTruck,
-          date: trip.dateIso,
-          category: "REIMBURSEMENT",
-          amount: trip.reimbursements,
-          description: `Crew Reimb.`,
-          tripId: trip._id,
-        });
-      }
-
-      // 🔥 FINAL SYNC (single refresh only)
-      await fetchDashboard();
     } catch (err) {
       console.error("Toggle failed", err);
     }
@@ -500,6 +373,8 @@ export default function DashboardPage() {
     if (!deleteModal) return;
 
     const trip = deleteModal;
+
+    setDeleting(true);
 
     try {
       // 🔍 hanapin related expense
@@ -518,12 +393,22 @@ export default function DashboardPage() {
       setDeleteModal(null);
     } catch (err) {
       console.error("Delete failed", err);
+    } finally {
+      setDeleting(false);
     }
   };
 
   const handleBulkDelete = async () => {
-    await bulkDeleteTrips(selectedTripIds);
-    setBulkDeleteModal(false);
+    setBulkDeleting(true);
+
+    try {
+      await bulkDeleteTrips(selectedTripIds);
+      setBulkDeleteModal(false);
+    } catch (err) {
+      console.error("Bulk delete failed", err);
+    } finally {
+      setBulkDeleting(false);
+    }
   };
 
   const chartMode = getChartMode();
@@ -631,7 +516,7 @@ export default function DashboardPage() {
         <ErrorState message={error} onRetry={() => fetchDashboard()} />
       )}
 
-      <div className="sticky top-14 z-30 bg-[#fcfcfc] dark:bg-zinc-900">
+      <div className="sticky top-16 z-30 bg-background">
         <FilterBar
           showTruck={false}
           allowedRangePresets={
@@ -640,718 +525,535 @@ export default function DashboardPage() {
         />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[1.5fr_2.2fr_0.85fr] mt-4">
-        {/* 🔴 LEFT: KPI SUMMARY (reuses your original logic) */}
-        <div>
-          <Card className="p-5 min-h-[600px] flex flex-col justify-start">
-            <div className="mb-2">
-              <h2 className="text-sm font-medium">Financial Summary</h2>
-              <p className="text-xs text-muted-foreground">
-                Overview vs last period
-              </p>
-            </div>
+      <div className="mt-4 grid gap-4 lg:grid-cols-[1.25fr_2.45fr_0.85fr]">
+        {/* LEFT: FINANCIAL SUMMARY */}
+        <div className="grid h-[600px] grid-rows-5 gap-3">
+          {[
+            {
+              label: "Gross Income",
+              value: kpis.gross,
+              prev: previousKpis.gross,
+              icon: PhilippinePeso,
+            },
+            {
+              label: "Expenses",
+              value: kpis.expenses,
+              prev: previousKpis.expenses,
+              icon: Receipt,
+              invert: true,
+            },
+            {
+              label: "Net Income",
+              value: kpis.net,
+              prev: previousKpis.net,
+              icon: CheckCircle2,
+            },
+            {
+              label: "Payable",
+              value: kpis.payable,
+              prev: previousKpis.payable,
+              icon: BarChart3,
+              invert: true,
+            },
+            {
+              label: "Crew Payments",
+              value: kpis.cashOutflow,
+              prev: previousKpis.cashOutflow,
+              icon: ArrowUpDown,
+              invert: true,
+            },
+          ].map((item) => {
+            const isCutoff = rangePreset === "CC" || rangePreset === "LC";
 
-            <div className="space-y-2">
-              {[
-                {
-                  label: "Gross Income",
-                  value: kpis.gross,
-                  prev: previousKpis.gross,
-                  icon: PhilippinePeso,
-                },
-                {
-                  label: "Expenses",
-                  value: kpis.expenses,
-                  prev: previousKpis.expenses,
-                  icon: Receipt,
-                  invert: true,
-                },
-                {
-                  label: "Net Income",
-                  value: kpis.net,
-                  prev: previousKpis.net,
-                  icon: CheckCircle2,
-                },
-                {
-                  label: "Payable",
-                  value: kpis.payable,
-                  prev: previousKpis.payable,
-                  icon: BarChart3,
-                  invert: true,
-                },
-                {
-                  label: "Crew Payments",
-                  value: kpis.cashOutflow,
-                  prev: previousKpis.cashOutflow,
-                  icon: ArrowUpDown,
-                  invert: true,
-                },
-              ].map((item, idx) => {
-                const isCutoff = rangePreset === "CC" || rangePreset === "LC";
+            const sparkSource = isCutoff
+              ? [
+                  {
+                    label: "Previous",
+                    gross: previousKpis.gross,
+                    net: previousKpis.net,
+                    expenses: previousKpis.expenses,
+                    payable: previousKpis.payable,
+                    cashOutflow: previousKpis.cashOutflow,
+                  },
+                  {
+                    label: "Current",
+                    gross: kpis.gross,
+                    net: kpis.net,
+                    expenses: kpis.expenses,
+                    payable: kpis.payable,
+                    cashOutflow: kpis.cashOutflow,
+                  },
+                ]
+              : groupedChartData;
 
-                let sparkSource;
+            const diff = item.value - item.prev;
 
-                if (isCutoff) {
-                  // 🔥 cutoff = comparison only (2 points)
-                  sparkSource = [
-                    {
-                      label: "Previous",
-                      gross: previousKpis.gross,
-                      net: previousKpis.net,
-                      expenses: previousKpis.expenses,
-                      payable: previousKpis.payable,
-                      cashOutflow: previousKpis.cashOutflow,
-                    },
-                    {
-                      label: "Current",
-                      gross: kpis.gross,
-                      net: kpis.net,
-                      expenses: kpis.expenses,
-                      payable: kpis.payable,
-                      cashOutflow: kpis.cashOutflow,
-                    },
-                  ];
-                } else {
-                  // 🔥 TM / YTD / ALL → follow chart behavior
-                  sparkSource = groupedChartData;
-                }
-                const diff = item.value - item.prev;
-                const percent =
-                  item.prev === 0
-                    ? 100
-                    : item.prev
-                      ? (diff / item.prev) * 100
-                      : 0;
+            const percent =
+              item.prev === 0 ? 100 : item.prev ? (diff / item.prev) * 100 : 0;
 
-                const isUp = diff >= 0;
-                const sign = diff === 0 ? "" : diff > 0 ? "+" : "-";
-                const isGood = item.invert ? diff <= 0 : diff >= 0;
+            const isUp = diff >= 0;
+            const sign = diff === 0 ? "" : diff > 0 ? "+" : "-";
+            const isGood = item.invert ? diff <= 0 : diff >= 0;
 
-                const Icon = item.icon;
+            const Icon = item.icon;
 
-                return (
-                  <div key={item.label}>
-                    <div className="grid grid-cols-[1fr_1fr_auto] items-center py-4 gap-3">
-                      {/* LEFT */}
-                      <div className="flex items-start gap-3">
-                        <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center">
-                          <Icon className="h-4 w-4 text-muted-foreground" />
-                        </div>
+            const sparkData = sparkSource.map((d: any) => {
+              switch (item.label) {
+                case "Gross Income":
+                  return d.gross;
+                case "Net Income":
+                  return d.net;
+                case "Expenses":
+                  return d.expenses;
+                case "Payable":
+                  return d.payable;
+                case "Crew Payments":
+                  return d.cashOutflow;
+                default:
+                  return 0;
+              }
+            });
 
-                        <div>
-                          <p className="text-sm font-medium">{item.label}</p>
-                          <p className="text-xs text-muted-foreground">
-                            vs last period
-                          </p>
-                        </div>
-                      </div>
+            const sparkLabels = sparkSource.map((d: any) => d.label);
 
-                      {/* MIDDLE — SPARKLINE */}
-                      <div className="hidden md:flex justify-center items-center">
-                        {/* MIDDLE — SPARKLINE */}
-                        <div className="hidden md:flex justify-center items-center">
-                          <Sparkline
-                            data={sparkSource.map((d: any) => {
-                              switch (item.label) {
-                                case "Gross Income":
-                                  return d.gross;
-                                case "Net Income":
-                                  return d.net;
-                                case "Expenses":
-                                  return d.expenses;
-                                case "Payable":
-                                  return d.payable;
-                                case "Cash Outflow":
-                                  return d.cashOutflow;
-                                default:
-                                  return 0;
-                              }
-                            })}
-                            labels={sparkSource.map((d: any) => d.label)}
-                            invert={item.invert}
-                            current={item.value}
-                            previous={item.prev}
-                          />
-                        </div>
-                      </div>
+            return (
+              <Card key={item.label} size="sm">
+                <CardHeader className="grid grid-cols-[1fr_auto] items-start">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted">
+                      <Icon className="size-4 text-muted-foreground" />
+                    </div>
 
-                      {/* RIGHT */}
-                      <div className="flex flex-col items-end justify-start pt-[2px]">
-                        {/* TOTAL */}
-                        <span className="text-base font-bold leading-tight">
-                          ₱{moneyFormat.format(item.value)}
-                        </span>
+                    <CardTitle>{item.label}</CardTitle>
+                  </div>
 
-                        {/* CHANGE (PILL) */}
-                        {item.prev !== undefined &&
-                          (item.label === "Payable" ? (
-                            <span
-                              className={cn(
-                                "inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium mt-1 whitespace-nowrap",
-                                isGood
-                                  ? "bg-green-500/10 text-green-600"
-                                  : "bg-red-500/10 text-red-500",
-                              )}
-                            >
-                              {diff === 0 ? (
-                                <div className="w-2 h-2 rounded-full bg-muted-foreground" />
-                              ) : isUp ? (
-                                <TrendingUp className="h-3 w-3" />
-                              ) : (
-                                <TrendingDown className="h-3 w-3" />
-                              )}
+                  <CardAction>
+                    <span className="text-sm font-semibold tracking-tight tabular-nums">
+                      ₱{moneyFormat.format(item.value)}
+                    </span>
+                  </CardAction>
+                </CardHeader>
+
+                <CardContent>
+                  <div className="-translate-y-2 grid grid-cols-[1fr_100px] items-end gap-3">
+                    <div className="min-w-0">
+                      {item.prev !== undefined && (
+                        <div
+                          className={cn(
+                            "flex items-center gap-1 text-[11px] font-medium tabular-nums",
+                            isGood
+                              ? "text-green-600 dark:text-green-400"
+                              : "text-destructive",
+                          )}
+                        >
+                          {diff === 0 ? (
+                            <span className="size-1.5 rounded-full bg-current opacity-60" />
+                          ) : isUp ? (
+                            <TrendingUp className="size-3" />
+                          ) : (
+                            <TrendingDown className="size-3" />
+                          )}
+
+                          {item.label === "Payable" ? (
+                            <span>
                               {sign}₱{moneyFormat.format(Math.abs(diff))}
                             </span>
                           ) : (
-                            <span
-                              className={cn(
-                                "inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium mt-1 whitespace-nowrap",
-                                isGood
-                                  ? "bg-green-500/10 text-green-600"
-                                  : "bg-red-500/10 text-red-500",
-                              )}
-                            >
-                              {diff === 0 ? (
-                                <div className="w-2 h-2 rounded-full bg-muted-foreground" />
-                              ) : isUp ? (
-                                <TrendingUp className="h-3 w-3" />
-                              ) : (
-                                <TrendingDown className="h-3 w-3" />
-                              )}
-                              {sign}
-                              {Math.abs(percent).toFixed(1)}%
+                            <>
                               <span>
+                                {sign}
+                                {Math.abs(percent).toFixed(1)}%
+                              </span>
+
+                              <span className="text-muted-foreground">
                                 ({sign}₱{moneyFormat.format(Math.abs(diff))})
                               </span>
-                            </span>
-                          ))}
-                      </div>
+                            </>
+                          )}
+                        </div>
+                      )}
+
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        vs last period
+                      </p>
                     </div>
 
-                    {/* DIVIDER */}
-                    {idx !== 4 && (
-                      <div className="border-t border-dashed border-border" />
-                    )}
+                    <div className="flex justify-end">
+                      <Sparkline
+                        data={sparkData}
+                        labels={sparkLabels}
+                        invert={item.invert}
+                        current={item.value}
+                        previous={item.prev}
+                      />
+                    </div>
                   </div>
-                );
-              })}
-            </div>
-          </Card>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
 
         {/* CENTER: CHARTS */}
-        <div className="h-[600px]">
-          <div className="flex flex-col gap-4 h-full">
-            {/* AREA CHART */}
-            <Card className="flex-1">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">
-                  {chartMode === "WEEKLY"
-                    ? "Weekly Gross vs Net Income"
-                    : "Monthly Gross vs Net Income"}
-                </CardTitle>
-                <span className="text-xs text-muted-foreground">Trend</span>
-              </CardHeader>
+        <div className="grid h-[600px] grid-rows-2 gap-3">
+          {/* AREA CHART */}
+          <Card size="sm" className="min-h-0 min-w-0">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">
+                {chartMode === "WEEKLY"
+                  ? "Weekly Gross vs Net Income"
+                  : "Monthly Gross vs Net Income"}
+              </CardTitle>
+              <span className="text-xs text-muted-foreground">Trend</span>
+            </CardHeader>
 
-              <CardContent className="h-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart
-                    key={JSON.stringify(groupedChartData)} // ✅ FORCE RE-ANIMATE
-                    data={groupedChartData}
-                    margin={{ left: 20, top: 20, right: 20 }}
-                  >
-                    <CartesianGrid
-                      stroke="hsl(var(--border))"
-                      strokeDasharray="3 3"
-                    />
-                    <XAxis dataKey="label" fontSize={12} fontWeight={500} />
-                    <YAxis
-                      fontSize={12}
-                      fontWeight={500}
-                      tickFormatter={(value) =>
-                        Number(value).toLocaleString("en-PH", {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })
-                      }
-                    />
+            <CardContent className="min-h-0">
+              <ChartContainer
+                config={grossNetChartConfig}
+                initialDimension={{ width: 600, height: 220 }}
+                className="h-full min-h-[220px] w-full min-w-0"
+              >
+                <AreaChart
+                  key={JSON.stringify(groupedChartData)} // ✅ FORCE RE-ANIMATE
+                  data={groupedChartData}
+                  margin={{ left: 20, top: 20, right: 20 }}
+                >
+                  <CartesianGrid
+                    stroke="hsl(var(--border))"
+                    strokeDasharray="3 3"
+                  />
+                  <XAxis dataKey="label" fontSize={12} fontWeight={500} />
+                  <YAxis
+                    fontSize={12}
+                    fontWeight={500}
+                    tickFormatter={(value) =>
+                      Number(value).toLocaleString("en-PH", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })
+                    }
+                  />
 
-                    <Tooltip
-                      formatter={(value: number, name: string) => {
-                        const label =
-                          name === "gross"
-                            ? "Gross Income"
-                            : name === "net"
-                              ? "Net Income"
-                              : name;
+                  <ChartTooltip
+                    cursor={false}
+                    content={
+                      <ChartTooltipContent
+                        indicator="line"
+                        labelFormatter={(_, payload) =>
+                          payload?.[0]?.payload?.label || ""
+                        }
+                      />
+                    }
+                  />
+                  <ChartLegend content={<ChartLegendContent />} />
+                  <defs>
+                    <linearGradient
+                      id="grossGradient"
+                      x1="0"
+                      y1="0"
+                      x2="0"
+                      y2="1"
+                    >
+                      <stop
+                        offset="0%"
+                        stopColor="var(--color-gross)"
+                        stopOpacity={0.25}
+                      />
+                      <stop offset="100%" stopColor="#2563eb" stopOpacity={0} />
+                    </linearGradient>
 
-                        return [
-                          "₱" +
-                            new Intl.NumberFormat("en-PH", {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
-                            }).format(value),
-                          label,
-                        ];
-                      }}
-                      contentStyle={{
-                        fontSize: "12px",
-                        padding: "8px 10px",
-                        borderRadius: "8px",
+                    <linearGradient
+                      id="netGradient"
+                      x1="0"
+                      y1="0"
+                      x2="0"
+                      y2="1"
+                    >
+                      <stop
+                        offset="0%"
+                        stopColor="var(--color-net)"
+                        stopOpacity={0.25}
+                      />
+                      <stop offset="100%" stopColor="#14b8a6" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
 
-                        // ✅ WHITE STYLE
-                        backgroundColor: "#ffffff",
-                        color: "#111827",
+                  <Area
+                    type="monotone"
+                    dataKey="gross"
+                    stroke="var(--color-gross)"
+                    strokeWidth={2}
+                    fill="url(#grossGradient)"
+                    isAnimationActive
+                    animationDuration={1000}
+                    animationEasing="ease-in-out"
+                  />
 
-                        border: "1px solid #e5e7eb",
-                        boxShadow: "0 4px 10px rgba(0,0,0,0.08)",
-                      }}
-                      labelStyle={{
-                        color: "#111827",
-                        fontWeight: 600,
-                      }}
-                    />
-                    <Legend
-                      wrapperStyle={{
-                        fontSize: "12px",
-                      }}
-                    />
-                    <defs>
-                      <linearGradient
-                        id="grossGradient"
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
-                      >
-                        <stop
-                          offset="0%"
-                          stopColor="#2563eb"
-                          stopOpacity={0.25}
-                        />
-                        <stop
-                          offset="100%"
-                          stopColor="#2563eb"
-                          stopOpacity={0}
-                        />
-                      </linearGradient>
+                  <Area
+                    type="monotone"
+                    dataKey="net"
+                    stroke="var(--color-net)"
+                    strokeWidth={2}
+                    fill="url(#netGradient)"
+                    isAnimationActive
+                    animationDuration={1000}
+                    animationEasing="ease-in-out"
+                  />
+                </AreaChart>
+              </ChartContainer>
+            </CardContent>
+          </Card>
 
-                      <linearGradient
-                        id="netGradient"
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
-                      >
-                        <stop
-                          offset="0%"
-                          stopColor="#14b8a6"
-                          stopOpacity={0.25}
-                        />
-                        <stop
-                          offset="100%"
-                          stopColor="#14b8a6"
-                          stopOpacity={0}
-                        />
-                      </linearGradient>
-                    </defs>
+          {/* BAR CHART */}
+          <Card size="sm" className="min-h-0 min-w-0">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">
+                {chartMode === "WEEKLY" ? "Weekly Trips" : "Monthly Trips"}
+              </CardTitle>
+              <span className="text-xs text-muted-foreground">Volume</span>
+            </CardHeader>
 
-                    <Area
-                      type="monotone"
-                      dataKey="gross"
-                      stroke="#2563eb"
-                      strokeWidth={2}
-                      fill="url(#grossGradient)"
-                      isAnimationActive
-                      animationDuration={1000}
-                      animationEasing="ease-in-out"
-                    />
+            <CardContent className="min-h-0">
+              <ChartContainer
+                config={tripsChartConfig}
+                initialDimension={{ width: 600, height: 220 }}
+                className="h-full min-h-[220px] w-full min-w-0"
+              >
+                <BarChart
+                  key={JSON.stringify(groupedChartData)} // ✅ FORCE RE-ANIMATE
+                  data={groupedChartData}
+                  margin={{ top: 20, left: 20, right: 20 }}
+                >
+                  <CartesianGrid
+                    stroke="hsl(var(--border))"
+                    strokeDasharray="3 3"
+                  />
+                  <XAxis dataKey="label" fontSize={12} fontWeight={500} />
+                  <YAxis fontSize={12} fontWeight={500} />
+                  <ChartTooltip
+                    cursor={false}
+                    content={
+                      <ChartTooltipContent
+                        hideIndicator
+                        formatter={(value) => (
+                          <div className="flex min-w-[90px] items-center justify-between gap-4">
+                            <span className="text-muted-foreground">Trips</span>
 
-                    <Area
-                      type="monotone"
-                      dataKey="net"
-                      stroke="#14b8a6"
-                      strokeWidth={2}
-                      fill="url(#netGradient)"
-                      isAnimationActive
-                      animationDuration={1000}
-                      animationEasing="ease-in-out"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
+                            <span className="font-mono font-medium tabular-nums text-foreground">
+                              {Number(value).toLocaleString("en-PH")}
+                            </span>
+                          </div>
+                        )}
+                      />
+                    }
+                  />
+                  <Bar
+                    dataKey="trips"
+                    fill="var(--color-trips)"
+                    radius={6}
+                    // ✅ ANIMATION
+                    isAnimationActive
+                    animationDuration={700}
+                    animationEasing="ease-in-out"
+                    animationBegin={100}
+                    label={(props: any) => {
+                      const { x, y, width, value } = props;
 
-            {/* BAR CHART */}
-            <Card className="flex-1">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">
-                  {chartMode === "WEEKLY" ? "Weekly Trips" : "Monthly Trips"}
-                </CardTitle>
-                <span className="text-xs text-muted-foreground">Volume</span>
-              </CardHeader>
-
-              <CardContent className="h-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    key={JSON.stringify(groupedChartData)} // ✅ FORCE RE-ANIMATE
-                    data={groupedChartData}
-                    margin={{ top: 20, left: 20, right: 20 }}
-                  >
-                    <CartesianGrid
-                      stroke="hsl(var(--border))"
-                      strokeDasharray="3 3"
-                    />
-                    <XAxis dataKey="label" fontSize={12} fontWeight={500} />
-                    <YAxis fontSize={12} fontWeight={500} />
-                    <Tooltip
-                      formatter={(value: number) => [
-                        "₱" +
-                          new Intl.NumberFormat("en-PH", {
-                            minimumFractionDigits: 0,
-                          }).format(value),
-                      ]}
-                      contentStyle={{
-                        fontSize: "12px",
-                        padding: "8px 10px",
-                        borderRadius: "8px",
-
-                        // ✅ SAME STYLE
-                        backgroundColor: "#ffffff",
-                        color: "#111827",
-
-                        border: "1px solid #e5e7eb",
-                        boxShadow: "0 4px 10px rgba(0,0,0,0.08)",
-                      }}
-                      labelStyle={{
-                        color: "#111827",
-                        fontWeight: 600,
-                      }}
-                    />
-                    <Bar
-                      dataKey="trips"
-                      fill="#ff9319"
-                      radius={6}
-                      // ✅ ANIMATION
-                      isAnimationActive
-                      animationDuration={700}
-                      animationEasing="ease-in-out"
-                      animationBegin={100}
-                      label={(props: any) => {
-                        const { x, y, width, value } = props;
-
-                        return (
-                          <text
-                            x={x + width / 2}
-                            y={y - 6}
-                            textAnchor="middle"
-                            fontSize={12}
-                            fill="#9ca3af"
-                          >
-                            {value}
-                          </text>
-                        );
-                      }}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </div>
+                      return (
+                        <text
+                          x={x + width / 2}
+                          y={y - 6}
+                          textAnchor="middle"
+                          fontSize={12}
+                          fill="#9ca3af"
+                        >
+                          {value}
+                        </text>
+                      );
+                    }}
+                  />
+                </BarChart>
+              </ChartContainer>
+            </CardContent>
+          </Card>
         </div>
         {/* RIGHT: COLLECTION KPIS */}
-        <div className="h-[600px] flex flex-col gap-4">
-          {/* TOTAL RECEIVABLES */}
-          <Card className="relative flex-1 overflow-hidden">
-            <CardContent className="h-full p-5 flex flex-col justify-between">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <div className="text-sm font-medium text-muted-foreground">
-                      Total Receivables
-                    </div>
+        <div className="grid h-[600px] grid-rows-3 gap-3">
+          {[
+            {
+              label: "Total Receivables",
+              value: collectionStats.totalReceivables,
+              icon: HandCoins,
+              tooltip:
+                "Total value of all working trips. Direct trucks include VAT; subcontracted trucks use Rate only.",
+            },
+            {
+              label: "Collected",
+              value: collectionStats.collected,
+              icon: PhilippinePeso,
+              tooltip:
+                "Actual amount received from recorded collections, including the selected Rate/VAT billing and any Add or Less adjustments.",
+            },
+            {
+              label: "Uncollected",
+              value: collectionStats.outstanding,
+              icon: Clock3,
+              tooltip:
+                "Value of working trips not yet included in a collection. Direct trucks include VAT; subcontracted trucks use Rate only.",
+            },
+          ].map((item) => {
+            const Icon = item.icon;
 
-                    <TooltipProvider>
+            return (
+              <Card key={item.label} size="sm">
+                <CardHeader className="grid grid-cols-[1fr_auto] items-start">
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <CardTitle>{item.label}</CardTitle>
+
                       <UiTooltip>
                         <TooltipTrigger asChild>
-                          <Info className="h-3.5 w-3.5 cursor-help text-muted-foreground" />
+                          <Info className="size-3.5 cursor-help text-muted-foreground" />
                         </TooltipTrigger>
 
-                        <TooltipContent className="max-w-[260px] text-xs">
-                          Total value of all working trips. Direct trucks
-                          include VAT; subcontracted trucks use Rate only.
+                        <TooltipContent className="max-w-[260px]">
+                          {item.tooltip}
                         </TooltipContent>
                       </UiTooltip>
-                    </TooltipProvider>
-                  </div>
-
-                  <div className="mt-2 text-2xl font-bold tabular-nums text-blue-600 dark:text-blue-400">
-                    {collectionsLoading
-                      ? "—"
-                      : `₱${moneyFormat.format(collectionStats.totalReceivables)}`}
-                  </div>
-                </div>
-
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
-                  <HandCoins className="h-5 w-5" strokeWidth={2} />
-                </div>
-              </div>
-
-              <div className="text-xs text-muted-foreground">
-                Total value of working trips
-              </div>
-            </CardContent>
-
-            <div className="absolute inset-x-0 bottom-0 h-1 bg-blue-500/70" />
-          </Card>
-
-          {/* COLLECTED */}
-          <Card className="relative flex-1 overflow-hidden">
-            <CardContent className="h-full p-5 flex flex-col justify-between">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <div className="text-[0.68rem] font-semibold tracking-[0.08em] uppercase text-muted-foreground">
-                      Collected
                     </div>
-
-                    <TooltipProvider>
-                      <UiTooltip>
-                        <TooltipTrigger asChild>
-                          <Info className="h-3.5 w-3.5 cursor-help text-muted-foreground" />
-                        </TooltipTrigger>
-
-                        <TooltipContent className="max-w-[260px] text-xs">
-                          Actual amount received from recorded collections,
-                          including the selected Rate/VAT billing and any Add or
-                          Less adjustments.
-                        </TooltipContent>
-                      </UiTooltip>
-                    </TooltipProvider>
                   </div>
 
-                  <div className="mt-2 text-2xl font-bold tabular-nums text-green-600 dark:text-green-400">
+                  <div className="grid size-8 place-items-center rounded-md bg-muted text-muted-foreground">
+                    <Icon className="size-4" />
+                  </div>
+                </CardHeader>
+
+                <CardContent>
+                  <div className="text-2xl font-semibold tabular-nums">
                     {collectionsLoading
                       ? "—"
-                      : `₱${moneyFormat.format(collectionStats.collected)}`}
+                      : `₱${moneyFormat.format(item.value)}`}
                   </div>
-                </div>
-
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-green-500/10 text-green-600 dark:text-green-400">
-                  <PhilippinePeso className="h-5 w-5" strokeWidth={2} />
-                </div>
-              </div>
-
-              <div className="text-xs text-muted-foreground">
-                Recorded collections received
-              </div>
-            </CardContent>
-
-            <div className="absolute inset-x-0 bottom-0 h-1 bg-green-500/70" />
-          </Card>
-
-          {/* Uncollected */}
-          <Card className="relative flex-1 overflow-hidden">
-            <CardContent className="h-full p-5 flex flex-col justify-between">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <div className="text-[0.68rem] font-semibold tracking-[0.08em] uppercase text-muted-foreground">
-                      Uncollected
-                    </div>
-
-                    <TooltipProvider>
-                      <UiTooltip>
-                        <TooltipTrigger asChild>
-                          <Info className="h-3.5 w-3.5 cursor-help text-muted-foreground" />
-                        </TooltipTrigger>
-
-                        <TooltipContent className="max-w-[260px] text-xs">
-                          Value of working trips not yet included in a
-                          collection. Direct trucks include VAT; subcontracted
-                          trucks use Rate only.
-                        </TooltipContent>
-                      </UiTooltip>
-                    </TooltipProvider>
-                  </div>
-
-                  <div className="mt-2 text-2xl font-bold tabular-nums text-red-500">
-                    {collectionsLoading
-                      ? "—"
-                      : `₱${moneyFormat.format(collectionStats.outstanding)}`}
-                  </div>
-                </div>
-
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-red-500/10 text-red-500 dark:text-red-400">
-                  <Clock3 className="h-5 w-5" strokeWidth={2} />
-                </div>
-              </div>
-
-              <div className="text-xs text-muted-foreground">
-                To be collected
-              </div>
-            </CardContent>
-
-            <div className="absolute inset-x-0 bottom-0 h-1 bg-red-500/70" />
-          </Card>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       </div>
 
-      <div className="border border-border rounded-lg bg-background overflow-visible mt-4">
-        {/* HEADER */}
-        <div className="p-3.5 border-b border-border flex items-center justify-between gap-4">
-          <div>
-            <h2 className="text-sm font-medium">Trip Records</h2>
+      <Card size="sm" className="mt-4 !gap-0">
+        <CardHeader className="border-b">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <CardTitle>Trip Records</CardTitle>
+              <CardDescription>
+                View trip records from selected date range.
+              </CardDescription>
+            </div>
 
-            <p className="text-xs text-muted-foreground">
-              View trip records from selected date range.
-            </p>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon-sm"
+                  aria-label="Show or hide columns"
+                >
+                  <Columns3 />
+                </Button>
+              </DropdownMenuTrigger>
+
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuLabel>Toggle columns</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+
+                {COLUMN_OPTIONS.map(([key, label]) => (
+                  <DropdownMenuCheckboxItem
+                    key={key}
+                    checked={visibleColumns[key]}
+                    onCheckedChange={(checked) =>
+                      setVisibleColumns((prev) => ({
+                        ...prev,
+                        [key]: checked === true,
+                      }))
+                    }
+                    onSelect={(event) => event.preventDefault()}
+                  >
+                    {label}
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
+        </CardHeader>
 
-          <div ref={dropdownRef} className="relative">
-            <button
-              type="button"
-              onClick={() => setShowColumnsMenu((v) => !v)}
-              className={cn(
-                "h-9 w-9 rounded-md border border-border flex items-center justify-center text-foreground transition-colors",
-                showColumnsMenu ? "bg-muted" : "bg-background hover:bg-muted",
-              )}
-              title="Show / Hide Columns"
-            >
-              <Columns3 size={16} />
-            </button>
+        <CardContent className="border-b py-4">
+          <div className="flex flex-wrap items-end gap-2">
+            {/* SEARCH */}
+            <div className="min-w-[220px] flex-1">
+              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                Search
+              </label>
 
-            {showColumnsMenu && (
-              <div className="absolute right-0 mt-2 z-[70] w-64 max-h-[320px] overflow-y-auto rounded-md border border-border bg-background p-2 shadow-lg">
-                <div className="px-2 pb-2 text-[11px] font-semibold uppercase text-slate-500">
-                  Show Columns
-                </div>
+              <InputGroup>
+                <InputGroupAddon>
+                  <Search />
+                </InputGroupAddon>
 
-                <div className="flex flex-col">
-                  {COLUMN_OPTIONS.map(([key, label]) => {
-                    const checked = visibleColumns[key as ColumnKey];
+                <InputGroupInput
+                  placeholder="Search shipment number..."
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                />
+              </InputGroup>
+            </div>
 
-                    return (
-                      <button
-                        key={key}
-                        type="button"
-                        onClick={() =>
-                          setVisibleColumns((prev) => ({
-                            ...prev,
-                            [key]: !prev[key as ColumnKey],
-                          }))
-                        }
-                        className="flex items-center px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-xs"
-                      >
-                        <span className="flex-1 pr-4 text-left">{label}</span>
+            {/* VERIFICATION */}
+            <div className="w-[180px] shrink-0">
+              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                Shipment Verification
+              </label>
 
-                        <span
-                          className={`relative inline-flex h-4 w-7 items-center rounded-full ${
-                            checked ? "bg-foreground" : "bg-muted"
-                          }`}
-                        >
-                          <span
-                            className={`h-3 w-3 rounded-full bg-white transition-transform ${
-                              checked ? "translate-x-3.5" : "translate-x-0.5"
-                            }`}
-                          />
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+              <Select
+                value={verificationFilter}
+                onValueChange={(value) =>
+                  setVerificationFilter(
+                    value as
+                      | "ALL"
+                      | "Verified"
+                      | "Pending"
+                      | "For Confirmation",
+                  )
+                }
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
 
-        {/* FILTERS */}
-        <div className="flex flex-wrap items-end gap-2 border-b border-border bg-background px-3.5 py-3">
-          {/* SEARCH */}
-          <div className="min-w-[180px] flex-1">
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">
-              Search
-            </label>
+                <SelectContent>
+                  <SelectItem value="ALL">
+                    <ListFilter className="size-4 text-foreground" />
+                    All
+                  </SelectItem>
 
-            <div className="relative">
-              <Search
-                size={14}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
-              />
+                  <SelectItem value="Verified">
+                    <CircleCheck className="size-4 text-foreground" />
+                    Verified
+                  </SelectItem>
 
-              <input
-                ref={searchInputRef}
-                type="text"
-                placeholder="Search shipment number..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full h-9 rounded-md border border-border bg-background pl-9 pr-3 text-xs outline-none focus:ring-2 focus:ring-ring"
-              />
+                  <SelectItem value="Pending">
+                    <Clock3 className="size-4 text-foreground" />
+                    Pending
+                  </SelectItem>
+
+                  <SelectItem value="For Confirmation">
+                    <CircleHelp className="size-4 text-foreground" />
+                    For Confirmation
+                  </SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
-
-          {/* VERIFICATION */}
-          <div className="w-[160px] shrink-0">
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">
-              Verification
-            </label>
-
-            <Popover open={openVerification} onOpenChange={setOpenVerification}>
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  role="combobox"
-                  className="h-9 w-full rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between outline-none focus:ring-2 focus:ring-ring"
-                >
-                  <span>
-                    {verificationFilter === "ALL" ? "All" : verificationFilter}
-                  </span>
-
-                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </button>
-              </PopoverTrigger>
-
-              <PopoverContent
-                className="w-[var(--radix-popover-trigger-width)] p-0"
-                align="start"
-              >
-                <Command>
-                  <CommandGroup>
-                    {["ALL", "Verified", "Pending", "For Confirmation"].map(
-                      (status) => (
-                        <CommandItem
-                          key={status}
-                          value={status}
-                          className="text-xs"
-                          onSelect={() => {
-                            setVerificationFilter(
-                              status as
-                                | "ALL"
-                                | "Verified"
-                                | "Pending"
-                                | "For Confirmation",
-                            );
-                            setOpenVerification(false);
-                          }}
-                        >
-                          <Check
-                            className={`mr-2 h-4 w-4 ${
-                              verificationFilter === status
-                                ? "opacity-100"
-                                : "opacity-0"
-                            }`}
-                          />
-
-                          {status === "ALL" ? "All" : status}
-                        </CommandItem>
-                      ),
-                    )}
-                  </CommandGroup>
-                </Command>
-              </PopoverContent>
-            </Popover>
-          </div>
-        </div>
+        </CardContent>
 
         <TripTable
           rows={tripRows}
@@ -1401,7 +1103,7 @@ export default function DashboardPage() {
             />
           }
         />
-      </div>
+      </Card>
 
       <AnimatePresence>
         {selectedTripIds.length > 0 && (
@@ -1413,7 +1115,7 @@ export default function DashboardPage() {
             className="fixed bottom-6 left-1/2 z-50 w-[calc(100%-2rem)] max-w-lg -translate-x-1/2"
           >
             <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-border bg-background/95 px-4 py-3 shadow-lg backdrop-blur sm:flex-row">
-              <span className="whitespace-nowrap text-sm font-semibold text-foreground">
+              <span className="whitespace-nowrap text-sm font-medium text-foreground">
                 {selectedTripIds.length} trip
                 {selectedTripIds.length !== 1 ? "s" : ""} selected
               </span>
@@ -1421,40 +1123,43 @@ export default function DashboardPage() {
               <div className="hidden h-6 w-px bg-border sm:block" />
 
               <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => bulkTogglePaid(selectedTripIds, true)}
-                  className="inline-flex h-8 items-center gap-1.5 rounded-md border border-green-500/20 bg-green-500/10 px-3 text-xs font-medium text-green-600 transition-colors hover:bg-green-500/20 dark:text-green-400"
+                  className="border-green-500/30 bg-green-500/10 text-green-600 hover:bg-green-500/20 hover:text-green-700 dark:text-green-400"
                 >
-                  <CheckCheck className="h-4 w-4" />
+                  <CheckCheck className="size-4" data-icon="inline-start" />
                   Settled
-                </button>
+                </Button>
 
-                <button
-                  type="button"
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => bulkTogglePaid(selectedTripIds, false)}
-                  className="inline-flex h-8 items-center gap-1.5 rounded-md border border-amber-500/20 bg-amber-500/10 px-3 text-xs font-medium text-amber-600 transition-colors hover:bg-amber-500/20 dark:text-amber-400"
+                  className="border-amber-500/30 bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 hover:text-amber-700 dark:text-amber-400"
                 >
-                  <XCircle className="h-4 w-4" />
+                  <XCircle className="size-4" data-icon="inline-start" />
                   Unsettled
-                </button>
+                </Button>
 
-                <button
-                  type="button"
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => setBulkDeleteModal(true)}
-                  className="inline-flex h-8 items-center gap-1.5 rounded-md border border-red-500/20 bg-red-500/10 px-3 text-xs font-medium text-red-600 transition-colors hover:bg-red-500/20 dark:text-red-400"
+                  className="border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/20 hover:text-destructive"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="size-4" data-icon="inline-start" />
                   Delete
-                </button>
+                </Button>
 
-                <button
-                  type="button"
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => setSelectedTripIds([])}
-                  className="inline-flex h-8 items-center rounded-md px-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 >
                   Clear
-                </button>
+                </Button>
               </div>
             </div>
           </motion.div>
@@ -1483,30 +1188,29 @@ export default function DashboardPage() {
                   selectedTruckName ||
                   "Selected Truck"}
               </DialogTitle>
+
+              <DialogDescription>
+                Are you sure you want to delete this trip?
+              </DialogDescription>
             </DialogHeader>
 
-            <p className="text-sm text-muted-foreground">
-              Are you sure you want to delete
-            </p>
-
-            <p className="font-semibold mt-1">
+            <p className="text-sm font-medium">
               {deleteModal?.dateText} / {deleteModal?.shipmentNumber}
             </p>
 
-            <DialogFooter className="mt-4">
-              <button
-                onClick={() => setDeleteModal(null)}
-                className="px-4 py-2.5 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors"
-              >
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDeleteModal(null)}>
                 Cancel
-              </button>
+              </Button>
 
-              <button
+              <Button
+                variant="destructive"
                 onClick={handleDelete}
-                className="px-6 py-2.5 rounded-md bg-red-500 text-white text-sm font-medium hover:bg-red-600 transition"
+                disabled={deleting}
               >
-                Delete
-              </button>
+                <Trash2 />
+                {deleting ? "Deleting..." : "Delete Trip"}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -1516,33 +1220,38 @@ export default function DashboardPage() {
           <DialogContent className="sm:max-w-[400px]">
             <DialogHeader>
               <DialogTitle>Delete selected trips?</DialogTitle>
+
+              <DialogDescription>
+                Are you sure you want to delete{" "}
+                <strong>{selectedTripIds.length}</strong> selected trip
+                {selectedTripIds.length !== 1 ? "s" : ""}?
+              </DialogDescription>
             </DialogHeader>
 
-            <p>
-              Are you sure you want to delete{" "}
-              <strong>{selectedTripIds.length}</strong> selected trip
-              {selectedTripIds.length !== 1 ? "s" : ""}?
-            </p>
-
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className="text-sm text-muted-foreground">
               This action cannot be undone.
             </p>
 
-            <DialogFooter className="mt-4">
-              <button
+            <DialogFooter>
+              <Button
+                variant="outline"
                 onClick={() => setBulkDeleteModal(false)}
-                className="px-4 py-2 border rounded-md text-sm"
               >
                 Cancel
-              </button>
+              </Button>
 
-              <button
+              <Button
+                variant="destructive"
                 onClick={handleBulkDelete}
-                className="px-6 py-2 bg-red-500 text-white rounded-md text-sm"
+                disabled={bulkDeleting}
               >
-                Delete {selectedTripIds.length} Trip
-                {selectedTripIds.length !== 1 ? "s" : ""}
-              </button>
+                <Trash2 />
+                {bulkDeleting
+                  ? "Deleting..."
+                  : `Delete ${selectedTripIds.length} Trip${
+                      selectedTripIds.length !== 1 ? "s" : ""
+                    }`}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -1554,34 +1263,6 @@ export default function DashboardPage() {
           dateIso={expenseBreakdown?.dateIso || ""}
           dateText={expenseBreakdown?.dateText || ""}
         />
-
-        {/* TRUCK WARNING */}
-        <Dialog open={showTruckWarning} onOpenChange={setShowTruckWarning}>
-          <DialogContent className="sm:max-w-[400px] text-center">
-            <div className="py-4">
-              <div className="mx-auto mb-4 w-14 h-14 rounded-full bg-amber-500/10 grid place-items-center text-amber-500">
-                <AlertTriangle size={28} />
-              </div>
-
-              <div className="font-bold text-lg mb-1">
-                Please select a truck first!
-              </div>
-
-              <p className="text-sm text-muted-foreground">
-                Choose a truck from the filter bar to add a trip.
-              </p>
-            </div>
-
-            <DialogFooter className="flex justify-center">
-              <button
-                onClick={() => setShowTruckWarning(false)}
-                className="px-4 py-2 border rounded-md text-sm"
-              >
-                OK
-              </button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </>
     </div>
   );

@@ -21,63 +21,70 @@ function escHtml(s: string): string {
 }
 
 export function exportTripsCsv(rows: TripRow[], filename?: string) {
-  const labels = getColumnLabels();
   const headers = [
-    "Week",
     "Date",
-    "Status",
-    labels.shipmentNumber,
-    "Rate",
-    "VAT",
-    "Trips",
+    "Shipment Number",
+    "Original Rate",
+    "Rate Adjustment Type",
+    "Rate Adjustment",
+    "Auto-Compute VAT",
     "Crew Salary",
-    labels.cashAdvance,
+    "Cash Advance",
+    "Reimbursement Category",
     "Reimbursements",
-    "Expenses",
-    "Note",
-    "Gross",
-    "Net",
-    "Payable",
   ];
+
   const lines = [
     headers.map(escapeCsv).join(","),
-    ...rows.map((r) => {
-      const reimbValue = Number(r.reimbursements || 0);
+
+    ...rows.map((row) => {
+      const adjustmentType =
+        row.rateAdjustmentType === "amount"
+          ? "Amount"
+          : row.rateAdjustmentType === "percentage"
+            ? "Percentage"
+            : "";
 
       return [
-        r.week,
-        r.dateText,
-        r.status,
-        r.shipmentNumber,
-        r.rate,
-        r.vat,
-        r.trips,
-        r.crewSalary,
-        r.cashAdvance,
-        reimbValue > 0 ? (r.paid ? `✔ ${peso(reimbValue)}` : reimbValue) : "",
-        r.expenses,
-        r.note,
-        r.grossIncome,
-        r.netIncome,
-        r.payable,
+        row.dateIso,
+        row.shipmentNumber || "",
+        Number(row.originalRate || 0),
+        adjustmentType,
+        row.rateAdjustmentType === "none"
+          ? ""
+          : Number(row.rateAdjustment || 0),
+        row.autoComputeVat ? "Yes" : "No",
+        Number(row.crewSalary || 0),
+        Number(row.cashAdvance || 0),
+        row.reimbursementCategory || "",
+        Number(row.reimbursements || 0),
       ]
         .map(escapeCsv)
         .join(",");
     }),
   ];
+
   const blob = new Blob([lines.join("\r\n")], {
     type: "text/csv;charset=utf-8;",
   });
+
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
+
   a.href = url;
+
   const d = new Date();
+
   a.download =
     filename ||
-    `NEXTMILE_${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}.csv`;
+    `NEXTMILE_TRIPS_BACKUP_${d.getFullYear()}-${String(
+      d.getMonth() + 1,
+    ).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}.csv`;
+
   document.body.appendChild(a);
   a.click();
   a.remove();
+
   URL.revokeObjectURL(url);
 }
 

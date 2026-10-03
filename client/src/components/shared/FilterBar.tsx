@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/command";
 import { useState, useEffect } from "react";
 import { Calendar } from "@/components/ui/calendar";
+import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 
 interface FilterBarProps {
@@ -212,9 +213,11 @@ export default function FilterBar({
           <div className="w-[220px] shrink-0">
             <Popover open={openRangePreset} onOpenChange={setOpenRangePreset}>
               <PopoverTrigger asChild>
-                <button
+                <Button
+                  variant="outline"
+                  size="sm"
                   role="combobox"
-                  className="w-full h-9 justify-between rounded-l-md rounded-r-none border border-border bg-background px-3 text-sm flex items-center"
+                  className="w-full justify-between rounded-r-none font-normal"
                 >
                   <div className="flex min-w-0 items-center gap-2">
                     <Clock3 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
@@ -226,7 +229,7 @@ export default function FilterBar({
                   </div>
 
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </button>
+                </Button>
               </PopoverTrigger>
 
               <PopoverContent className="w-full p-0">
@@ -343,7 +346,11 @@ export default function FilterBar({
           <div className="w-[290px] shrink-0">
             <Popover open={openRange} onOpenChange={setOpenRange}>
               <PopoverTrigger asChild>
-                <button className="w-full h-9 justify-between rounded-r-md rounded-l-none border border-l-0 border-border bg-background px-3 text-sm flex items-center">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-between rounded-l-none font-normal"
+                >
                   <div className="flex min-w-0 items-center gap-2">
                     <CalendarDays className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
 
@@ -356,7 +363,7 @@ export default function FilterBar({
                         : "Select date range"}
                     </span>
                   </div>
-                </button>
+                </Button>
               </PopoverTrigger>
 
               <PopoverContent className="w-auto p-0">
@@ -510,13 +517,14 @@ export default function FilterBar({
         )}
 
         {showRange && (
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={handleReset}
-            className="ml-3 h-9 px-3 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1.5"
+            className="ml-3 h-9 text-muted-foreground"
           >
-            <RotateCcw size={14} />
-            Reset
-          </button>
+            <RotateCcw />
+          </Button>
         )}
 
         {actions && <div className="flex gap-2 ml-auto">{actions}</div>}

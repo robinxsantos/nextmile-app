@@ -28,13 +28,6 @@ function applyReimbursedParkingAdjustments(
 
   for (const expense of expenses) {
     if (!expense.reimbursed) continue;
-    if (
-      !REIMBURSABLE_CATEGORIES.has(
-        (expense.category || "").trim().toUpperCase(),
-      )
-    )
-      continue;
-
     if (!expense.tripId) continue;
 
     const key = expense.tripId;
@@ -79,6 +72,7 @@ export interface TruckOption {
   _id: string;
   truckName: string;
   companyName: string;
+  billingType?: "subcontracted" | "direct";
   cutoffType: "weekly" | "monthly";
   cutoffStart: number;
   cutoffEnd: number;
@@ -108,10 +102,18 @@ export interface TripRow {
   crewSalary: number;
   cashAdvance: number;
   reimbursements: number;
+  reimbursementCategory: string;
   expenses: number;
   note: string;
   collectionComment?: string;
   expenseBreakdown?: string;
+  expenseItems?: {
+    _id: string;
+    category: string;
+    description: string;
+    amount: number;
+    reimbursed: boolean;
+  }[];
   hasExpenses?: boolean;
   grossIncome: number;
   netIncome: number;
@@ -334,8 +336,8 @@ const getStoredTheme = (): "light" | "dark" => {
   }
 };
 
-const REIMBURSABLE_CATEGORIES = new Set(["FUEL", "TOLL", "PARKING/PASSWAY"]);
-
+let dashboardRequestId = 0;
+let expensesRequestId = 0;
 let reportsRequestId = 0;
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -432,37 +434,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       // 1) update paid status in backend
       await api.patch("/trips/bulk-paid", { ids, paid });
 
-      // 2) sync reimbursement expenses directly
-      for (const id of ids) {
-        const trip = originalTripRows.find((r) => r._id === id);
-        if (!trip) continue;
-
-        const existingExpense = get().expenseRows.find(
-          (e) => e.tripId === trip._id,
-        );
-
-        // If marking unpaid, remove the reimbursement expense
-        if (!paid && existingExpense) {
-          await api.delete(`/expenses/${existingExpense._id}`);
-          continue;
-        }
-
-        // If marking paid, create reimbursement expense when needed
-        if (paid && !existingExpense && trip.reimbursements > 0) {
-          await api.post("/expenses", {
-            truckId:
-              typeof trip.truck === "string" ? trip.truck : trip.truck?._id,
-            date: trip.dateIso,
-            category: "REIMBURSEMENT",
-            amount: trip.reimbursements,
-            description: `Reimb.`,
-            tripId: trip._id,
-          });
-        }
-      }
-
       // 3) refresh once
-      await get().fetchExpenses();
       await get().fetchDashboard();
 
       toast.success(
@@ -549,6 +521,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         _id: t._id,
         truckName: t.truckName,
         companyName: t.companyName || "",
+        billingType: t.billingType,
         cutoffType: t.cutoffType,
         cutoffStart: t.cutoffStart,
         cutoffEnd: t.cutoffEnd,
@@ -608,7 +581,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   // Data fetching
   fetchDashboard: async () => {
+    const requestId = ++dashboardRequestId;
     const state = get();
+
     set({ loading: true, error: null });
     try {
       const truckConfig = state.truckOptions.find(
@@ -631,6 +606,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       params.rangePreset = state.rangePreset;
 
       const { data } = await api.get("/dashboard", { params });
+      if (requestId !== dashboardRequestId) return;
 
       // Update truck options from response if available
       const newTruckOptions =
@@ -639,10 +615,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           : state.truckOptions;
 
       const rawTripRows = data.rows || [];
-      const adjustedTripRows = applyReimbursedParkingAdjustments(
-        rawTripRows,
-        state.expenseRows,
-      );
+      const adjustedTripRows = rawTripRows;
 
       set({
         rawTripRows,
@@ -675,11 +648,14 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({ error: msg });
       toast.error(msg);
     } finally {
-      set({ loading: false });
+      if (requestId === dashboardRequestId) {
+        set({ loading: false });
+      }
     }
   },
 
   fetchExpenses: async (start, end) => {
+    const requestId = ++expensesRequestId;
     const state = get();
 
     try {
@@ -698,6 +674,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
 
       const { data } = await api.get("/expenses", { params });
+
+      // Ignore an older response if a newer expenses request already started.
+      if (requestId !== expensesRequestId) return;
 
       set({ expenseRows: data.rows || [] });
 
@@ -728,6 +707,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           _id: t._id,
           truckName: t.truckName,
           companyName: t.companyName || "",
+          billingType: t.billingType,
           cutoffType: t.cutoffType,
           cutoffStart: t.cutoffStart,
           cutoffEnd: t.cutoffEnd,
@@ -843,23 +823,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   // CRUD - Trips
   addTrip: async (tripData) => {
     try {
-      const res = await api.post("/trips", tripData);
-      const newTrip = res.data;
-
-      // 🔥 AUTO CREATE REIMBURSEMENT EXPENSE
-      if (newTrip.paid && newTrip.reimbursements > 0) {
-        await get().addExpense({
-          truckId:
-            typeof newTrip.truck === "string"
-              ? newTrip.truck
-              : newTrip.truck?._id,
-          date: newTrip.dateIso,
-          category: "REIMBURSEMENT",
-          amount: newTrip.reimbursements,
-          description: `Reimb.`,
-          tripId: newTrip._id,
-        });
-      }
+      await api.post("/trips", tripData);
 
       toast.success("Trip created successfully", { duration: 4000 });
 
@@ -932,6 +896,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   toggleTripPaid: async (id) => {
     try {
       await api.patch(`/trips/${id}/toggle-paid`);
+
+      await get().fetchExpenses();
+      await get().fetchDashboard();
     } catch (err: unknown) {
       toast.error(getErrorMessage(err, "Failed to update paid status"));
       throw err;

@@ -1,6 +1,7 @@
 import { Router, Response } from "express";
 import { Expense } from "../models/Expense.js";
 import { Truck } from "../models/Truck.js";
+import { ExpenseCategory } from "./ExpenseCategory.js";
 import { syncTripsForDate } from "../services/tripService.js";
 import {
   validateExpenseData,
@@ -81,6 +82,119 @@ router.get(
   },
 );
 
+// GET /api/expenses/category-settings?truck=
+router.get(
+  "/category-settings",
+  requireAuth,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { truck } = req.query;
+
+      if (!truck) {
+        res.json({ categories: [] });
+        return;
+      }
+
+      const truckId = String(truck);
+
+      const allowed = await canAccessTruck(req, truckId);
+
+      if (!allowed) {
+        res.status(403).json({
+          error: "You do not have access to this truck.",
+        });
+        return;
+      }
+
+      const categories = await ExpenseCategory.find({
+        truck: truckId,
+      }).sort({ name: 1 });
+
+      res.json({
+        categories: categories.map((category) => ({
+          _id: category._id,
+          name: category.name,
+          reimbursable: category.reimbursable,
+        })),
+      });
+    } catch (err: any) {
+      res.status(500).json({
+        error: err.message,
+      });
+    }
+  },
+);
+
+// PUT /api/expenses/category-settings
+router.put(
+  "/category-settings",
+  requireManagerOrAdmin,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { truckId, name, reimbursable } = req.body;
+
+      if (!truckId) {
+        res.status(400).json({
+          error: "Truck is required.",
+        });
+        return;
+      }
+
+      const allowed = await canAccessTruck(req, String(truckId));
+
+      if (!allowed) {
+        res.status(403).json({
+          error: "You do not have access to this truck.",
+        });
+        return;
+      }
+
+      const categoryName = String(name || "")
+        .trim()
+        .toUpperCase();
+
+      if (!categoryName) {
+        res.status(400).json({
+          error: "Category name is required.",
+        });
+        return;
+      }
+
+      const category = await ExpenseCategory.findOneAndUpdate(
+        {
+          truck: truckId,
+          name: categoryName,
+        },
+        {
+          $set: {
+            reimbursable: Boolean(reimbursable),
+          },
+          $setOnInsert: {
+            truck: truckId,
+            name: categoryName,
+          },
+        },
+        {
+          new: true,
+          upsert: true,
+        },
+      );
+
+      res.json({
+        category: {
+          _id: category._id,
+          name: category.name,
+          reimbursable: category.reimbursable,
+        },
+      });
+    } catch (err: any) {
+      res.status(500).json({
+        error: err.message,
+      });
+    }
+  },
+);
+
 // GET /api/expenses/by-date?truck=&date=
 router.get("/by-date", requireAuth, async (req: AuthRequest, res: Response) => {
   try {
@@ -125,12 +239,182 @@ router.get("/by-date", requireAuth, async (req: AuthRequest, res: Response) => {
       category: e.category,
       description: e.description,
       amount: e.amount,
+      reimbursed: e.reimbursed || false,
       label: [e.category, e.description].filter(Boolean).join(": "),
     }));
 
     const total = items.reduce((sum: number, e) => sum + e.amount, 0);
 
     res.json({ items, total });
+  } catch (err: any) {
+    res.status(500).json({
+      error: err.message,
+    });
+  }
+});
+
+// GET /api/expenses/summary?truck=&year=&month=
+router.get("/summary", requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const { truck, year, month } = req.query;
+
+    const selectedYear = Number(year) || new Date().getFullYear();
+    const selectedMonth = Number(month) || new Date().getMonth() + 1;
+
+    if (selectedMonth < 1 || selectedMonth > 12) {
+      res.status(400).json({
+        error: "Month must be between 1 and 12.",
+      });
+      return;
+    }
+
+    const filter: any = {};
+
+    // Employee: own created expenses + assigned truck only.
+    if (req.user?.role === "employee") {
+      if (!req.user.truck) {
+        res.json({
+          currentTotal: 0,
+          previousTotal: 0,
+          monthlyTotals: Array(12).fill(0),
+        });
+        return;
+      }
+
+      filter.createdBy = req.user._id;
+      filter.truck = req.user.truck;
+    }
+
+    // Manager: expenses under their company.
+    else if (req.user?.role === "manager") {
+      const companyName = String(req.user.companyName || "").trim();
+
+      if (!companyName) {
+        res.json({
+          currentTotal: 0,
+          previousTotal: 0,
+          monthlyTotals: Array(12).fill(0),
+        });
+        return;
+      }
+
+      if (truck) {
+        const truckId = String(truck);
+
+        const allowed = await canAccessTruck(req, truckId);
+
+        if (!allowed) {
+          res.status(403).json({
+            error: "You do not have access to this truck.",
+          });
+          return;
+        }
+
+        filter.truck = truckId;
+      } else {
+        const allowedTrucks = await Truck.find({
+          companyName,
+        }).select("_id");
+
+        filter.truck = {
+          $in: allowedTrucks.map((item) => item._id),
+        };
+      }
+    }
+
+    // Admin: all expenses, or requested truck.
+    else if (req.user?.role === "admin" && truck) {
+      filter.truck = String(truck);
+    }
+
+    // Full selected year for Jan-Dec sparkline.
+    const yearStart = new Date(selectedYear, 0, 1);
+    const yearEnd = new Date(selectedYear, 11, 31, 23, 59, 59, 999);
+
+    const yearlyExpenses = await Expense.find({
+      ...filter,
+      date: {
+        $gte: yearStart,
+        $lte: yearEnd,
+      },
+    }).select("date amount reimbursed");
+
+    const monthlyTotals = Array(12).fill(0);
+
+    for (const expense of yearlyExpenses) {
+      if (expense.reimbursed) continue;
+
+      const expenseDate = new Date(expense.date);
+
+      monthlyTotals[expenseDate.getMonth()] += Number(expense.amount || 0);
+    }
+
+    const currentTotal = monthlyTotals[selectedMonth - 1] || 0;
+
+    // Previous month may belong to the previous year.
+    let previousYear = selectedYear;
+    let previousMonthIndex = selectedMonth - 2;
+
+    if (previousMonthIndex < 0) {
+      previousMonthIndex = 11;
+      previousYear -= 1;
+    }
+
+    let previousTotal = 0;
+
+    if (previousYear === selectedYear) {
+      previousTotal = monthlyTotals[previousMonthIndex] || 0;
+    } else {
+      const previousStart = new Date(previousYear, previousMonthIndex, 1);
+      const previousEnd = new Date(
+        previousYear,
+        previousMonthIndex + 1,
+        0,
+        23,
+        59,
+        59,
+        999,
+      );
+
+      const previousExpenses = await Expense.find({
+        ...filter,
+        date: {
+          $gte: previousStart,
+          $lte: previousEnd,
+        },
+      }).select("amount");
+
+      previousTotal = previousExpenses.reduce(
+        (sum, expense) => sum + Number(expense.amount || 0),
+        0,
+      );
+    }
+
+    const yearTotal = monthlyTotals.reduce((sum, total) => sum + total, 0);
+
+    const previousYearStart = new Date(selectedYear - 1, 0, 1);
+    const previousYearEnd = new Date(selectedYear - 1, 11, 31, 23, 59, 59, 999);
+
+    const previousYearExpenses = await Expense.find({
+      ...filter,
+      date: {
+        $gte: previousYearStart,
+        $lte: previousYearEnd,
+      },
+    }).select("amount");
+
+    const previousYearTotal = previousYearExpenses.reduce(
+      (sum, expense) => sum + Number(expense.amount || 0),
+      0,
+    );
+
+    res.json({
+      currentTotal,
+      previousTotal,
+      yearTotal,
+      previousYearTotal,
+      monthlyTotals,
+    });
   } catch (err: any) {
     res.status(500).json({
       error: err.message,

@@ -29,15 +29,23 @@ export async function getExpenseTotalForDate(
     date: { $gte: startOfDay, $lte: endOfDay },
   });
 
-  const total = expenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+  const total = expenses.reduce(
+    (sum, e) => sum + (e.reimbursed ? 0 : Number(e.amount || 0)),
+    0,
+  );
 
   const notes = expenses
     .map((e) => {
-      const parts = [];
-      if (e.category) parts.push(e.category);
-      if (e.description) parts.push(e.description);
-      if (e.reimbursed) parts.push("(Reimbursed)");
-      return parts.join(": ");
+      const category = e.category?.trim() || "";
+      const description = e.description?.trim() || "";
+
+      let note = [category, description].filter(Boolean).join(": ");
+
+      if (e.reimbursed) {
+        note += " (Reimbursed)";
+      }
+
+      return note;
     })
     .filter(Boolean);
 
@@ -270,6 +278,7 @@ export function formatTripResponse(trip: ITrip & { truck?: any }) {
     crewSalary: trip.crewSalary,
     cashAdvance: trip.cashAdvance,
     reimbursements: trip.reimbursements,
+    reimbursementCategory: trip.reimbursementCategory || "",
     expenses: trip.expenses,
     note: trip.note,
     collectionComment: trip.collectionComment || "",

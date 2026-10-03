@@ -2,14 +2,13 @@ import { useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAppStore } from "../../store/useAppStore";
 import { useAuthStore } from "../../store/useAuthStore";
+
 import {
   LayoutDashboard,
   Route,
   HandCoins,
   BarChart3,
   Truck,
-  ChevronsLeft,
-  ChevronsRight,
   Sun,
   Moon,
   Users,
@@ -17,21 +16,52 @@ import {
   WalletCards,
   LogOut,
   Settings,
+  ChevronsUpDown,
   type LucideIcon,
 } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
+  Sidebar as ShadcnSidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarRail,
+} from "@/components/ui/sidebar";
+
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Switch } from "@/components/ui/switch";
+
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+
 import LogoLight from "../../assets/logo-light.png";
 import LogoDark from "../../assets/logo-dark.png";
+import LogoSquareLight from "../../assets/1x1-light.png";
+import LogoSquareDark from "../../assets/1x1-dark.png";
 
 type UserRole = "admin" | "manager" | "employee";
 
@@ -53,8 +83,6 @@ const allNavItems: NavItem[] = [
     roles: ["admin", "manager"],
     section: "main",
   },
-
-  // OPERATIONS
   {
     to: "/trips",
     icon: Route,
@@ -69,8 +97,6 @@ const allNavItems: NavItem[] = [
     roles: ["admin", "manager"],
     section: "operations",
   },
-
-  // FINANCE
   {
     to: "/payments",
     icon: CreditCard,
@@ -92,12 +118,10 @@ const allNavItems: NavItem[] = [
     roles: ["admin", "manager"],
     section: "finance",
   },
-
-  // ADMINISTRATION
   {
     to: "/trucks",
     icon: Truck,
-    label: "Trucks",
+    label: "Fleet",
     roles: ["admin", "manager"],
     section: "administration",
   },
@@ -117,40 +141,37 @@ const allNavItems: NavItem[] = [
   },
 ];
 
-export default function Sidebar({
-  openMobile,
-  setOpenMobile,
-}: {
-  openMobile: boolean;
-  setOpenMobile: (val: boolean) => void;
-}) {
-  const { sidebarCollapsed, toggleSidebar, theme, toggleTheme } = useAppStore();
+const navSections = [
+  {
+    key: "main" as const,
+    label: "",
+  },
+  {
+    key: "operations" as const,
+    label: "Operations",
+  },
+  {
+    key: "finance" as const,
+    label: "Finance",
+  },
+  {
+    key: "administration" as const,
+    label: "Administration",
+  },
+];
+
+export default function Sidebar() {
+  const { theme, toggleTheme } = useAppStore();
   const { user, logout } = useAuthStore();
+
   const location = useLocation();
   const navigate = useNavigate();
+
+  const [logoutOpen, setLogoutOpen] = useState(false);
 
   const navItems = allNavItems.filter((item) =>
     user ? item.roles.includes(user.role) : false,
   );
-
-  const navSections = [
-    {
-      key: "main" as const,
-      label: "",
-    },
-    {
-      key: "operations" as const,
-      label: "Operations",
-    },
-    {
-      key: "finance" as const,
-      label: "Finance",
-    },
-    {
-      key: "administration" as const,
-      label: "Administration",
-    },
-  ];
 
   const visibleSections = navSections
     .map((section) => ({
@@ -159,289 +180,218 @@ export default function Sidebar({
     }))
     .filter((section) => section.items.length > 0);
 
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-
   const handleLogout = () => {
+    setLogoutOpen(false);
     logout();
     navigate("/login", { replace: true });
   };
 
+  const displayName = user?.displayName || "User";
+  const role = user?.role || "";
+
+  const initials = displayName
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("");
+
   return (
     <>
-      <aside
-        className={cn(
-          "fixed top-0 left-0 h-screen z-50 flex flex-col",
-          "bg-[#fcfcfc] dark:bg-zinc-900",
-          "border-r border-zinc-200 dark:border-zinc-800",
-          "hidden lg:flex",
-          sidebarCollapsed ? "w-[64px]" : "w-[240px]",
-        )}
-      >
+      <ShadcnSidebar collapsible="icon">
         {/* HEADER */}
-        <div className="flex items-center justify-between px-4 h-14 border-b border-zinc-200 dark:border-zinc-800">
-          {!sidebarCollapsed && (
-            <>
-              {/* LIGHT MODE */}
-              <img
-                src={LogoLight}
-                alt="Nextmile"
-                className="h-5 w-auto block dark:hidden"
-              />
+        <SidebarHeader>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                size="lg"
+                className="hover:bg-transparent active:bg-transparent"
+              >
+                <div className="flex min-w-0 flex-1 items-center group-data-[collapsible=icon]:justify-center">
+                  <img
+                    src={LogoLight}
+                    alt="Nextmile"
+                    className="h-9 w-auto group-data-[collapsible=icon]:hidden dark:hidden"
+                  />
 
-              {/* DARK MODE */}
-              <img
-                src={LogoDark}
-                alt="Nextmile"
-                className="h-5 w-auto hidden dark:block"
-              />
-            </>
-          )}
+                  <img
+                    src={LogoDark}
+                    alt="Nextmile"
+                    className="hidden h-9 w-auto group-data-[collapsible=icon]:hidden dark:block"
+                  />
 
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleSidebar}
-            className="text-zinc-500"
-          >
-            {sidebarCollapsed ? (
-              <ChevronsRight size={16} />
-            ) : (
-              <ChevronsLeft size={16} />
-            )}
-          </Button>
-        </div>
+                  <img
+                    src={LogoSquareLight}
+                    alt="Nextmile"
+                    className="hidden size-6 object-contain group-data-[collapsible=icon]:block dark:group-data-[collapsible=icon]:hidden"
+                  />
 
-        {/* NAV */}
-        <nav className="flex-1 overflow-y-auto px-2 py-4">
-          {visibleSections.map((section, sectionIndex) => (
-            <div key={section.key} className={cn(sectionIndex > 0 && "mt-4")}>
-              {!sidebarCollapsed && section.label && (
-                <div className="mb-1.5 px-3">
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-400 dark:text-zinc-500">
-                    {section.label}
-                  </span>
+                  <img
+                    src={LogoSquareDark}
+                    alt="Nextmile"
+                    className="hidden size-6 object-contain dark:group-data-[collapsible=icon]:block"
+                  />
                 </div>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarHeader>
+
+        {/* NAVIGATION */}
+        <SidebarContent>
+          {visibleSections.map((section) => (
+            <SidebarGroup key={section.key} className="py-1.5">
+              {section.label && (
+                <SidebarGroupLabel className="text-sm font-medium text-sidebar-foreground">
+                  {section.label}
+                </SidebarGroupLabel>
               )}
 
-              {sidebarCollapsed && sectionIndex > 0 && (
-                <div className="mx-2 mb-2 border-t border-zinc-200 dark:border-zinc-800" />
-              )}
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {section.items.map(({ to, icon: Icon, label }) => {
+                    const isActive = location.pathname === to;
 
-              <div className="space-y-1">
-                {section.items.map(({ to, icon: Icon, label }) => {
-                  const isActive =
-                    location.pathname === to ||
-                    (to === "/" && location.pathname === "/");
-
-                  return (
-                    <NavLink
-                      key={to}
-                      to={to}
-                      end={to === "/"}
-                      title={sidebarCollapsed ? label : undefined}
-                      className={cn(
-                        "flex items-center gap-3 rounded-md text-sm font-medium transition-colors",
-                        sidebarCollapsed
-                          ? "justify-center px-2 py-2"
-                          : "px-3 py-2",
-                        isActive
-                          ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white font-medium"
-                          : "text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white",
-                      )}
-                    >
-                      <Icon className="h-4 w-4 shrink-0" />
-
-                      {!sidebarCollapsed && <span>{label}</span>}
-                    </NavLink>
-                  );
-                })}
-              </div>
-            </div>
+                    return (
+                      <SidebarMenuItem key={to}>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={isActive}
+                          tooltip={label}
+                        >
+                          <NavLink to={to} end={to === "/"}>
+                            <Icon />
+                            <span>{label}</span>
+                          </NavLink>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
           ))}
-        </nav>
+        </SidebarContent>
 
         {/* FOOTER */}
-        <div className="p-2 space-y-2">
-          <Button
-            variant="outline"
-            size="lg"
-            onClick={toggleTheme}
-            className={cn(
-              "w-full justify-start text-xs",
-              sidebarCollapsed && "justify-center",
-            )}
-          >
-            {theme === "dark" ? (
-              <Moon className="h-4 w-4" />
-            ) : (
-              <Sun className="h-4 w-4" />
-            )}
-
-            {!sidebarCollapsed && (
-              <span className="ml-1">
-                {theme === "dark" ? "Dark Mode" : "Light Mode"}
-              </span>
-            )}
-          </Button>
-
-          <div className="border-t border-zinc-200 dark:border-zinc-800" />
-
-          {!sidebarCollapsed && (
-            <div className="px-3 py-2 border-b border-zinc-200 dark:border-zinc-800 mb-2">
-              <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100 truncate">
-                {user?.displayName || "—"}
-              </div>
-              <div className="text-xs text-zinc-500 capitalize">
-                {user?.role || "—"}
-              </div>
-
-              {user?.companyName && (
-                <div className="text-xs text-zinc-500 truncate mt-0.5">
-                  {user.companyName}
-                </div>
-              )}
-            </div>
-          )}
-
-          <Button
-            variant="destructive"
-            size="lg"
-            onClick={() => setShowLogoutConfirm(true)}
-            className={cn(
-              "w-full justify-start text-red-500 hover:text-red-600",
-              sidebarCollapsed && "justify-center",
-            )}
-          >
-            <LogOut className="h-4 w-4" />
-
-            {!sidebarCollapsed && <span className="ml-1">Sign Out</span>}
-          </Button>
-        </div>
-      </aside>
-
-      {/* LOGOUT MODAL */}
-      <Dialog open={showLogoutConfirm} onOpenChange={setShowLogoutConfirm}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Sign out?</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to sign out of your account?
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowLogoutConfirm(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => {
-                setShowLogoutConfirm(false);
-                handleLogout();
-              }}
-            >
-              Sign Out
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      {/* MOBILE SIDEBAR */}
-      {openMobile && (
-        <div className="fixed inset-0 z-40 flex lg:hidden">
-          {/* Overlay */}
-          <div
-            className="absolute inset-0 bg-black/40 z-40"
-            onClick={() => setOpenMobile(false)}
-          />
-
-          {/* Drawer */}
-          <div className="relative z-50 w-[240px] h-full bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 p-4 flex flex-col">
-            <button onClick={() => setOpenMobile(false)} className="mb-4">
-              ✕
-            </button>
-
-            {/* NAV ITEMS */}
-            <nav className="flex-1 overflow-y-auto">
-              {visibleSections.map((section, sectionIndex) => (
-                <div
-                  key={section.key}
-                  className={cn(sectionIndex > 0 && "mt-5")}
-                >
-                  {section.label && (
-                    <div className="mb-1.5 px-3">
-                      <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-400 dark:text-zinc-500">
-                        {section.label}
-                      </span>
-                    </div>
-                  )}
-
-                  <div className="space-y-1">
-                    {section.items.map(({ to, icon: Icon, label }) => (
-                      <NavLink
-                        key={to}
-                        to={to}
-                        onClick={() => setOpenMobile(false)}
-                        className={({ isActive }) =>
-                          cn(
-                            "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
-                            isActive
-                              ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white font-medium"
-                              : "text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white",
-                          )
-                        }
-                      >
-                        <Icon className="h-4 w-4 shrink-0" />
-                        <span>{label}</span>
-                      </NavLink>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </nav>
-            <div className="mt-auto pt-4 border-t border-zinc-200 dark:border-zinc-800 space-y-2">
-              {/* USER */}
-              <div className="px-2">
-                <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100 truncate">
-                  {user?.displayName || "—"}
-                </div>
-                <div className="text-xs text-zinc-500 capitalize">
-                  {user?.role || "—"}
-                </div>
-              </div>
-
-              {/* DARK MODE */}
-              <Button
-                variant="outline"
-                size="lg"
+        <SidebarFooter>
+          <SidebarMenu>
+            {/* THEME */}
+            <SidebarMenuItem>
+              <SidebarMenuButton
                 onClick={toggleTheme}
-                className="w-full justify-start"
+                tooltip={theme === "dark" ? "Dark Mode" : "Light Mode"}
+                className="cursor-pointer"
               >
-                {theme === "dark" ? (
-                  <Moon className="h-4 w-4" />
-                ) : (
-                  <Sun className="h-4 w-4" />
-                )}
-                <span className="ml-2">
+                {theme === "dark" ? <Moon /> : <Sun />}
+
+                <span className="group-data-[collapsible=icon]:hidden">
                   {theme === "dark" ? "Dark Mode" : "Light Mode"}
                 </span>
-              </Button>
 
-              {/* LOGOUT */}
-              <Button
-                variant="destructive"
-                size="lg"
-                onClick={() => setShowLogoutConfirm(true)}
-                className="w-full justify-start text-red-500"
-              >
-                <LogOut className="h-4 w-4" />
-                <span className="ml-2">Logout</span>
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+                <Switch
+                  checked={theme === "dark"}
+                  onCheckedChange={toggleTheme}
+                  onClick={(e) => e.stopPropagation()}
+                  aria-label="Toggle dark mode"
+                  className="ml-auto group-data-[collapsible=icon]:hidden"
+                />
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+
+            {/* USER */}
+            <SidebarMenuItem>
+              <DropdownMenu>
+                <DropdownMenuTrigger className="flex h-12 w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm outline-none transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0">
+                  <Avatar className="size-8 rounded-lg">
+                    <AvatarFallback className="rounded-lg text-xs">
+                      {initials || "U"}
+                    </AvatarFallback>
+                  </Avatar>
+
+                  <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
+                    <span className="truncate font-medium">{displayName}</span>
+
+                    <span className="truncate text-xs capitalize text-muted-foreground">
+                      {role}
+                    </span>
+                  </div>
+
+                  <ChevronsUpDown className="ml-auto size-4 group-data-[collapsible=icon]:hidden" />
+                </DropdownMenuTrigger>
+
+                <DropdownMenuContent
+                  className="min-w-56"
+                  side="right"
+                  align="end"
+                  sideOffset={4}
+                >
+                  <DropdownMenuLabel className="p-0 font-normal">
+                    <div className="flex items-center gap-2 px-2 py-1.5">
+                      <Avatar className="size-8 rounded-lg">
+                        <AvatarFallback className="rounded-lg text-xs">
+                          {initials || "U"}
+                        </AvatarFallback>
+                      </Avatar>
+
+                      <div className="grid flex-1 text-left text-sm leading-tight">
+                        <span className="truncate font-medium">
+                          {displayName}
+                        </span>
+
+                        <span className="truncate text-xs capitalize text-muted-foreground">
+                          {role}
+                        </span>
+
+                        {user?.companyName && (
+                          <span className="truncate text-xs text-muted-foreground">
+                            {user.companyName}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </DropdownMenuLabel>
+
+                  <DropdownMenuSeparator />
+
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onSelect={() => setLogoutOpen(true)}
+                    >
+                      <LogOut />
+                      <span>Sign Out</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarFooter>
+
+        <SidebarRail />
+      </ShadcnSidebar>
+
+      {/* SIGN OUT CONFIRMATION */}
+      <AlertDialog open={logoutOpen} onOpenChange={setLogoutOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-base">Sign out?</AlertDialogTitle>
+
+            <AlertDialogDescription>
+              Are you sure you want to sign out of your account?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+
+            <AlertDialogAction variant="destructive" onClick={handleLogout}>
+              Sign Out
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

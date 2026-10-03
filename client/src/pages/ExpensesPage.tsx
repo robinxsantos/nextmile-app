@@ -1,11 +1,13 @@
 import { useEffect, useState, useMemo } from "react";
 import { Navigate } from "react-router-dom";
 import { toast } from "sonner";
+import api from "../api/client";
 import { useAppStore, type ExpenseRow } from "../store/useAppStore";
 import { useAuthStore } from "../store/useAuthStore";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -19,12 +21,12 @@ import {
   Check,
   ChevronsUpDown,
   ArrowUp,
+  TrendingUp,
+  TrendingDown,
   ArrowDown,
   ArrowUpDown,
   ReceiptText,
   RotateCcw,
-  Clock3,
-  CalendarDays,
   Calendar as CalendarIcon,
 } from "lucide-react";
 import "react-datepicker/dist/react-datepicker.css";
@@ -53,6 +55,43 @@ import {
 } from "@/components/ui/command";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import Sparkline from "../components/shared/Sparkline";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const DEFAULT_CATEGORIES = [
   "FUEL",
@@ -61,12 +100,6 @@ const DEFAULT_CATEGORIES = [
   "INSURANCE",
   "REGISTRATION",
 ];
-
-const REIMBURSABLE_CATEGORIES = new Set(["FUEL", "TOLL", "PARKING/PASSWAY"]);
-
-function isReimbursableCategory(category?: string) {
-  return REIMBURSABLE_CATEGORIES.has((category || "").trim().toUpperCase());
-}
 
 const MONTH_OPTIONS = [
   { value: "ALL", label: "All Months" },
@@ -120,16 +153,25 @@ export default function ExpensesPage() {
     pageSize: 10,
   });
   const [categoryFilter, setCategoryFilter] = useState<string>("ALL");
-  const [openCategory, setOpenCategory] = useState(false);
-  const [openMonth, setOpenMonth] = useState(false);
+  const [expenseSummary, setExpenseSummary] = useState({
+    currentTotal: 0,
+    previousTotal: 0,
+    yearTotal: 0,
+    previousYearTotal: 0,
+    monthlyTotals: Array(12).fill(0) as number[],
+  });
 
   const [openFormCategory, setOpenFormCategory] = useState(false);
   const [formCategorySearch, setFormCategorySearch] = useState("");
+  const [reimbursableCategories, setReimbursableCategories] = useState<
+    Set<string>
+  >(new Set());
   const [form, setForm] = useState({
     date: toInputDate(new Date()),
     category: "",
     amount: "",
     description: "",
+    reimbursable: false,
   });
 
   useEffect(() => {
@@ -151,6 +193,42 @@ export default function ExpensesPage() {
     }
   }, [fetchExpenses, expensesMonth, selectedTruck, canManageExpenses]);
 
+  const fetchExpenseSummary = async () => {
+    if (!canManageExpenses) return;
+
+    try {
+      const response = await api.get("/expenses/summary", {
+        params: {
+          truck: selectedTruck || undefined,
+          year: new Date().getFullYear(),
+          month: new Date().getMonth() + 1,
+        },
+      });
+
+      setExpenseSummary({
+        currentTotal: Number(response.data.currentTotal || 0),
+        previousTotal: Number(response.data.previousTotal || 0),
+        yearTotal: Number(response.data.yearTotal || 0),
+        previousYearTotal: Number(response.data.previousYearTotal || 0),
+        monthlyTotals: response.data.monthlyTotals || Array(12).fill(0),
+      });
+    } catch (error) {
+      console.error("Failed to load expense summary:", error);
+
+      setExpenseSummary({
+        currentTotal: 0,
+        previousTotal: 0,
+        yearTotal: 0,
+        previousYearTotal: 0,
+        monthlyTotals: Array(12).fill(0),
+      });
+    }
+  };
+
+  useEffect(() => {
+    fetchExpenseSummary();
+  }, [canManageExpenses, selectedTruck]);
+
   useEffect(() => {
     if (canManageExpenses) {
       fetchExpenseCategories();
@@ -170,7 +248,7 @@ export default function ExpensesPage() {
   )?.truckName;
 
   const filteredRows = useMemo(() => {
-    let rows = expenseRows;
+    let rows = [...expenseRows];
 
     if (expensesMonth !== "ALL") {
       rows = rows.filter((r) => {
@@ -193,6 +271,80 @@ export default function ExpensesPage() {
     [filteredRows],
   );
 
+  const expenseSparkLabels = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+
+  const isAllMonths = expensesMonth === "ALL";
+
+  const selectedMonthIndex =
+    expensesMonth === "ALL" ? new Date().getMonth() : Number(expensesMonth) - 1;
+
+  const expenseCurrentValue = isAllMonths
+    ? expenseSummary.yearTotal
+    : expenseSummary.monthlyTotals[selectedMonthIndex] || 0;
+
+  const expensePreviousValue = isAllMonths
+    ? expenseSummary.previousYearTotal
+    : selectedMonthIndex > 0
+      ? expenseSummary.monthlyTotals[selectedMonthIndex - 1] || 0
+      : expenseSummary.previousTotal;
+
+  const expenseDiff = expenseCurrentValue - expensePreviousValue;
+
+  const expensePercent =
+    expensePreviousValue === 0
+      ? null
+      : (expenseDiff / Math.abs(expensePreviousValue)) * 100;
+
+  const expenseIsUp = expenseDiff > 0;
+  const expenseIsGood = expenseDiff <= 0;
+
+  const expenseSign = expenseDiff === 0 ? "" : expenseDiff > 0 ? "+" : "-";
+
+  const fetchCategorySettings = async () => {
+    if (!selectedTruck) {
+      setReimbursableCategories(new Set());
+      return;
+    }
+
+    try {
+      const { data } = await api.get("/expenses/category-settings", {
+        params: {
+          truck: selectedTruck,
+        },
+      });
+
+      const reimbursable = new Set<string>(
+        (data.categories || [])
+          .filter(
+            (category: { reimbursable: boolean }) => category.reimbursable,
+          )
+          .map((category: { name: string }) => category.name),
+      );
+
+      setReimbursableCategories(reimbursable);
+    } catch (error) {
+      console.error("Failed to load category settings:", error);
+      setReimbursableCategories(new Set());
+    }
+  };
+
+  useEffect(() => {
+    fetchCategorySettings();
+  }, [selectedTruck]);
+
   const openAdd = () => {
     if (!selectedTruck) {
       setShowTruckWarning(true);
@@ -204,19 +356,45 @@ export default function ExpensesPage() {
       category: "",
       amount: "",
       description: "",
+      reimbursable: false,
     });
     setFormCategorySearch("");
     setExpenseModal(true);
   };
 
-  const openEdit = (row: ExpenseRow) => {
+  const openEdit = async (row: ExpenseRow) => {
     setEditRow(row);
+
+    let reimbursable = false;
+
+    if (selectedTruck) {
+      try {
+        const { data } = await api.get("/expenses/category-settings", {
+          params: {
+            truck: selectedTruck,
+          },
+        });
+
+        const categorySetting = (data.categories || []).find(
+          (category: { name: string; reimbursable: boolean }) =>
+            category.name.trim().toUpperCase() ===
+            row.category.trim().toUpperCase(),
+        );
+
+        reimbursable = Boolean(categorySetting?.reimbursable);
+      } catch (error) {
+        console.error("Failed to load category setting:", error);
+      }
+    }
+
     setForm({
       date: row.dateIso,
       category: row.category,
       amount: String(row.amount),
       description: row.description,
+      reimbursable,
     });
+
     setFormCategorySearch("");
     setExpenseModal(true);
   };
@@ -234,17 +412,30 @@ export default function ExpensesPage() {
       toast.error("Category is required.", { duration: 6000 });
       return;
     }
-    if (!form.amount) {
+    if (!form.amount.trim()) {
       toast.error("Amount is required.", { duration: 6000 });
       return;
     }
+
+    const amount = Number(form.amount);
+
+    if (!Number.isFinite(amount)) {
+      toast.error("Enter a valid amount.", { duration: 6000 });
+      return;
+    }
+
+    if (amount <= 0) {
+      toast.error("Amount must be greater than 0.", { duration: 6000 });
+      return;
+    }
+
     setLoading(true);
     try {
       const payload = {
         truckId: selectedTruck,
         date: form.date,
         category: form.category,
-        amount: Number(form.amount),
+        amount,
         description: form.description,
       };
       if (editRow) {
@@ -252,6 +443,16 @@ export default function ExpensesPage() {
       } else {
         await addExpense(payload);
       }
+
+      await api.put("/expenses/category-settings", {
+        truckId: selectedTruck,
+        name: form.category,
+        reimbursable: form.reimbursable,
+      });
+
+      await fetchCategorySettings();
+      await fetchExpenseSummary();
+
       setExpenseModal(false);
     } catch (err: unknown) {
       toast.error(
@@ -262,9 +463,6 @@ export default function ExpensesPage() {
       setLoading(false);
     }
   };
-
-  const inputClass =
-    "w-full min-h-[44px] rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 px-3.5 text-xs focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10 outline-none transition-colors";
 
   if (!canManageExpenses) {
     return <Navigate to="/trips" replace />;
@@ -283,9 +481,9 @@ export default function ExpensesPage() {
         accessorKey: "category",
         header: "Category",
         cell: ({ row }) => (
-          <span className="inline-block px-2.5 py-1 rounded-md text-[11px] font-bold bg-muted text-foreground">
+          <Badge variant="secondary" className="text-xs font-medium">
             {row.original.category}
-          </span>
+          </Badge>
         ),
         enableSorting: true,
       },
@@ -296,9 +494,10 @@ export default function ExpensesPage() {
         cell: ({ row }) => (
           <span
             className={cn(
+              "font-medium tabular-nums",
               row.original.reimbursed
-                ? "text-green-500 line-through"
-                : "text-red-500",
+                ? "text-green-600 line-through dark:text-green-400"
+                : "text-destructive",
             )}
           >
             {peso(row.original.amount)}
@@ -309,6 +508,12 @@ export default function ExpensesPage() {
         accessorKey: "description",
         header: "Description",
         enableSorting: false,
+        size: 280,
+        cell: ({ row }) => (
+          <div className="max-w-[280px] truncate">
+            {row.original.description || "—"}
+          </div>
+        ),
       },
       ...(canManageExpenses
         ? [
@@ -318,22 +523,43 @@ export default function ExpensesPage() {
               cell: ({ row }: { row: { original: ExpenseRow } }) => {
                 const r = row.original;
 
-                return isReimbursableCategory(r.category) ? (
+                return reimbursableCategories.has(
+                  r.category.trim().toUpperCase(),
+                ) ? (
                   <div className="flex justify-center">
-                    <button
-                      onClick={() => toggleExpenseReimbursed(r._id)}
-                      className={cn(
-                        "w-[34px] h-[34px] rounded-md inline-flex items-center justify-center border transition",
-                        r.reimbursed
-                          ? "bg-green-500/10 border-green-500/20 text-green-600"
-                          : "bg-background border-border text-muted-foreground hover:bg-green-500/10 hover:text-green-500",
-                      )}
-                    >
-                      <Check size={14} />
-                    </button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon-sm"
+                          onClick={async () => {
+                            await toggleExpenseReimbursed(r._id);
+                            await fetchExpenseSummary();
+                          }}
+                          className={cn(
+                            r.reimbursed &&
+                              "border-green-500/30 bg-green-500/10 text-green-600 hover:bg-green-500/15 hover:text-green-600 dark:text-green-400",
+                          )}
+                        >
+                          <Check />
+                          <span className="sr-only">
+                            {r.reimbursed
+                              ? "Mark as not reimbursed"
+                              : "Mark as reimbursed"}
+                          </span>
+                        </Button>
+                      </TooltipTrigger>
+
+                      <TooltipContent>
+                        {r.reimbursed ? "Reimbursed" : "Mark as reimbursed"}
+                      </TooltipContent>
+                    </Tooltip>
                   </div>
                 ) : (
-                  <span className="text-center block">—</span>
+                  <span className="block text-center text-muted-foreground">
+                    —
+                  </span>
                 );
               },
             },
@@ -344,26 +570,57 @@ export default function ExpensesPage() {
         header: "Actions",
         cell: ({ row }) => {
           const r = row.original;
+
+          const isCrewReimbursement =
+            r.category.trim().toUpperCase() === "REIMBURSEMENT" &&
+            Boolean(r.tripId);
+
           return (
-            <div className="flex gap-1 justify-center">
-              <button
-                onClick={() => openEdit(r)}
-                className="w-[34px] h-[34px] rounded-md inline-flex items-center justify-center border border-border bg-background text-muted-foreground hover:bg-blue-500/10 hover:text-blue-600 transition"
-              >
-                <Pencil size={14} />
-              </button>
-              <button
-                onClick={() => setDeleteModal(r)}
-                className="w-[34px] h-[34px] rounded-md inline-flex items-center justify-center border border-border bg-background text-muted-foreground hover:bg-red-500/10 hover:text-red-500 transition"
-              >
-                <Trash2 size={14} />
-              </button>
+            <div className="flex items-center justify-center gap-1">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon-sm"
+                      onClick={() => openEdit(r)}
+                    >
+                      <Pencil />
+                      <span className="sr-only">Edit expense</span>
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon-sm"
+                      onClick={() => setDeleteModal(r)}
+                      className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    >
+                      <Trash2 />
+                      <span className="sr-only">Delete expense</span>
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+
+                {isCrewReimbursement && (
+                  <TooltipContent>
+                    Set the related trip as Unsettled to remove
+                  </TooltipContent>
+                )}
+              </Tooltip>
             </div>
           );
         },
       },
     ],
-    [canManageExpenses],
+    [canManageExpenses, toggleExpenseReimbursed, reimbursableCategories],
   );
 
   const table = useReactTable<ExpenseRow>({
@@ -382,303 +639,245 @@ export default function ExpensesPage() {
 
   return (
     <div>
-      <div className="sticky top-14 z-30 bg-[#fcfcfc] dark:bg-zinc-900 mb-4 py-2 flex flex-wrap items-center justify-between gap-3">
+      <div className="sticky top-14 z-30 -mx-1 mb-4 flex flex-wrap items-center justify-between gap-3 bg-background/95 px-1 py-3 backdrop-blur">
         {/* LEFT: MONTH */}
         <div className="flex items-center">
-          <Popover open={openMonth} onOpenChange={setOpenMonth}>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                role="combobox"
-                className="h-9 w-[180px] rounded-md border border-border bg-background px-3 text-sm flex items-center justify-between outline-none focus:ring-2 focus:ring-ring"
-              >
-                <span className="truncate">
-                  {MONTH_OPTIONS.find((month) => month.value === expensesMonth)
-                    ?.label || "All Months"}
-                </span>
+          <Select
+            value={expensesMonth}
+            onValueChange={(value) => {
+              setExpensesMonth(value);
 
-                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-              </button>
-            </PopoverTrigger>
+              setPagination((current) => ({
+                ...current,
+                pageIndex: 0,
+              }));
+            }}
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Select month" />
+            </SelectTrigger>
 
-            <PopoverContent className="w-[200px] p-0" align="start">
-              <Command>
-                <CommandInput
-                  placeholder="Search month..."
-                  className="text-sm"
-                />
-
-                <CommandEmpty className="text-sm">No month found.</CommandEmpty>
-
-                <CommandGroup>
-                  {MONTH_OPTIONS.map((month) => (
-                    <CommandItem
-                      key={month.value}
-                      value={month.label}
-                      className="text-sm"
-                      onSelect={() => {
-                        setExpensesMonth(month.value);
-                        setOpenMonth(false);
-                      }}
-                    >
-                      <Check
-                        className={`mr-2 h-4 w-4 ${
-                          expensesMonth === month.value
-                            ? "opacity-100"
-                            : "opacity-0"
-                        }`}
-                      />
-
-                      {month.label}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              </Command>
-            </PopoverContent>
-          </Popover>
+            <SelectContent>
+              {MONTH_OPTIONS.map((month) => (
+                <SelectItem key={month.value} value={month.value}>
+                  {month.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
           {/* RESET MONTH */}
-          <button
+          <Button
             type="button"
-            onClick={() => {
-              setExpensesMonth(String(new Date().getMonth() + 1));
-            }}
+            variant="ghost"
+            size="sm"
             disabled={expensesMonth === String(new Date().getMonth() + 1)}
-            className="ml-2 h-9 px-3 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:pointer-events-none flex items-center gap-1.5"
+            onClick={() => {
+              const currentMonth = String(new Date().getMonth() + 1);
+
+              setExpensesMonth(currentMonth);
+
+              setPagination((current) => ({
+                ...current,
+                pageIndex: 0,
+              }));
+            }}
           >
-            <RotateCcw className="h-3.5 w-3.5" />
-            Reset
-          </button>
+            <RotateCcw />
+          </Button>
         </div>
 
         {/* RIGHT: ADD EXPENSE */}
-        <button
-          type="button"
-          onClick={openAdd}
-          className="h-10 px-4 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition flex items-center gap-2"
-        >
-          <Plus size={18} />
+        <Button type="button" onClick={openAdd}>
+          <Plus />
           Add Expense
-        </button>
+        </Button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-3">
-        {/* Table */}
-        <div className="border rounded-lg bg-background overflow-hidden">
-          <div className="p-3.5 border-b border-border">
-            <h2 className="text-sm font-semibold">Expense Records</h2>
+      <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-[1fr_380px]">
+        {/* Expense Records */}
+        <Card size="sm" className="!gap-0 overflow-hidden">
+          <CardHeader className="border-b">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <CardTitle>Expense Records</CardTitle>
 
-            <p className="text-xs text-muted-foreground">
-              Operational costs and maintenance logs
-            </p>
-          </div>
+                <CardDescription>
+                  Operational costs and maintenance logs
+                </CardDescription>
+              </div>
 
-          <div className="flex flex-wrap items-end gap-2 border-b border-border bg-background px-3.5 py-3">
-            {/* CATEGORY */}
-            <div className="min-w-[180px] flex-1 max-w-[220px]">
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                Category
-              </label>
+              <div className="flex items-center gap-1">
+                <Select
+                  value={categoryFilter}
+                  onValueChange={(value) => {
+                    setCategoryFilter(value);
 
-              <Popover open={openCategory} onOpenChange={setOpenCategory}>
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    role="combobox"
-                    className="h-9 w-full rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between outline-none focus:ring-2 focus:ring-ring"
-                  >
-                    <span className="truncate">
-                      {categoryFilter === "ALL"
-                        ? "All Categories"
-                        : categoryFilter}
-                    </span>
+                    setPagination((current) => ({
+                      ...current,
+                      pageIndex: 0,
+                    }));
+                  }}
+                >
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
 
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </button>
-                </PopoverTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">All Categories</SelectItem>
 
-                <PopoverContent className="w-[220px] p-0" align="start">
-                  <Command>
-                    <CommandInput
-                      className="text-xs"
-                      placeholder="Search category..."
-                    />
+                    {categoryOptions.map((category) => (
+                      <SelectItem key={category.value} value={category.value}>
+                        {category.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
 
-                    <CommandEmpty className="text-xs">
-                      No category found.
-                    </CommandEmpty>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  disabled={categoryFilter === "ALL"}
+                  onClick={() => {
+                    setCategoryFilter("ALL");
 
-                    <CommandGroup>
-                      <CommandItem
-                        value="All Categories"
-                        className="text-xs"
-                        onSelect={() => {
-                          setCategoryFilter("ALL");
-                          setOpenCategory(false);
-                        }}
-                      >
-                        <Check
-                          className={`mr-2 h-4 w-4 ${
-                            categoryFilter === "ALL"
-                              ? "opacity-100"
-                              : "opacity-0"
-                          }`}
-                        />
-                        All Categories
-                      </CommandItem>
-
-                      {categoryOptions.map((category) => (
-                        <CommandItem
-                          key={category.value}
-                          value={category.label}
-                          className="text-xs"
-                          onSelect={() => {
-                            setCategoryFilter(category.value);
-                            setOpenCategory(false);
-                          }}
-                        >
-                          <Check
-                            className={`mr-2 h-4 w-4 ${
-                              categoryFilter === category.value
-                                ? "opacity-100"
-                                : "opacity-0"
-                            }`}
-                          />
-
-                          {category.label}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </Command>
-                </PopoverContent>
-              </Popover>
+                    setPagination((current) => ({
+                      ...current,
+                      pageIndex: 0,
+                    }));
+                  }}
+                  aria-label="Reset category filter"
+                >
+                  <RotateCcw />
+                </Button>
+              </div>
             </div>
-            {/* CLEAR CATEGORY */}
-            <button
-              type="button"
-              onClick={() => {
-                setCategoryFilter("ALL");
-              }}
-              disabled={categoryFilter === "ALL"}
-              className="h-9 px-3 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:pointer-events-none flex items-center gap-1.5"
-            >
-              <RotateCcw className="h-3.5 w-3.5" />
-            </button>
-          </div>
-
+          </CardHeader>
           {/* Desktop Table */}
-          <table
-            className={cn("w-full text-sm border-separate border-spacing-0")}
-          >
-            <thead>
-              {table.getHeaderGroups().map((hg) => (
-                <tr key={hg.id}>
-                  {hg.headers.map((header) => (
-                    <th
-                      key={header.id}
-                      className={cn(
-                        "sticky top-0 z-20 bg-muted/60 backdrop-blur border-b border-border text-xs font-semibold text-muted-foreground px-3 py-3 whitespace-nowrap",
-                        header.column.id === "amount"
-                          ? "text-right pr-8"
-                          : header.column.id === "reimbursed" ||
-                              header.column.id === "actions"
-                            ? "text-center"
-                            : "text-left",
-                      )}
-                    >
-                      {header.isPlaceholder ? null : (
-                        <div
-                          onClick={() => {
-                            if (!header.column.getCanSort()) return;
-                            header.column.toggleSorting();
-                          }}
-                          className={cn(
-                            "flex items-center gap-1 cursor-pointer select-none",
-                            header.column.id === "amount"
-                              ? "justify-end"
-                              : header.column.id === "reimbursed" ||
-                                  header.column.id === "actions"
-                                ? "justify-center"
-                                : "justify-start",
-                          )}
-                        >
-                          {typeof header.column.columnDef.header === "function"
-                            ? header.column.columnDef.header(
-                                header.getContext(),
-                              )
-                            : header.column.columnDef.header}
-
-                          {header.column.getCanSort() &&
-                            header.column.getIsSorted() === false && (
-                              <ArrowUpDown
-                                size={12}
-                                className="text-muted-foreground"
-                              />
-                            )}
-
-                          {header.column.getCanSort() &&
-                            header.column.getIsSorted() === "asc" && (
-                              <ArrowUp size={12} />
-                            )}
-
-                          {header.column.getCanSort() &&
-                            header.column.getIsSorted() === "desc" && (
-                              <ArrowDown size={12} />
-                            )}
-                        </div>
-                      )}
-                    </th>
-                  ))}
-                </tr>
-              ))}
-            </thead>
-
-            <tbody className="bg-background">
-              {table.getPaginationRowModel().rows.length === 0 ? (
-                <tr>
-                  <td colSpan={columns.length}>
-                    <EmptyState
-                      icon={ReceiptText}
-                      title="No expenses found"
-                      description={
-                        selectedTruck
-                          ? `No expenses recorded for ${selectedTruckName || "this truck"} with the current filters.`
-                          : "No expense records match your current filters."
-                      }
-                    />
-                  </td>
-                </tr>
-              ) : (
-                table.getPaginationRowModel().rows.map((row) => (
-                  <tr
-                    key={row.id}
-                    className="hover:bg-muted/50 transition-colors"
+          <div className="[&>div]:max-h-[calc(100vh-320px)] [&>div]:overflow-auto">
+            <Table>
+              <TableHeader>
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <TableRow
+                    key={headerGroup.id}
+                    className="sticky top-0 z-20 bg-background hover:bg-background"
                   >
-                    {row.getVisibleCells().map((cell) => (
-                      <td
-                        key={cell.id}
+                    {headerGroup.headers.map((header) => (
+                      <TableHead
+                        style={{
+                          width:
+                            header.column.id === "description"
+                              ? header.column.getSize()
+                              : undefined,
+                        }}
+                        key={header.id}
                         className={cn(
-                          "text-xs px-3 py-2.5 border-b border-border",
-                          cell.column.id === "amount"
-                            ? "text-right tabular-nums pr-8"
-                            : cell.column.id === "reimbursed" ||
-                                cell.column.id === "actions"
+                          "text-xs",
+                          header.column.id === "date" && "pl-4",
+                          header.column.id === "amount"
+                            ? "pr-8 text-right"
+                            : header.column.id === "reimbursed" ||
+                                header.column.id === "actions"
                               ? "text-center"
                               : "text-left",
                         )}
                       >
-                        {typeof cell.column.columnDef.cell === "function"
-                          ? cell.column.columnDef.cell(cell.getContext())
-                          : cell.getValue()}
-                      </td>
-                    ))}
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                        {header.isPlaceholder ? null : header.column.getCanSort() ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={header.column.getToggleSortingHandler()}
+                            className={cn(
+                              "h-7 text-xs",
+                              header.column.id === "amount"
+                                ? "ml-auto px-0"
+                                : header.column.id === "date"
+                                  ? "px-0"
+                                  : "-ml-3 px-2",
+                            )}
+                          >
+                            {typeof header.column.columnDef.header === "string"
+                              ? header.column.columnDef.header
+                              : null}
 
-          <div className="mt-3 border-t border-border flex items-center justify-center">
+                            {!header.column.getIsSorted() && (
+                              <ArrowUpDown className="size-3.5 text-muted-foreground" />
+                            )}
+
+                            {header.column.getIsSorted() === "asc" && (
+                              <ArrowUp className="size-3.5" />
+                            )}
+
+                            {header.column.getIsSorted() === "desc" && (
+                              <ArrowDown className="size-3.5" />
+                            )}
+                          </Button>
+                        ) : (
+                          <span className="text-xs font-medium text-foreground">
+                            {typeof header.column.columnDef.header === "string"
+                              ? header.column.columnDef.header
+                              : null}
+                          </span>
+                        )}
+                      </TableHead>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableHeader>
+
+              <TableBody>
+                {table.getPaginationRowModel().rows.length === 0 ? (
+                  <TableRow className="hover:bg-transparent">
+                    <TableCell colSpan={columns.length} className="p-0">
+                      <EmptyState
+                        icon={ReceiptText}
+                        title="No expenses found"
+                        description={
+                          selectedTruck
+                            ? `No expenses recorded for ${selectedTruckName || "this truck"} with the current filters.`
+                            : "No expense records match your current filters."
+                        }
+                      />
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  table.getPaginationRowModel().rows.map((row) => (
+                    <TableRow key={row.id}>
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell
+                          key={cell.id}
+                          style={{
+                            width:
+                              cell.column.id === "description"
+                                ? cell.column.getSize()
+                                : undefined,
+                          }}
+                          className={cn(
+                            "text-xs",
+                            cell.column.id === "date" && "pl-4",
+                            cell.column.id === "amount"
+                              ? "pr-8 text-right tabular-nums"
+                              : cell.column.id === "reimbursed" ||
+                                  cell.column.id === "actions"
+                                ? "text-center"
+                                : "text-left",
+                          )}
+                        >
+                          {typeof cell.column.columnDef.cell === "function"
+                            ? cell.column.columnDef.cell(cell.getContext())
+                            : String(cell.getValue() ?? "")}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          <div className="flex items-center justify-center border-t">
             <Pagination
               currentPage={pagination.pageIndex + 1}
               totalPages={table.getPageCount()}
@@ -688,192 +887,205 @@ export default function ExpensesPage() {
               onPageSizeChange={(size) => table.setPageSize(size)}
             />
           </div>
-
-          {/* Mobile Cards */}
-          <div className="flex flex-col gap-3 md:hidden p-3 border-t border-slate-200/60 dark:border-slate-700/60">
-            {table.getPaginationRowModel().rows.length === 0 ? (
-              <EmptyState
-                icon={ReceiptText}
-                title="No expenses found"
-                description={
-                  selectedTruck
-                    ? `No expenses recorded for ${selectedTruckName || "this truck"} with the current filters.`
-                    : "No expense records match your current filters."
-                }
-              />
-            ) : (
-              table.getPaginationRowModel().rows.map((row) => {
-                const r = row.original;
-
-                return (
-                  <div
-                    key={r._id}
-                    className="border rounded-md bg-background p-4"
-                  >
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <div className="font-bold text-sm">{r.dateText}</div>
-
-                        <div className="flex items-center gap-1.5 mt-1">
-                          <span className="inline-block px-2.5 py-1 rounded-full text-[0.72rem] font-bold bg-blue-600/10 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400">
-                            {r.category}
-                          </span>
-
-                          {r.reimbursed && (
-                            <span className="inline-block px-2 py-0.5 rounded-full text-[0.65rem] font-bold bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20">
-                              Reimbursed
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      <div
-                        className={`font-bold text-lg ${
-                          r.reimbursed
-                            ? "text-green-500 line-through"
-                            : "text-red-500"
-                        }`}
-                      >
-                        {peso(r.amount)}
-                      </div>
-                    </div>
-
-                    {r.description && (
-                      <div className="text-xs text-slate-500 mb-3">
-                        {r.description}
-                      </div>
-                    )}
-
-                    <div className="flex gap-2 pt-2 border-t border-slate-200 dark:border-slate-700">
-                      {isReimbursableCategory(r.category) && (
-                        <button
-                          onClick={() => toggleExpenseReimbursed(r._id)}
-                          className={`h-9 px-3 rounded-xl inline-flex items-center justify-center gap-1.5 border text-xs font-semibold transition-all ${
-                            r.reimbursed
-                              ? "bg-green-500/10 border-green-500/25 text-green-500"
-                              : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600"
-                          }`}
-                        >
-                          <Check size={14} />{" "}
-                          {r.reimbursed ? "Reimbursed" : "Reimburse"}
-                        </button>
-                      )}
-
-                      <button
-                        onClick={() => openEdit(r)}
-                        className="flex-1 h-9 rounded-xl inline-flex items-center justify-center gap-1.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-blue-500/10 hover:text-blue-600 transition-all text-xs font-semibold"
-                      >
-                        <Pencil size={14} /> Edit
-                      </button>
-
-                      <button
-                        onClick={() => setDeleteModal(r)}
-                        className="h-9 w-9 rounded-xl inline-flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-red-500/10 hover:text-red-500 transition-all"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
+        </Card>
 
         {/* Sidebar */}
         <div className="flex flex-col gap-3">
-          <div className="border rounded-lg bg-background p-4">
-            <h2 className="text-sm font-semibold mb-1">Expense Breakdown</h2>
-            <p className="text-xs text-slate-500 mb-4">
-              Distribution by category
-            </p>
-            <div className="flex flex-col gap-4">
-              {breakdown.entries.length === 0 ? (
-                <div className="text-sm text-slate-400">No expenses found</div>
-              ) : (
-                breakdown.entries.map((item) => {
-                  const pct = item.percent;
-                  return (
-                    <div key={item.category} className="flex flex-col gap-1.5">
-                      <div className="flex justify-between items-center gap-3 font-bold text-xs">
-                        <span>{item.category}</span>
-                        <span>{pct.toFixed(1)}%</span>
-                      </div>
-                      <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                        <div
-                          className="h-full rounded-full bg-foreground transition-all"
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
+          <Card size="sm">
+            <CardHeader className="grid grid-cols-[1fr_auto] items-start">
+              <div className="flex min-w-0 items-center gap-2">
+                <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted">
+                  <ReceiptText className="size-4 text-muted-foreground" />
+                </div>
+
+                <CardTitle>Expenses</CardTitle>
+              </div>
+
+              <span className="text-sm font-semibold tracking-tight tabular-nums">
+                {peso(expenseCurrentValue)}
+              </span>
+            </CardHeader>
+
+            <CardContent>
+              <div className="-translate-y-2 grid grid-cols-[1fr_100px] items-end gap-3">
+                <div className="min-w-0">
+                  {expensePercent !== null && expenseDiff !== 0 && (
+                    <div
+                      className={cn(
+                        "flex items-center gap-1 text-[11px] font-medium tabular-nums",
+                        expenseIsGood
+                          ? "text-green-600 dark:text-green-400"
+                          : "text-destructive",
+                      )}
+                    >
+                      {expenseIsUp ? (
+                        <TrendingUp className="size-3" />
+                      ) : (
+                        <TrendingDown className="size-3" />
+                      )}
+
+                      <span>
+                        {expenseSign}
+                        {Math.abs(expensePercent).toFixed(1)}%
+                      </span>
+
+                      <span className="text-muted-foreground">
+                        ({expenseSign}
+                        {peso(Math.abs(expenseDiff))})
+                      </span>
                     </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
+                  )}
 
-          <div className="border rounded-lg bg-background p-4">
-            <div className="text-[0.72rem] text-slate-500 uppercase tracking-wider font-semibold">
-              Total Expenses
-            </div>
-            <div className="text-[1.8rem] font-extrabold leading-none mt-1.5">
-              {peso(breakdown.total)}
-            </div>
-          </div>
+                  {expensePercent === null && (
+                    <div className="text-[11px] font-medium text-muted-foreground">
+                      {isAllMonths
+                        ? "No prior year data"
+                        : "No prior month data"}
+                    </div>
+                  )}
 
-          <div className="border rounded-lg bg-background p-4">
-            <h2 className="text-sm font-bold mb-1">Categories</h2>
-            <p className="text-xs text-slate-500 mb-3">
-              Available expense categories
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {categoryOptions.map((c) => (
-                <span
-                  key={c.value}
-                  className="inline-block px-2.5 py-1 rounded-full text-xs font-bold bg-muted text-foreground"
-                >
-                  {c.label}
-                </span>
-              ))}
-            </div>
-            <p className="text-xs text-slate-400 mt-3">
-              💡 To add a new category, type it in the Category field when
-              adding an expense. It will be saved automatically.
-            </p>
-          </div>
+                  {expenseDiff === 0 && (
+                    <div className="text-[11px] font-medium text-muted-foreground">
+                      No change
+                    </div>
+                  )}
+
+                  {expensePercent !== null && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {isAllMonths ? "vs last year" : "vs last month"}
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex justify-end">
+                  <Sparkline
+                    data={expenseSummary.monthlyTotals}
+                    labels={expenseSparkLabels}
+                    invert
+                    current={expenseCurrentValue}
+                    previous={expensePreviousValue}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card size="sm">
+            <CardHeader>
+              <div>
+                <CardTitle>Expense Breakdown</CardTitle>
+                <CardDescription>Distribution by category</CardDescription>
+              </div>
+            </CardHeader>
+
+            <CardContent>
+              <div className="flex flex-col gap-4">
+                {breakdown.entries.length === 0 ? (
+                  <div className="py-6 text-center text-sm text-muted-foreground">
+                    No expenses found
+                  </div>
+                ) : (
+                  breakdown.entries.map((item) => {
+                    const pct = item.percent;
+
+                    return (
+                      <div key={item.category} className="space-y-2">
+                        <div className="flex items-center justify-between gap-3 text-xs">
+                          <span className="font-medium">{item.category}</span>
+
+                          <div className="flex items-center gap-2 tabular-nums">
+                            <span className="font-medium">
+                              {peso(item.amount)}
+                            </span>
+
+                            <span className="text-muted-foreground">
+                              {pct.toFixed(1)}%
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="h-2 overflow-hidden rounded-full bg-muted">
+                          <div
+                            className="h-full rounded-full bg-foreground transition-[width]"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card size="sm">
+            <CardHeader>
+              <div>
+                <CardTitle>Categories</CardTitle>
+                <CardDescription>Available expense categories</CardDescription>
+              </div>
+            </CardHeader>
+
+            <CardContent className="space-y-3">
+              <div className="flex flex-wrap gap-1.5">
+                {categoryOptions.map((category) => (
+                  <Badge
+                    key={category.value}
+                    variant="secondary"
+                    className="text-xs font-medium"
+                  >
+                    {category.label}
+                  </Badge>
+                ))}
+              </div>
+
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                Type a new category when adding an expense to save it
+                automatically.
+              </p>
+            </CardContent>
+          </Card>
         </div>
       </div>
 
       {/* Expense Modal */}
       <Dialog open={expenseModal} onOpenChange={setExpenseModal}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[520px] gap-3">
           <DialogHeader>
             <DialogTitle>
               {editRow
-                ? `Edit Expense - ${selectedTruckName || "Truck"} - ${editRow.dateText}`
-                : `Add Expense - ${selectedTruckName}`}
+                ? `Edit Expense for ${selectedTruckName || "Truck"}`
+                : `Add Expense for ${selectedTruckName || "Truck"}`}
             </DialogTitle>
+
+            <DialogDescription className="sr-only">
+              {editRow
+                ? "Update the expense details below."
+                : "Enter the expense details below."}
+            </DialogDescription>
           </DialogHeader>
 
           {/* BODY */}
-          <div className="grid grid-cols-2 gap-4 mt-4">
-            <div className="col-span-2">
-              <label className="text-xs font-semibold mb-1 block">Date</label>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Date</Label>
 
               <Popover open={dateOpen} onOpenChange={setDateOpen}>
                 <PopoverTrigger asChild>
-                  <button
+                  <Button
+                    type="button"
+                    variant="outline"
                     className={cn(
-                      "w-full h-[44px] justify-between rounded-md border border-border bg-background px-3 text-xs flex items-center",
+                      "w-full justify-between font-normal",
                       !form.date && "text-muted-foreground",
                     )}
                   >
                     {form.date
-                      ? format(new Date(form.date), "MMM d, yyyy")
+                      ? format(new Date(`${form.date}T00:00:00`), "MMM d, yyyy")
                       : "Pick a date"}
 
-                    <CalendarIcon className="ml-2 h-4 w-4 opacity-50" />
-                  </button>
+                    <CalendarIcon className="size-4 opacity-50" />
+                  </Button>
                 </PopoverTrigger>
 
                 <PopoverContent className="w-auto p-0">
@@ -895,10 +1107,8 @@ export default function ExpensesPage() {
               </Popover>
             </div>
 
-            <div>
-              <label className="text-xs font-semibold mb-1 block">
-                Category
-              </label>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Category</Label>
 
               <Popover
                 open={openFormCategory}
@@ -911,20 +1121,21 @@ export default function ExpensesPage() {
                 }}
               >
                 <PopoverTrigger asChild>
-                  <button
+                  <Button
                     type="button"
+                    variant="outline"
                     role="combobox"
                     className={cn(
-                      "w-full h-[44px] justify-between rounded-md border border-border bg-background px-3 text-xs flex items-center outline-none focus:ring-2 focus:ring-ring",
+                      "w-full justify-between font-normal",
                       !form.category && "text-muted-foreground",
                     )}
                   >
                     <span className="truncate">
-                      {form.category || "Select/Create category..."}
+                      {form.category || "Select/Create Category..."}
                     </span>
 
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </button>
+                    <ChevronsUpDown className="size-4 shrink-0 opacity-50" />
+                  </Button>
                 </PopoverTrigger>
 
                 <PopoverContent
@@ -950,11 +1161,14 @@ export default function ExpensesPage() {
                           <CommandItem
                             key={category.value}
                             value={category.label}
-                            className="text-xs"
+                            className="text-sm font-medium"
                             onSelect={() => {
                               setForm({
                                 ...form,
                                 category: category.value,
+                                reimbursable: reimbursableCategories.has(
+                                  category.value.trim().toUpperCase(),
+                                ),
                               });
 
                               setFormCategorySearch("");
@@ -981,7 +1195,7 @@ export default function ExpensesPage() {
                         ) && (
                           <CommandItem
                             value={`create-${formCategorySearch}`}
-                            className="text-xs"
+                            className="text-sm font-medium"
                             onSelect={() => {
                               const newCategory = formCategorySearch
                                 .trim()
@@ -990,6 +1204,7 @@ export default function ExpensesPage() {
                               setForm({
                                 ...form,
                                 category: newCategory,
+                                reimbursable: false,
                               });
 
                               setFormCategorySearch("");
@@ -1013,80 +1228,139 @@ export default function ExpensesPage() {
               </Popover>
             </div>
 
-            <div>
-              <label className="text-xs font-semibold mb-1 block">Amount</label>
-              <input
-                type="number"
+            <div className="col-span-2 flex items-center gap-2">
+              <Checkbox
+                id="expense-category-reimbursable"
+                checked={form.reimbursable}
+                disabled={!form.category}
+                onCheckedChange={(checked) =>
+                  setForm((current) => ({
+                    ...current,
+                    reimbursable: checked === true,
+                  }))
+                }
+              />
+
+              <Label
+                htmlFor="expense-category-reimbursable"
+                className="cursor-pointer text-xs font-normal"
+              >
+                Reimbursable
+              </Label>
+            </div>
+
+            <div className="col-span-2 space-y-1.5">
+              <Label htmlFor="expense-amount" className="text-xs">
+                Amount
+              </Label>
+
+              <Input
+                id="expense-amount"
+                type="text"
+                inputMode="decimal"
                 value={form.amount}
-                onChange={(e) => setForm({ ...form, amount: e.target.value })}
-                className={inputClass}
+                onChange={(e) =>
+                  setForm((current) => ({
+                    ...current,
+                    amount: e.target.value,
+                  }))
+                }
+                placeholder="0.00"
               />
             </div>
 
-            <div className="col-span-2">
-              <label className="text-xs font-semibold mb-1 block">
+            <div className="col-span-2 space-y-1.5">
+              <Label htmlFor="expense-description" className="text-xs">
                 Description
-              </label>
-              <input
-                type="text"
+              </Label>
+
+              <Textarea
+                id="expense-description"
                 value={form.description}
                 onChange={(e) =>
-                  setForm({ ...form, description: e.target.value })
+                  setForm((current) => ({
+                    ...current,
+                    description: e.target.value,
+                  }))
                 }
-                className={inputClass}
+                placeholder="Add a description..."
+                rows={2}
+                className="min-h-[56px] resize-none"
               />
             </div>
           </div>
 
           {/* FOOTER */}
-          <DialogFooter className="mt-4">
-            <button
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
               onClick={() => setExpenseModal(false)}
-              className="px-4 py-2.5 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors"
+              disabled={loading}
             >
               Cancel
-            </button>
+            </Button>
 
-            <button
-              onClick={handleSave}
-              disabled={loading}
-              className="px-6 py-2.5 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition disabled:opacity-50"
-            >
-              {loading ? "Saving..." : editRow ? "Update" : "Save"}
-            </button>
+            <Button type="button" onClick={handleSave} disabled={loading}>
+              {loading ? "Saving..." : editRow ? "Save Changes" : "Add Expense"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Delete Confirmation */}
       <Dialog open={!!deleteModal} onOpenChange={() => setDeleteModal(null)}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
             <DialogTitle>Delete expense?</DialogTitle>
+
+            <DialogDescription>
+              Are you sure you want to delete this expense?
+            </DialogDescription>
           </DialogHeader>
 
-          <p className="text-sm">
+          <p className="text-sm font-medium">
             {deleteModal?.dateText} / {deleteModal?.category}
           </p>
 
           <DialogFooter>
-            <button
+            <Button
+              type="button"
+              variant="outline"
               onClick={() => setDeleteModal(null)}
-              className="px-4 py-2.5 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors"
+              disabled={loading}
             >
               Cancel
-            </button>
-            <button
+            </Button>
+
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={loading}
               onClick={async () => {
-                if (deleteModal) {
+                if (!deleteModal) return;
+
+                setLoading(true);
+
+                try {
                   await deleteExpense(deleteModal._id);
+                  await fetchExpenseSummary();
+
                   setDeleteModal(null);
+                } catch (err: unknown) {
+                  toast.error(
+                    err instanceof Error
+                      ? err.message
+                      : "Failed to delete expense",
+                  );
+                } finally {
+                  setLoading(false);
                 }
               }}
-              className="bg-red-500 text-white px-4 py-2 rounded-md"
             >
-              Delete
-            </button>
+              <Trash2 />
+              {loading ? "Deleting..." : "Delete Expense"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1094,27 +1368,27 @@ export default function ExpensesPage() {
       {/* Truck Warning */}
       <Dialog open={showTruckWarning} onOpenChange={setShowTruckWarning}>
         <DialogContent className="sm:max-w-[400px] text-center">
-          <div className="py-4">
-            <div className="mx-auto mb-4 w-14 h-14 rounded-full bg-amber-500/10 grid place-items-center text-amber-500">
-              <AlertTriangle size={28} />
+          <DialogHeader className="items-center text-center">
+            <div className="mb-1 grid size-10 place-items-center rounded-full bg-amber-500/10 text-amber-500">
+              <AlertTriangle className="size-5" />
             </div>
 
-            <div className="font-bold text-lg mb-1">
-              Please select a truck first!
-            </div>
+            <DialogTitle className="text-sm">
+              Please select a specific truck first!
+            </DialogTitle>
 
-            <p className="text-sm text-muted-foreground">
-              Choose a truck from the Truck filter before adding an expense.
-            </p>
-          </div>
+            <DialogDescription>
+              Choose a specific truck to continue.
+            </DialogDescription>
+          </DialogHeader>
 
-          <DialogFooter className="flex justify-center">
-            <button
+          <DialogFooter className="sm:justify-center">
+            <Button
+              variant="outline"
               onClick={() => setShowTruckWarning(false)}
-              className="px-4 py-2 rounded-md border border-border text-sm font-medium hover:bg-muted transition"
             >
               OK
-            </button>
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

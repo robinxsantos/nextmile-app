@@ -3,16 +3,16 @@ import { toast } from "sonner";
 import { useAppStore, type TripRow } from "../../store/useAppStore";
 import { useAuthStore } from "../../store/useAuthStore";
 import {
-  ClipboardCopy,
   CalendarDays,
-  ChevronsUpDown,
-  Check,
   TruckElectric,
   BedDouble,
   TentTree,
   Calculator,
   Percent,
   PhilippinePeso,
+  Check,
+  ChevronsUpDown,
+  Plus,
 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -24,11 +24,31 @@ import { format } from "date-fns";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Command, CommandGroup, CommandItem } from "@/components/ui/command";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import api from "../../api/client";
+import { cn } from "../../lib/utils";
+import {
+  Command,
+  CommandInput,
+  CommandGroup,
+  CommandItem,
+  CommandEmpty,
+} from "@/components/ui/command";
 
 interface TripModalProps {
   open: boolean;
@@ -111,21 +131,14 @@ export default function TripModal({
   editRow,
   duplicateFrom,
 }: TripModalProps) {
-  const {
-    selectedTruck,
-    truckOptions,
-    addTrip,
-    updateTrip,
-    getLastTrip,
-    fetchDashboard,
-  } = useAppStore();
+  const { selectedTruck, truckOptions, addTrip, updateTrip, fetchDashboard } =
+    useAppStore();
   const { user } = useAuthStore();
 
   const canManageTripFinancials =
     user?.role === "admin" || user?.role === "manager";
 
   const [loading, setLoading] = useState(false);
-  const [copyingLast, setCopyingLast] = useState(false);
   const [form, setForm] = useState({
     date: new Date(),
     status: "Working Day",
@@ -139,15 +152,21 @@ export default function TripModal({
     trips: "",
     crewSalary: "",
     cashAdvance: "",
+    reimbursementCategory: "",
     reimbursements: "",
     note: "",
   });
 
   const [openDate, setOpenDate] = useState(false);
-  const [openStatus, setOpenStatus] = useState(false);
-  const [openAdjustmentType, setOpenAdjustmentType] = useState(false);
-  const [openAutoVat, setOpenAutoVat] = useState(false);
-  const [openCalculatorApplyAs, setOpenCalculatorApplyAs] = useState(false);
+  const [openReimbursementCategory, setOpenReimbursementCategory] =
+    useState(false);
+
+  const [reimbursementCategorySearch, setReimbursementCategorySearch] =
+    useState("");
+
+  const [reimbursableCategories, setReimbursableCategories] = useState<
+    string[]
+  >([]);
   const [selectedDate, setSelectedDate] = useState<Date>(form.date);
   const [adjustmentCalculatorOpen, setAdjustmentCalculatorOpen] =
     useState(false);
@@ -158,6 +177,40 @@ export default function TripModal({
   const [calculatorApplyAs, setCalculatorApplyAs] = useState<
     "amount" | "percentage"
   >("amount");
+
+  const fetchReimbursableCategories = async () => {
+    if (!selectedTruck) {
+      setReimbursableCategories([]);
+      return;
+    }
+
+    try {
+      const { data } = await api.get("/expenses/category-settings", {
+        params: {
+          truck: selectedTruck,
+        },
+      });
+
+      const categories = (data.categories || [])
+        .filter(
+          (category: { name: string; reimbursable: boolean }) =>
+            category.reimbursable,
+        )
+        .map((category: { name: string }) => category.name)
+        .sort();
+
+      setReimbursableCategories(categories);
+    } catch (error) {
+      console.error("Failed to load reimbursable categories:", error);
+      setReimbursableCategories([]);
+    }
+  };
+
+  useEffect(() => {
+    if (open) {
+      fetchReimbursableCategories();
+    }
+  }, [open, selectedTruck]);
 
   const prefillFromTrip = (src: TripRow, useToday = true) => {
     setForm({
@@ -177,6 +230,7 @@ export default function TripModal({
       trips: String(src.trips || ""),
       crewSalary: String(src.crewSalary || ""),
       cashAdvance: String(src.cashAdvance || ""),
+      reimbursementCategory: src.reimbursementCategory || "",
       reimbursements: String(src.reimbursements || ""),
       note: src.note || "",
     });
@@ -211,6 +265,7 @@ export default function TripModal({
         trips: "",
         crewSalary: "",
         cashAdvance: "",
+        reimbursementCategory: "",
         reimbursements: "",
         note: "",
       });
@@ -218,29 +273,6 @@ export default function TripModal({
       setSelectedDate(today); // 🔥 IMPORTANT
     }
   }, [editRow, duplicateFrom, open]);
-
-  const handleCopyFromLast = async () => {
-    if (!selectedTruck) {
-      toast.error("Please select a truck first!");
-      return;
-    }
-    setCopyingLast(true);
-    try {
-      const lastTrip = await getLastTrip(selectedTruck);
-      if (lastTrip) {
-        prefillFromTrip(lastTrip, true);
-        toast.success("Copied from last trip!");
-      } else {
-        toast.info("No previous trips found for this truck.", {
-          duration: 4000,
-        });
-      }
-    } catch {
-      toast.error("Failed to fetch last trip.");
-    } finally {
-      setCopyingLast(false);
-    }
-  };
 
   const calculateFinalRate = (
     originalRate: number,
@@ -268,6 +300,22 @@ export default function TripModal({
       ...currentForm,
       ...overrides,
     };
+
+    if (next.status === "Day Off") {
+      return {
+        ...next,
+        originalRate: "",
+        rateAdjustmentType: "none",
+        rateAdjustment: "",
+        rate: "",
+        vat: "",
+        trips: "",
+        crewSalary: "",
+        cashAdvance: "",
+        reimbursementCategory: "",
+        reimbursements: "",
+      };
+    }
 
     const originalRate = Number(next.originalRate) || 0;
     const adjustment = Number(next.rateAdjustment) || 0;
@@ -402,6 +450,24 @@ export default function TripModal({
       }
     }
 
+    if (
+      canManageTripFinancials &&
+      Number(form.reimbursements || 0) > 0 &&
+      !form.reimbursementCategory.trim()
+    ) {
+      toast.error("Reimbursement Category is required.");
+      return;
+    }
+
+    if (
+      canManageTripFinancials &&
+      form.reimbursementCategory.trim() &&
+      Number(form.reimbursements || 0) <= 0
+    ) {
+      toast.error("Reimbursement amount is required.");
+      return;
+    }
+
     setLoading(true);
     try {
       const payload = {
@@ -426,6 +492,9 @@ export default function TripModal({
         cashAdvance: canManageTripFinancials
           ? Number(form.cashAdvance) || 0
           : 0,
+        reimbursementCategory: canManageTripFinancials
+          ? form.reimbursementCategory
+          : "",
         reimbursements: canManageTripFinancials
           ? Number(form.reimbursements) || 0
           : 0,
@@ -449,8 +518,6 @@ export default function TripModal({
   const selectedTruckName =
     truckOptions.find((t) => t._id === selectedTruck)?.truckName ||
     "Selected Truck";
-  const inputClass =
-    "w-full h-11 rounded-md border border-border bg-background px-3 text-xs focus:ring-2 focus:ring-ring focus:border-ring outline-none transition-colors";
 
   const modalTitle = editRow
     ? `Edit Trip - ${selectedTruckName} - ${editRow.dateText}`
@@ -468,172 +535,121 @@ export default function TripModal({
           if (!val) onClose();
         }}
       >
-        <DialogContent
-          className="sm:max-w-[700px]"
-          onOpenAutoFocus={(e) => e.preventDefault()}
-        >
+        <DialogContent className="sm:max-w-[700px] !gap-3">
           <DialogHeader>
             <DialogTitle>{modalTitle}</DialogTitle>
+
+            <DialogDescription className="sr-only">
+              Enter the trip details below.
+            </DialogDescription>
           </DialogHeader>
 
           {/* BODY */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-4">
             {/* DATE */}
-            <div>
-              <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
-                Date
-              </label>
+            <div className="space-y-1.5">
+              <Label className="text-xs">
+                Date <span className="text-destructive">*</span>
+              </Label>
 
               <Popover open={openDate} onOpenChange={setOpenDate}>
                 <PopoverTrigger asChild>
-                  <button
-                    className={
-                      inputClass + " flex items-center justify-between"
-                    }
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full justify-between font-normal"
                   >
                     {selectedDate
                       ? format(selectedDate, "MMM d, yyyy")
                       : "Select date"}
-                    <CalendarDays className="h-4 w-4 opacity-50" />
-                  </button>
-                </PopoverTrigger>
 
-                <PopoverContent className="w-auto p-0 z-[9999]">
+                    <CalendarDays className="size-4 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
                     selected={selectedDate}
-                    onSelect={(d) => {
-                      if (!d) return;
-                      setSelectedDate(d);
-                      setForm({ ...form, date: d });
+                    onSelect={(date) => {
+                      if (!date) return;
+
+                      setSelectedDate(date);
+                      setForm((current) => ({
+                        ...current,
+                        date,
+                      }));
                       setOpenDate(false);
                     }}
                     initialFocus
                   />
                 </PopoverContent>
               </Popover>
-
-              {!editRow && (
-                <button
-                  type="button"
-                  onClick={handleCopyFromLast}
-                  disabled={copyingLast}
-                  className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-purple-600 hover:opacity-80 disabled:opacity-50"
-                >
-                  <ClipboardCopy size={14} />
-                  {copyingLast ? "Loading..." : "Copy from Last Trip"}
-                </button>
-              )}
             </div>
 
             {/* STATUS */}
-            <div>
-              <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
-                Status
-              </label>
+            <div className="space-y-1.5">
+              <Label className="text-xs">
+                Status <span className="text-destructive">*</span>
+              </Label>
 
-              <Popover open={openStatus} onOpenChange={setOpenStatus}>
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    role="combobox"
-                    className="w-full h-11 rounded-md border border-border bg-background px-3 text-xs flex items-center justify-between outline-none focus:ring-2 focus:ring-ring"
-                  >
-                    <div className="flex min-w-0 items-center gap-2">
-                      {(() => {
-                        const selectedStatus = STATUS_OPTIONS.find(
-                          (opt) => opt.value === form.status,
-                        );
+              <Select
+                value={form.status}
+                onValueChange={(value) =>
+                  setForm((current) =>
+                    recomputeRateFields(current, {
+                      status: value,
+                    }),
+                  )
+                }
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
 
-                        if (!selectedStatus) {
-                          return (
-                            <span className="truncate text-muted-foreground">
-                              Select status
-                            </span>
-                          );
-                        }
+                <SelectContent>
+                  {STATUS_OPTIONS.map((option) => {
+                    const Icon = option.icon;
 
-                        const Icon = selectedStatus.icon;
-
-                        return (
-                          <>
-                            <Icon className="h-4 w-4 shrink-0" />
-                            <span className="truncate">
-                              {selectedStatus.label}
-                            </span>
-                          </>
-                        );
-                      })()}
-                    </div>
-
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </button>
-                </PopoverTrigger>
-
-                <PopoverContent
-                  className="w-[var(--radix-popover-trigger-width)] p-0"
-                  align="start"
-                >
-                  <Command>
-                    <CommandGroup>
-                      {STATUS_OPTIONS.map((opt) => {
-                        const Icon = opt.icon;
-
-                        return (
-                          <CommandItem
-                            key={opt.value}
-                            value={opt.label}
-                            className="text-xs"
-                            onSelect={() => {
-                              setForm({
-                                ...form,
-                                status: opt.value,
-                              });
-
-                              setOpenStatus(false);
-                            }}
-                          >
-                            <Check
-                              className={`mr-2 h-4 w-4 ${
-                                form.status === opt.value
-                                  ? "opacity-100"
-                                  : "opacity-0"
-                              }`}
-                            />
-
-                            <Icon className="mr-2 h-4 w-4" />
-                            {opt.label}
-                          </CommandItem>
-                        );
-                      })}
-                    </CommandGroup>
-                  </Command>
-                </PopoverContent>
-              </Popover>
+                    return (
+                      <SelectItem key={option.value} value={option.value}>
+                        <Icon className="size-4" />
+                        {option.label}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* SHIPMENT */}
-            <div>
-              <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
+            <div className="space-y-1.5">
+              <Label className="text-xs">
                 Shipment Number
-              </label>
-              <input
+                {!canManageTripFinancials && (
+                  <span className="text-destructive"> *</span>
+                )}
+              </Label>
+
+              <Input
                 type="text"
                 value={form.shipmentNumber}
                 onChange={(e) =>
                   setForm({ ...form, shipmentNumber: e.target.value })
                 }
                 placeholder="e.g. SHP-0410-123"
-                className={inputClass}
               />
             </div>
 
             {/* CREW */}
-            <div>
-              <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
+            <div className="space-y-1.5">
+              <Label className="text-xs">
                 Crew Salary (₱)
-              </label>
-              <input
+                {canManageTripFinancials && form.status === "Working Day" && (
+                  <span className="text-destructive"> *</span>
+                )}
+              </Label>
+
+              <Input
                 type="text"
                 inputMode="numeric"
                 value={formatNumberWithComma(form.crewSalary)}
@@ -643,21 +659,20 @@ export default function TripModal({
                 }}
                 placeholder="0"
                 disabled={readOnlyForDriver}
-                className={
-                  inputClass +
-                  (readOnlyForDriver ? " opacity-60 cursor-not-allowed" : "")
-                }
               />
             </div>
 
             {/* RATE */}
             {/* ORIGINAL RATE */}
-            <div>
-              <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
+            <div className="space-y-1.5">
+              <Label className="text-xs">
                 Original Rate (₱)
-              </label>
+                {canManageTripFinancials && form.status === "Working Day" && (
+                  <span className="text-destructive"> *</span>
+                )}
+              </Label>
 
-              <input
+              <Input
                 type="text"
                 inputMode="decimal"
                 value={formatNumberWithComma(form.originalRate)}
@@ -667,153 +682,92 @@ export default function TripModal({
                 }}
                 placeholder="0"
                 disabled={readOnlyForDriver}
-                className={
-                  inputClass +
-                  (readOnlyForDriver ? " opacity-60 cursor-not-allowed" : "")
-                }
               />
             </div>
 
             {/* FINAL RATE */}
-            <div>
-              <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
-                Rate (₱)
-              </label>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Rate (₱)</Label>
 
-              <input
+              <Input
                 type="text"
                 value={formatNumberWithComma(form.rate)}
                 placeholder="0"
                 readOnly
                 disabled={readOnlyForDriver}
-                className={
-                  inputClass +
-                  " bg-muted " +
-                  (readOnlyForDriver ? " opacity-60 cursor-not-allowed" : "")
-                }
+                className="bg-muted"
               />
 
-              <p className="mt-1 text-[10px] text-muted-foreground">
+              <p className="text-[10px] leading-none text-muted-foreground">
                 Auto-computed final rate
               </p>
             </div>
 
             {/* RATE ADJUSTMENT TYPE */}
-            <div>
-              <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
-                Rate Adjustment Type
-              </label>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Rate Adjustment Type</Label>
 
-              <Popover
-                open={openAdjustmentType}
-                onOpenChange={setOpenAdjustmentType}
+              <Select
+                value={form.rateAdjustmentType}
+                disabled={readOnlyForDriver}
+                onValueChange={(value) => {
+                  const adjustmentType = value as
+                    | "none"
+                    | "amount"
+                    | "percentage";
+
+                  setForm((current) =>
+                    recomputeRateFields(current, {
+                      rateAdjustmentType: adjustmentType,
+                      rateAdjustment:
+                        adjustmentType === "none" ? "" : current.rateAdjustment,
+                    }),
+                  );
+                }}
               >
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    role="combobox"
-                    disabled={readOnlyForDriver}
-                    className={
-                      inputClass +
-                      " flex items-center justify-between " +
-                      (readOnlyForDriver
-                        ? " opacity-60 cursor-not-allowed"
-                        : "")
-                    }
-                  >
-                    <div className="flex items-center gap-2">
-                      {(() => {
-                        const selected = RATE_ADJUSTMENT_OPTIONS.find(
-                          (option) => option.value === form.rateAdjustmentType,
-                        );
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
 
-                        if (!selected) return <span>None</span>;
+                <SelectContent>
+                  {RATE_ADJUSTMENT_OPTIONS.map((option) => {
+                    const Icon = option.icon;
 
-                        const Icon = selected.icon;
-
-                        return (
-                          <>
-                            {Icon && <Icon className="h-4 w-4 shrink-0" />}
-                            <span>{selected.label}</span>
-                          </>
-                        );
-                      })()}
-                    </div>
-
-                    <ChevronsUpDown className="h-4 w-4 opacity-50" />
-                  </button>
-                </PopoverTrigger>
-
-                <PopoverContent
-                  className="w-[var(--radix-popover-trigger-width)] p-0"
-                  align="start"
-                >
-                  <Command>
-                    <CommandGroup>
-                      {RATE_ADJUSTMENT_OPTIONS.map((option) => {
-                        const Icon = option.icon;
-
-                        return (
-                          <CommandItem
-                            key={option.value}
-                            value={option.label}
-                            className="text-xs"
-                            onSelect={() => {
-                              setForm((current) =>
-                                recomputeRateFields(current, {
-                                  rateAdjustmentType: option.value,
-                                  rateAdjustment:
-                                    option.value === "none"
-                                      ? ""
-                                      : current.rateAdjustment,
-                                }),
-                              );
-
-                              setOpenAdjustmentType(false);
-                            }}
-                          >
-                            <Check
-                              className={`mr-2 h-4 w-4 ${
-                                form.rateAdjustmentType === option.value
-                                  ? "opacity-100"
-                                  : "opacity-0"
-                              }`}
-                            />
-
-                            {Icon && <Icon className="mr-2 h-4 w-4" />}
-
-                            {option.label}
-                          </CommandItem>
-                        );
-                      })}
-                    </CommandGroup>
-                  </Command>
-                </PopoverContent>
-              </Popover>
+                    return (
+                      <SelectItem key={option.value} value={option.value}>
+                        {Icon && <Icon className="size-4" />}
+                        {option.label}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* RATE ADJUSTMENT */}
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-semibold text-muted-foreground">
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">
                   {form.rateAdjustmentType === "percentage"
                     ? "Rate Adjustment (%)"
                     : "Rate Adjustment (₱)"}
-                </label>
+                </Label>
 
                 {!readOnlyForDriver && (
-                  <button
+                  <Button
                     type="button"
+                    variant="link"
+                    size="sm"
                     onClick={handleOpenAdjustmentCalculator}
-                    className="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
+                    className="h-auto px-0 py-0 text-[11px]"
                   >
-                    <Calculator className="h-3.5 w-3.5" />
+                    <Calculator data-icon="inline-start" />
                     Calculator
-                  </button>
+                  </Button>
                 )}
               </div>
 
-              <input
+              <Input
                 type="text"
                 inputMode="decimal"
                 value={formatNumberWithComma(form.rateAdjustment)}
@@ -826,112 +780,62 @@ export default function TripModal({
                   readOnlyForDriver || form.rateAdjustmentType === "none"
                 }
                 className={
-                  inputClass +
-                  (form.rateAdjustmentType === "none" ? " bg-muted" : "") +
-                  (readOnlyForDriver ? " opacity-60 cursor-not-allowed" : "")
+                  form.rateAdjustmentType === "none" ? "bg-muted" : undefined
                 }
               />
             </div>
 
             {/* AUTO VAT */}
-            <div>
-              <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
-                Auto-Compute VAT
-              </label>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Auto-Compute VAT</Label>
 
-              <Popover open={openAutoVat} onOpenChange={setOpenAutoVat}>
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    role="combobox"
-                    disabled={readOnlyForDriver}
-                    className={
-                      inputClass +
-                      " flex items-center justify-between " +
-                      (readOnlyForDriver
-                        ? " opacity-60 cursor-not-allowed"
-                        : "")
-                    }
-                  >
-                    <span>{form.autoVat ? "Yes" : "No"}</span>
+              <Select
+                value={form.autoVat ? "yes" : "no"}
+                disabled={readOnlyForDriver}
+                onValueChange={(value) => {
+                  const autoVat = value === "yes";
 
-                    <ChevronsUpDown className="h-4 w-4 opacity-50" />
-                  </button>
-                </PopoverTrigger>
+                  setForm((current) =>
+                    recomputeRateFields(current, {
+                      autoVat,
+                    }),
+                  );
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
 
-                <PopoverContent
-                  className="w-[var(--radix-popover-trigger-width)] p-0"
-                  align="start"
-                >
-                  <Command>
-                    <CommandGroup>
-                      {[
-                        ["yes", "Yes"],
-                        ["no", "No"],
-                      ].map(([value, label]) => (
-                        <CommandItem
-                          key={value}
-                          value={label}
-                          className="text-xs"
-                          onSelect={() => {
-                            const autoVat = value === "yes";
-
-                            setForm((current) =>
-                              recomputeRateFields(current, {
-                                autoVat,
-                              }),
-                            );
-
-                            setOpenAutoVat(false);
-                          }}
-                        >
-                          <Check
-                            className={`mr-2 h-4 w-4 ${
-                              form.autoVat === (value === "yes")
-                                ? "opacity-100"
-                                : "opacity-0"
-                            }`}
-                          />
-
-                          {label}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </Command>
-                </PopoverContent>
-              </Popover>
+                <SelectContent>
+                  <SelectItem value="yes">Yes</SelectItem>
+                  <SelectItem value="no">No</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {/* VAT */}
-            <div>
-              <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
-                VAT (₱)
-              </label>
+            <div className="space-y-1.5">
+              <Label className="text-xs">VAT (₱)</Label>
 
-              <input
+              <Input
                 type="text"
                 value={formatNumberWithComma(form.vat)}
                 placeholder="0"
                 readOnly
                 disabled={readOnlyForDriver}
-                className={
-                  inputClass +
-                  " bg-muted " +
-                  (readOnlyForDriver ? " opacity-60 cursor-not-allowed" : "")
-                }
+                className="bg-muted"
               />
 
-              <p className="mt-1 text-[10px] text-muted-foreground">
+              <p className="text-[10px] leading-none text-muted-foreground">
                 {form.autoVat ? "12% of Original Rate" : "VAT disabled"}
               </p>
             </div>
 
             {/* CASH ADVANCE */}
-            <div>
-              <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
-                Cash Advance (₱)
-              </label>
-              <input
+            <div className="space-y-1.5">
+              <Label className="text-xs">Cash Advance (₱)</Label>
+
+              <Input
                 type="text"
                 inputMode="numeric"
                 value={formatNumberWithComma(form.cashAdvance)}
@@ -941,72 +845,216 @@ export default function TripModal({
                 }}
                 placeholder="0"
                 disabled={readOnlyForDriver}
-                className={
-                  inputClass +
-                  (readOnlyForDriver ? " opacity-60 cursor-not-allowed" : "")
-                }
               />
             </div>
 
-            {/* REIMBURSE */}
-            <div>
-              <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
+            {/* REIMBURSEMENT CATEGORY */}
+            <div className="space-y-1.5">
+              <Label className="text-xs">Reimbursement Category</Label>
+
+              <Popover
+                open={openReimbursementCategory}
+                onOpenChange={(open) => {
+                  setOpenReimbursementCategory(open);
+
+                  if (!open) {
+                    setReimbursementCategorySearch("");
+                  }
+                }}
+              >
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    role="combobox"
+                    disabled={readOnlyForDriver}
+                    className={cn(
+                      "w-full justify-between font-normal",
+                      !form.reimbursementCategory && "text-muted-foreground",
+                    )}
+                  >
+                    <span className="truncate">
+                      {form.reimbursementCategory ||
+                        "Search/Create Category..."}
+                    </span>
+
+                    <ChevronsUpDown className="size-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+
+                <PopoverContent
+                  className="w-[var(--radix-popover-trigger-width)] p-0"
+                  align="start"
+                >
+                  <Command shouldFilter={false}>
+                    <CommandInput
+                      placeholder="Search or create category..."
+                      value={reimbursementCategorySearch}
+                      onValueChange={setReimbursementCategorySearch}
+                      className="text-sm"
+                    />
+
+                    <CommandGroup>
+                      {reimbursableCategories
+                        .filter((category) =>
+                          category
+                            .toLowerCase()
+                            .includes(
+                              reimbursementCategorySearch.trim().toLowerCase(),
+                            ),
+                        )
+                        .map((category) => (
+                          <CommandItem
+                            key={category}
+                            value={category}
+                            className="text-sm font-medium"
+                            onSelect={() => {
+                              setForm((current) => ({
+                                ...current,
+                                reimbursementCategory: category,
+                              }));
+
+                              setReimbursementCategorySearch("");
+                              setOpenReimbursementCategory(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 size-4",
+                                form.reimbursementCategory === category
+                                  ? "opacity-100"
+                                  : "opacity-0",
+                              )}
+                            />
+
+                            {category}
+                          </CommandItem>
+                        ))}
+
+                      {reimbursementCategorySearch.trim() &&
+                        !reimbursableCategories.some(
+                          (category) =>
+                            category.toLowerCase() ===
+                            reimbursementCategorySearch.trim().toLowerCase(),
+                        ) && (
+                          <CommandItem
+                            value={`create-${reimbursementCategorySearch}`}
+                            className="text-sm font-medium"
+                            onSelect={async () => {
+                              if (!selectedTruck) return;
+
+                              const newCategory = reimbursementCategorySearch
+                                .trim()
+                                .toUpperCase();
+
+                              try {
+                                await api.put("/expenses/category-settings", {
+                                  truckId: selectedTruck,
+                                  name: newCategory,
+                                  reimbursable: true,
+                                });
+
+                                setReimbursableCategories((current) =>
+                                  [
+                                    ...new Set([...current, newCategory]),
+                                  ].sort(),
+                                );
+
+                                setForm((current) => ({
+                                  ...current,
+                                  reimbursementCategory: newCategory,
+                                }));
+
+                                setReimbursementCategorySearch("");
+                                setOpenReimbursementCategory(false);
+                              } catch (error) {
+                                console.error(
+                                  "Failed to create reimbursement category:",
+                                  error,
+                                );
+                                toast.error(
+                                  "Failed to create reimbursement category.",
+                                );
+                              }
+                            }}
+                          >
+                            <Plus className="mr-2 size-4" />
+                            Create "{reimbursementCategorySearch.trim()}"
+                          </CommandItem>
+                        )}
+
+                      {!reimbursementCategorySearch.trim() &&
+                        reimbursableCategories.length === 0 && (
+                          <CommandEmpty className="text-xs">
+                            No reimbursable categories found.
+                          </CommandEmpty>
+                        )}
+                    </CommandGroup>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {/* REIMBURSEMENTS */}
+            <div className="space-y-1.5">
+              <Label className="text-xs">
                 Reimbursements (₱)
-              </label>
-              <input
+                {form.reimbursementCategory && (
+                  <span className="text-destructive"> *</span>
+                )}
+              </Label>
+
+              <Input
                 type="text"
                 inputMode="numeric"
                 value={formatNumberWithComma(form.reimbursements)}
                 onChange={(e) => {
                   const raw = sanitizeNumberInput(e.target.value);
-                  setForm({ ...form, reimbursements: raw });
+
+                  setForm((current) => ({
+                    ...current,
+                    reimbursements: raw,
+                    reimbursementCategory:
+                      !raw || Number(raw) <= 0
+                        ? ""
+                        : current.reimbursementCategory,
+                  }));
                 }}
                 placeholder="0"
-                disabled={readOnlyForDriver}
-                className={
-                  inputClass +
-                  (readOnlyForDriver ? " opacity-60 cursor-not-allowed" : "")
-                }
+                disabled={readOnlyForDriver || !form.reimbursementCategory}
+                className={!form.reimbursementCategory ? "bg-muted" : undefined}
               />
             </div>
 
             {/* NOTE */}
-            <div className="col-span-2">
-              <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
-                Expense Note
-              </label>
+            <div className="col-span-2 space-y-1.5">
+              <Label className="text-xs">Expense Note</Label>
 
-              <textarea
+              <Textarea
                 value={form.note}
                 onChange={(e) => setForm({ ...form, note: e.target.value })}
                 disabled={!editRow}
-                className={
-                  inputClass +
-                  " min-h-[80px] py-2.5 resize-none " +
-                  (!editRow ? "opacity-60 cursor-not-allowed" : "")
-                }
-                rows={3}
+                rows={2}
                 placeholder="Expense description will automatically appear here based on the date."
+                className="min-h-[56px] resize-none"
               />
             </div>
           </div>
 
           {/* FOOTER */}
-          <DialogFooter className="mt-4">
-            <button
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
               onClick={onClose}
-              className="px-4 py-2.5 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors"
+              disabled={loading}
             >
               Cancel
-            </button>
+            </Button>
 
-            <button
-              onClick={handleSubmit}
-              disabled={loading}
-              className="px-6 py-2.5 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition disabled:opacity-50"
-            >
+            <Button type="button" onClick={handleSubmit} disabled={loading}>
               {loading ? "Saving..." : editRow ? "Update" : "Save"}
-            </button>
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1018,15 +1066,17 @@ export default function TripModal({
         <DialogContent className="sm:max-w-[420px]">
           <DialogHeader>
             <DialogTitle>Rate Adjustment Calculator</DialogTitle>
+
+            <DialogDescription className="sr-only">
+              Calculate and apply a rate adjustment.
+            </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
-            <div>
-              <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
-                Original Rate (₱)
-              </label>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Original Rate (₱)</Label>
 
-              <input
+              <Input
                 type="text"
                 inputMode="decimal"
                 value={formatNumberWithComma(calculatorOriginalRate)}
@@ -1034,16 +1084,13 @@ export default function TripModal({
                   setCalculatorOriginalRate(sanitizeNumberInput(e.target.value))
                 }
                 placeholder="0"
-                className={inputClass}
               />
             </div>
 
-            <div>
-              <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
-                Actual Rate Received (₱)
-              </label>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Actual Rate Received (₱)</Label>
 
-              <input
+              <Input
                 type="text"
                 inputMode="decimal"
                 value={formatNumberWithComma(calculatorActualRate)}
@@ -1051,11 +1098,10 @@ export default function TripModal({
                   setCalculatorActualRate(sanitizeNumberInput(e.target.value))
                 }
                 placeholder="0"
-                className={inputClass}
               />
             </div>
 
-            <div className="rounded-md border border-border bg-muted/30 p-3 space-y-2">
+            <div className="space-y-1.5 rounded-md border bg-muted/30 p-3">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-muted-foreground">Deduction</span>
                 <span className="font-semibold">
@@ -1084,87 +1130,46 @@ export default function TripModal({
               </div>
             </div>
 
-            <div>
-              <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
-                Apply As
-              </label>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Apply As</Label>
 
-              <Popover
-                open={openCalculatorApplyAs}
-                onOpenChange={setOpenCalculatorApplyAs}
+              <Select
+                value={calculatorApplyAs}
+                onValueChange={(value) =>
+                  setCalculatorApplyAs(value as "amount" | "percentage")
+                }
               >
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    role="combobox"
-                    className={
-                      inputClass + " flex items-center justify-between"
-                    }
-                  >
-                    <span>
-                      {calculatorApplyAs === "amount" ? "Amount" : "Percentage"}
-                    </span>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
 
-                    <ChevronsUpDown className="h-4 w-4 opacity-50" />
-                  </button>
-                </PopoverTrigger>
+                <SelectContent>
+                  <SelectItem value="amount">
+                    <PhilippinePeso className="size-4" />
+                    Amount
+                  </SelectItem>
 
-                <PopoverContent
-                  className="w-[var(--radix-popover-trigger-width)] p-0"
-                  align="start"
-                >
-                  <Command>
-                    <CommandGroup>
-                      {[
-                        ["amount", "Amount"],
-                        ["percentage", "Percentage"],
-                      ].map(([value, label]) => (
-                        <CommandItem
-                          key={value}
-                          value={label}
-                          className="text-xs"
-                          onSelect={() => {
-                            setCalculatorApplyAs(
-                              value as "amount" | "percentage",
-                            );
-
-                            setOpenCalculatorApplyAs(false);
-                          }}
-                        >
-                          <Check
-                            className={`mr-2 h-4 w-4 ${
-                              calculatorApplyAs === value
-                                ? "opacity-100"
-                                : "opacity-0"
-                            }`}
-                          />
-
-                          {label}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </Command>
-                </PopoverContent>
-              </Popover>
+                  <SelectItem value="percentage">
+                    <Percent className="size-4" />
+                    Percentage
+                  </SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
-          <DialogFooter className="mt-2">
-            <button
+          <DialogFooter>
+            <Button
               type="button"
+              variant="outline"
               onClick={() => setAdjustmentCalculatorOpen(false)}
-              className="px-4 py-2.5 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors"
             >
               Cancel
-            </button>
+            </Button>
 
-            <button
-              type="button"
-              onClick={handleApplyAdjustmentCalculator}
-              className="px-5 py-2.5 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition"
-            >
+            <Button type="button" onClick={handleApplyAdjustmentCalculator}>
               Apply
-            </button>
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

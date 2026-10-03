@@ -87,7 +87,7 @@ function calculateKpis(rows: any[], expenses: any[]) {
   });
 
   const totalExpenses = expenses.reduce(
-    (sum: number, e: any) => sum + Number(e.amount || 0),
+    (sum: number, e: any) => sum + (e.reimbursed ? 0 : Number(e.amount || 0)),
     0,
   );
 
@@ -220,6 +220,7 @@ router.get("/", requireAuth, async (req: AuthRequest, res: Response) => {
       _id: t._id,
       truckName: t.truckName,
       companyName: t.companyName || "",
+      billingType: t.billingType,
       cutoffType: t.cutoffType || "weekly",
       cutoffStart: t.cutoffStart,
       cutoffEnd: t.cutoffEnd,
@@ -582,10 +583,12 @@ router.get("/reports", requireAuth, async (req: AuthRequest, res: Response) => {
     for (const expense of allExpenses) {
       const dateKey = toISODateString(new Date(expense.date));
 
-      expensesByDate.set(
-        dateKey,
-        (expensesByDate.get(dateKey) || 0) + Number(expense.amount || 0),
-      );
+      if (!expense.reimbursed) {
+        expensesByDate.set(
+          dateKey,
+          (expensesByDate.get(dateKey) || 0) + Number(expense.amount || 0),
+        );
+      }
     }
 
     const formattedTrips = trips.map((t) => formatTripResponse(t as any));

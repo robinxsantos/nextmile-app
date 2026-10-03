@@ -1,10 +1,15 @@
+import { ChevronsLeft, ChevronsRight } from "lucide-react";
+
 import {
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
-} from "lucide-react";
-import { cn } from "../../lib/utils";
+  Pagination as PaginationRoot,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+
 import {
   Select,
   SelectContent,
@@ -44,139 +49,187 @@ export default function Pagination({
 
   const getPageNumbers = () => {
     const pages: (number | "...")[] = [];
+
     if (totalPages <= 7) {
-      for (let i = 1; i <= totalPages; i++) pages.push(i);
-    } else {
-      pages.push(1);
-      if (currentPage > 3) pages.push("...");
-      const start = Math.max(2, currentPage - 1);
-      const end = Math.min(totalPages - 1, currentPage + 1);
-      for (let i = start; i <= end; i++) pages.push(i);
-      if (currentPage < totalPages - 2) pages.push("...");
-      pages.push(totalPages);
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+
+      return pages;
     }
+
+    pages.push(1);
+
+    if (currentPage > 3) {
+      pages.push("...");
+    }
+
+    const start = Math.max(2, currentPage - 1);
+    const end = Math.min(totalPages - 1, currentPage + 1);
+
+    for (let i = start; i <= end; i++) {
+      pages.push(i);
+    }
+
+    if (currentPage < totalPages - 2) {
+      pages.push("...");
+    }
+
+    pages.push(totalPages);
+
     return pages;
   };
 
-  const btnBase =
-    "h-9 min-w-[36px] rounded-md inline-flex items-center justify-center text-xs font-medium transition-colors";
-  const btnInactive =
-    "text-muted-foreground hover:bg-muted border border-transparent";
-  const btnActive = "bg-foreground text-background";
-  const btnDisabled = "opacity-30 pointer-events-none";
-
   return (
-    <div className="w-full px-4 py-3 grid grid-cols-[auto_1fr_auto] items-center">
-      {/* LEFT: TEXT */}
-      <div className="flex items-center gap-3 text-xs text-muted-foreground">
-        <span>
+    <div className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-4 px-4 py-3">
+      {/* LEFT */}
+      <div className="flex items-center gap-3">
+        <p className="whitespace-nowrap text-xs text-muted-foreground">
           Showing{" "}
-          <span className="font-semibold text-xs text-foreground">
+          <span className="font-medium text-foreground">
             {startItem}-{endItem}
           </span>{" "}
-          of{" "}
-          <span className="font-semibold text-xs text-foreground">
-            {totalItems}
-          </span>
-        </span>
+          of <span className="font-medium text-foreground">{totalItems}</span>
+        </p>
 
         {onPageSizeChange && (
-          <div className="min-w-[120px]">
-            <Select
-              value={String(pageSize)}
-              onValueChange={(value) => onPageSizeChange(Number(value))}
-            >
-              <SelectTrigger className="h-9 w-[120px] rounded-md px-3 text-xs">
-                <SelectValue />
-              </SelectTrigger>
+          <Select
+            value={String(pageSize)}
+            onValueChange={(value) => onPageSizeChange(Number(value))}
+          >
+            <SelectTrigger size="sm" className="w-[110px] text-xs">
+              <SelectValue />
+            </SelectTrigger>
 
-              <SelectContent position="popper" side="top" align="start">
-                {PAGE_SIZE_OPTIONS.map((option) => (
-                  <SelectItem
-                    key={option.value}
-                    value={String(option.value)}
-                    className="text-xs"
-                  >
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+            <SelectContent position="popper" side="top" align="start">
+              {PAGE_SIZE_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={String(option.value)}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         )}
       </div>
 
-      {/* CENTER SPACER (ITO YUNG KULANG MO) */}
       <div />
 
-      {/* RIGHT: BUTTONS */}
-      <div className="flex items-center gap-1 justify-self-end">
-        <button
-          onClick={() => onPageChange(1)}
-          disabled={currentPage === 1}
-          className={cn(btnBase, btnInactive, currentPage === 1 && btnDisabled)}
-          title="First"
-        >
-          <ChevronsLeft size={16} />
-        </button>
+      {/* RIGHT */}
+      <PaginationRoot className="mx-0 w-auto justify-end">
+        <PaginationContent>
+          {/* FIRST */}
+          <PaginationItem>
+            <PaginationLink
+              href="#"
+              size="icon"
+              aria-label="Go to first page"
+              aria-disabled={currentPage === 1}
+              className={
+                currentPage === 1 ? "pointer-events-none opacity-50" : undefined
+              }
+              onClick={(event) => {
+                event.preventDefault();
 
-        <button
-          onClick={() => onPageChange(currentPage - 1)}
-          disabled={currentPage === 1}
-          className={cn(btnBase, btnInactive, currentPage === 1 && btnDisabled)}
-          title="Previous"
-        >
-          <ChevronLeft size={16} />
-        </button>
-
-        {getPageNumbers().map((p, i) =>
-          p === "..." ? (
-            <span
-              key={`dot-${i}`}
-              className="h-9 min-w-[36px] inline-flex items-center justify-center text-slate-400 text-sm"
+                if (currentPage !== 1) {
+                  onPageChange(1);
+                }
+              }}
             >
-              ···
-            </span>
-          ) : (
-            <button
-              key={p}
-              onClick={() => onPageChange(p)}
-              className={cn(
-                btnBase,
-                p === currentPage ? btnActive : btnInactive,
-              )}
+              <ChevronsLeft />
+            </PaginationLink>
+          </PaginationItem>
+
+          {/* PREVIOUS */}
+          <PaginationItem>
+            <PaginationPrevious
+              href="#"
+              text=""
+              size="icon"
+              aria-disabled={currentPage === 1}
+              className={
+                currentPage === 1
+                  ? "pointer-events-none p-0! opacity-50"
+                  : "p-0!"
+              }
+              onClick={(event) => {
+                event.preventDefault();
+
+                if (currentPage > 1) {
+                  onPageChange(currentPage - 1);
+                }
+              }}
+            />
+          </PaginationItem>
+
+          {/* PAGES */}
+          {getPageNumbers().map((page, index) =>
+            page === "..." ? (
+              <PaginationItem key={`ellipsis-${index}`}>
+                <PaginationEllipsis />
+              </PaginationItem>
+            ) : (
+              <PaginationItem key={page}>
+                <PaginationLink
+                  href="#"
+                  isActive={page === currentPage}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    onPageChange(page);
+                  }}
+                >
+                  {page}
+                </PaginationLink>
+              </PaginationItem>
+            ),
+          )}
+
+          {/* NEXT */}
+          <PaginationItem>
+            <PaginationNext
+              href="#"
+              text=""
+              size="icon"
+              aria-disabled={currentPage === totalPages}
+              className={
+                currentPage === totalPages
+                  ? "pointer-events-none p-0! opacity-50"
+                  : "p-0!"
+              }
+              onClick={(event) => {
+                event.preventDefault();
+
+                if (currentPage < totalPages) {
+                  onPageChange(currentPage + 1);
+                }
+              }}
+            />
+          </PaginationItem>
+
+          {/* LAST */}
+          <PaginationItem>
+            <PaginationLink
+              href="#"
+              size="icon"
+              aria-label="Go to last page"
+              aria-disabled={currentPage === totalPages}
+              className={
+                currentPage === totalPages
+                  ? "pointer-events-none opacity-50"
+                  : undefined
+              }
+              onClick={(event) => {
+                event.preventDefault();
+
+                if (currentPage !== totalPages) {
+                  onPageChange(totalPages);
+                }
+              }}
             >
-              {p}
-            </button>
-          ),
-        )}
-
-        <button
-          onClick={() => onPageChange(currentPage + 1)}
-          disabled={currentPage === totalPages}
-          className={cn(
-            btnBase,
-            btnInactive,
-            currentPage === totalPages && btnDisabled,
-          )}
-          title="Next"
-        >
-          <ChevronRight size={16} />
-        </button>
-
-        <button
-          onClick={() => onPageChange(totalPages)}
-          disabled={currentPage === totalPages}
-          className={cn(
-            btnBase,
-            btnInactive,
-            currentPage === totalPages && btnDisabled,
-          )}
-          title="Last"
-        >
-          <ChevronsRight size={16} />
-        </button>
-      </div>
+              <ChevronsRight />
+            </PaginationLink>
+          </PaginationItem>
+        </PaginationContent>
+      </PaginationRoot>
     </div>
   );
 }

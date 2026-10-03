@@ -1,13 +1,12 @@
-import { cn } from '../../lib/utils';
+import { cn } from "@/lib/utils";
+import { TableCell, TableRow } from "@/components/ui/table";
 
 interface SkeletonProps {
   className?: string;
 }
 
 export function Skeleton({ className }: SkeletonProps) {
-  return (
-    <div className={cn('animate-pulse bg-slate-200 dark:bg-slate-700 rounded', className)} />
-  );
+  return <div className={cn("animate-pulse rounded-md bg-muted", className)} />;
 }
 
 export function SkeletonKpiCard() {
@@ -39,13 +38,13 @@ export function SkeletonChart() {
 
 export function SkeletonTableRow({ columns = 15 }: { columns?: number }) {
   return (
-    <tr>
-      {Array.from({ length: columns }).map((_, i) => (
-        <td key={i} className="text-center px-2.5 py-2.5 border-b border-slate-100 dark:border-slate-800">
-          <Skeleton className="h-4 w-full mx-auto" />
-        </td>
+    <TableRow>
+      {Array.from({ length: columns }).map((_, index) => (
+        <TableCell key={index}>
+          <Skeleton className="h-4 w-full max-w-[100px]" />
+        </TableCell>
       ))}
-    </tr>
+    </TableRow>
   );
 }
 
